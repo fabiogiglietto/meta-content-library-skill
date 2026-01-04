@@ -1,9 +1,13 @@
 ---
 name: mcl-api-r
 description: Meta Content Library (MCL) API v6.0 helper for R users on Meta Research Platforms. Use when researchers need to query Facebook, Instagram, or Threads public content using R via reticulate in the Meta Secure Research Environment (SRE) or SOMAR Virtual Data Enclave (VDE). Covers async queries, collections, jobs, pagination, rate limits, SNAPSHOT mode, and proper integer handling.
+version: 1.0.0
+updated: 2025-01-04
 ---
 
 # Meta Content Library API v6.0 for R
+
+> **Skill Version:** 1.0.0 | **Updated:** 2025-01-04 | [Changelog](#changelog)
 
 ## Environment
 
@@ -167,3 +171,29 @@ new_job_id <- fromJSON(rerun_response$text, flatten = TRUE)$id
 - `references/collections.md` - Organizing queries
 - `references/producer_lists.md` - Working with producer lists (surface_ids vs account_ids)
 - `references/utilities.md` - Quota check, package install, job retrieval
+
+---
+
+## Changelog
+
+### v1.0.0 (2025-01-04)
+- Initial release
+- Core async query patterns with integer `L` suffix handling
+- SNAPSHOT mode documentation
+- Producer list support with platform auto-detection
+- Quota monitoring from verified working code
+- Package installation via `fbrir`
+- Job retrieval patterns
+- Large dataset chunking
+- Collection management
+- OpenAPI spec access
+
+<!-- 
+UPDATE CHECKLIST:
+When updating this skill, remember to:
+1. Increment version in frontmatter and header
+2. Update the "updated" date
+3. Add changelog entry
+4. Update all reference files if needed
+5. Re-upload to Claude Projects
+-->
