@@ -1,13 +1,13 @@
 ---
 name: mcl-api-r
 description: Meta Content Library (MCL) API v6.0 helper for R users on Meta Research Platforms. Use when researchers need to query Facebook, Instagram, or Threads public content using R via reticulate in the Meta Secure Research Environment (SRE) or SOMAR Virtual Data Enclave (VDE). Covers async queries, collections, jobs, pagination, rate limits, SNAPSHOT mode, and proper integer handling.
-version: 1.0.0
+version: 1.1.0
 updated: 2025-01-04
 ---
 
 # Meta Content Library API v6.0 for R
 
-> **Skill Version:** 1.0.0 | **Updated:** 2025-01-04 | [Changelog](#changelog)
+> **Skill Version:** 1.1.0 | **Updated:** 2025-01-04 | [Changelog](#changelog)
 
 ## Environment
 
@@ -57,6 +57,22 @@ spec <- client$openapi_spec()
 
 Use this to discover all endpoints, parameters, and response schemas.
 
+## OpenAPI Spec Discovery
+
+When unsure about endpoint parameters, query the OpenAPI spec:
+
+```r
+spec <- client$openapi_spec()
+paths <- names(spec$paths)
+
+# Find Instagram endpoints
+instagram_paths <- paths[grepl("instagram", paths, ignore.case = TRUE)]
+print(instagram_paths)
+
+# Save full spec for reference
+write(toJSON(spec, pretty = TRUE), "openapi_spec.json")
+```
+
 ## Key Endpoints (v6.0)
 
 ```
@@ -68,6 +84,31 @@ Utility:   /budgets, /async/jobs, /async/queries, /async/collections
 - **preview** (GET): Sync, max 1000 results - exploration only
 - **job** (POST): Async, unlimited results - use for research
 - **estimate** (GET): Check result count before querying
+
+## Nested Endpoints
+
+Some resources require parent IDs in the URL path, not as query parameters:
+
+| Resource | Pattern | Example |
+|----------|---------|---------|
+| Instagram post comments | `/instagram/posts/{post_id}/comments/preview` | Get comments on a post |
+| Instagram comment replies | `/instagram/comments/{comment_id}/replies/preview` | Get replies to a comment |
+| Instagram channel messages | `/instagram/channels/{channel_id}/messages/preview` | Get channel messages |
+| Instagram channel comments | `/instagram/channels/{channel_id}/comments/preview` | Get channel comments |
+
+```r
+# ✓ Correct - post_id in URL path
+client$get(
+  path = paste0("instagram/posts/", post_id, "/comments/preview"),
+  params = list("limit" = 10L)
+)
+
+# ✗ Wrong - post_id as parameter
+client$get(
+  path = "instagram/comments/preview",
+  params = list("post_ids" = post_id)
+)
+```
 
 ## Async Query Template
 
@@ -171,10 +212,18 @@ new_job_id <- fromJSON(rerun_response$text, flatten = TRUE)$id
 - `references/collections.md` - Organizing queries
 - `references/producer_lists.md` - Working with producer lists (surface_ids vs account_ids)
 - `references/utilities.md` - Quota check, package install, job retrieval
+- `references/common_errors.md` - Troubleshooting and error solutions
 
 ---
 
 ## Changelog
+
+### v1.1.0 (2025-01-04)
+- Fixed Instagram parameter documentation (`post_ids` not `surface_ids`)
+- Added nested endpoints documentation for Instagram comments/replies
+- Added OpenAPI spec discovery pattern for debugging
+- Added common_errors.md reference file
+- Clarified platform-specific ID parameter differences
 
 ### v1.0.0 (2025-01-04)
 - Initial release
