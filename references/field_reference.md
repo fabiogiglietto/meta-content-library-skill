@@ -167,6 +167,8 @@
 
 ## Instagram Comments
 
+> **Note:** Comments are accessed via nested endpoints. Use `/instagram/posts/{post_id}/comments/preview` not `/instagram/comments/preview` with a `post_ids` parameter.
+
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | string | Unique comment ID |
