@@ -76,6 +76,8 @@ Once installed, Claude will automatically use this skill when you ask about:
 3. **Always document**: Include `name`, `description`, `mode = "SNAPSHOT"` in every query
 4. **Use `flush.console()`** after `cat()` in Jupyter for real-time output
 5. **Platform IDs**: Facebook uses `surface_ids`, Instagram uses `account_ids`
+6. **Instagram IDs**: Use `post_ids` (not `surface_ids`) for Instagram posts
+7. **Nested endpoints**: Instagram comments require post ID in URL path, not as parameter
 
 ## Environment
 

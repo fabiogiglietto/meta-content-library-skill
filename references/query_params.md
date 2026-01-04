@@ -100,3 +100,15 @@ params = list("limit" = 100L, "offset" = 0L)
 # ✗ Wrong - will cause type errors
 params = list("limit" = 100, "offset" = 0)
 ```
+
+## Platform-Specific ID Parameters
+
+| Platform | Endpoint | ID Parameter | Notes |
+|----------|----------|--------------|-------|
+| Facebook | `/facebook/posts/preview` | `surface_ids` | Pages, groups, profiles |
+| Facebook | `/facebook/comments/preview` | `parent_ids` | Post IDs as parameter |
+| Instagram | `/instagram/posts/preview` | `post_ids` | NOT `surface_ids` |
+| Instagram | `/instagram/accounts/preview` | `account_ids` | Account lookup |
+| Instagram | Post comments | N/A | Use nested URL: `/instagram/posts/{id}/comments/preview` |
+
+**Common Error:** Using `surface_ids` for Instagram returns "Missing required parameters". Use `post_ids` instead.

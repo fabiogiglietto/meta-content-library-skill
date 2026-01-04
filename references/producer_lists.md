@@ -80,20 +80,21 @@ job_data <- fromJSON(response$text, flatten = TRUE)
 job_id <- job_data$id
 ```
 
-### Helper Function
+### Platform and Endpoint ID Parameters
 
 ```r
-get_id_param_name <- function(platform) {
+get_id_param_name <- function(platform, endpoint_type = "posts") {
   platform <- tolower(platform)
-  if (platform == "instagram") {
-    return("account_ids")
-  } else {
-    return("surface_ids")  # Facebook pages, groups, etc.
-  }
-}
 
-# Usage
-id_param <- get_id_param_name(platform)
+  if (platform == "instagram") {
+    if (endpoint_type == "posts") return("post_ids")
+    if (endpoint_type == "accounts") return("account_ids")
+  } else if (platform == "facebook") {
+    return("surface_ids")
+  }
+
+  stop("Unknown platform/endpoint combination")
+}
 ```
 
 ## Batching Large Producer Lists
