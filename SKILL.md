@@ -8,6 +8,8 @@ updated: 2026-01
 # Meta Content Library API v6.0 for R
 
 > **Skill Version:** 1.2.0 | **Updated:** 2026-01 | [Changelog](#changelog)
+>
+> **Official API Changelog:** https://developers.facebook.com/docs/content-library-and-api/changelog
 
 ## Environment
 
@@ -216,6 +218,7 @@ new_job_id <- fromJSON(rerun_response$text, flatten = TRUE)$id
 - `references/producer_lists.md` - Working with producer lists (surface_ids vs account_ids)
 - `references/utilities.md` - Quota check, package install, job retrieval
 - `references/common_errors.md` - Troubleshooting and error solutions
+- [Official API Changelog](https://developers.facebook.com/docs/content-library-and-api/changelog) - Meta's API updates and changes
 
 ---
 
