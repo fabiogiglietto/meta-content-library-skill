@@ -1,13 +1,13 @@
 ---
 name: mcl-api-r
 description: Meta Content Library (MCL) API v6.0 helper for R users on Meta Research Platforms. Use when researchers need to query Facebook, Instagram, or Threads public content using R via reticulate in the Meta Secure Research Environment (SRE) or SOMAR Virtual Data Enclave (VDE). Covers async queries, collections, jobs, pagination, rate limits, SNAPSHOT mode, and proper integer handling.
-version: 1.1.0
-updated: 2025-01-04
+version: 1.2.0
+updated: 2026-01
 ---
 
 # Meta Content Library API v6.0 for R
 
-> **Skill Version:** 1.1.0 | **Updated:** 2025-01-04 | [Changelog](#changelog)
+> **Skill Version:** 1.2.0 | **Updated:** 2026-01 | [Changelog](#changelog)
 
 ## Environment
 
@@ -41,6 +41,7 @@ Collection (folder for organization)
 ```r
 library(reticulate)
 library(jsonlite)
+library(dplyr)
 
 client <- import("metacontentlibraryapi")$MetaContentLibraryAPIClient
 async_utils <- import("metacontentlibraryapi")$MetaContentLibraryAPIAsyncUtils
@@ -78,7 +79,7 @@ write(toJSON(spec, pretty = TRUE), "openapi_spec.json")
 ```
 Facebook:  /facebook/{posts|pages|groups|events|profiles|comments}/{preview|job|estimate}
 Instagram: /instagram/{posts|accounts|channels|comments}/{preview|job|estimate}
-Utility:   /budgets, /async/jobs, /async/queries, /async/collections
+Utility:   /budgets, /async/jobs, /async/queries, /async/collections, /lists/producers
 ```
 
 - **preview** (GET): Sync, max 1000 results - exploration only
@@ -159,6 +160,8 @@ job$write_data_to_file(directory = "results", filename = "climate_2024.json")
 | Comment budget | 500,000 comments/7-day rolling (separate) |
 | Max async results | ~100,000 per query |
 | Snapshots | 100 per user |
+| `account_ids` per request | 250 |
+| `surface_ids` per request | 250 |
 
 **Check budget:**
 ```r
@@ -217,6 +220,15 @@ new_job_id <- fromJSON(rerun_response$text, flatten = TRUE)$id
 ---
 
 ## Changelog
+
+### v1.2.0 (2026-01)
+- **BREAKING**: Fixed producer lists endpoint (`/lists/producers` not `/producer-lists`)
+- **BREAKING**: Fixed producer ID extraction (`list_data$producers$id` not `list_data$ids`)
+- Added `account_ids` and `surface_ids` limit of 250 per request
+- Added batching pattern for large producer lists
+- Added `dplyr::bind_rows()` recommendation for combining results
+- Added new common errors and solutions
+- Added complete working example for posts + comments retrieval
 
 ### v1.1.0 (2025-01-04)
 - Fixed Instagram parameter documentation (`post_ids` not `surface_ids`)
