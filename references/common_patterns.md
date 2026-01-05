@@ -100,6 +100,43 @@ collect_by_month <- function(client, query, start_date, end_date, ...) {
 }
 ```
 
+### Combining Results with Mismatched Columns
+
+When combining multiple API responses (e.g., from batched queries), use `dplyr::bind_rows()` instead of `rbind()` to handle dataframes with different columns:
+
+```r
+library(dplyr)
+
+# Collect multiple job results
+all_results <- list()
+
+for (job_id in job_ids) {
+  job <- client$get_async_job(job_id = job_id)
+
+  while (job$get_status() == "IN_PROGRESS") {
+    Sys.sleep(10)
+  }
+
+  job$write_data_to_file(directory = "results", filename = paste0(job_id, ".json"))
+  result <- fromJSON(file.path("results", paste0(job_id, ".json")), flatten = TRUE)
+  all_results[[length(all_results) + 1]] <- result
+}
+
+# ✗ WRONG - Fails when columns don't match
+# combined <- do.call(rbind, all_results)
+# Error: numbers of columns of arguments do not match
+
+# ✓ CORRECT - Handles different columns gracefully
+combined <- bind_rows(all_results)
+```
+
+**Why this happens:** Different batches may return different optional fields depending on content type, causing column mismatches.
+
+**bind_rows() behavior:**
+- Fills missing columns with `NA`
+- Preserves all columns from all dataframes
+- Works with lists of dataframes
+
 ## Time Series Analysis
 
 ### Daily Post Volume
