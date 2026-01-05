@@ -111,6 +111,22 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Changelog
 
+### v1.2.0 (2026-01)
+- **BREAKING**: Fixed producer lists endpoint (`/lists/producers` not `/producer-lists`)
+- **BREAKING**: Fixed producer ID extraction (`list_data$producers$id` not `list_data$ids`)
+- Added `account_ids` and `surface_ids` limit of 250 per request
+- Added batching pattern for large producer lists
+- Added `dplyr::bind_rows()` recommendation for combining results
+- Added new common errors and solutions
+- Added complete working example for posts + comments retrieval
+
+### v1.1.0 (2025-01-04)
+- Fixed Instagram parameter documentation (`post_ids` not `surface_ids`)
+- Added nested endpoints documentation for Instagram comments/replies
+- Added OpenAPI spec discovery pattern for debugging
+- Added common_errors.md reference file
+- Clarified platform-specific ID parameter differences
+
 ### v1.0.0 (2025-01)
 - Initial release
 - Core async query patterns
