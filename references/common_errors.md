@@ -21,6 +21,10 @@
 | Type mismatch | Missing `L` suffix on integers | Add `L`: `limit = 100L` |
 | Method not allowed | GET on /job endpoint | Use POST for async job endpoints |
 | Budget exceeded | Quota depleted | Wait for 7-day rolling reset, check with `/budgets` |
+| "Invalid vector size" / "account_ids must have at most 250 elements" | Too many IDs in single request | Batch into groups of 250 |
+| "Path '/producer-lists' was not found" (404) | Wrong endpoint | Use `/lists/producers` instead |
+| `rbind` "numbers of columns do not match" | Combining dataframes with different columns | Use `dplyr::bind_rows()` |
+| Producer list returns 0 IDs | Parsing wrong field | Extract from `list_data$producers$id` not `list_data$ids` |
 
 ## Debugging with OpenAPI Spec
 
