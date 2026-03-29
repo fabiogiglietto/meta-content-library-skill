@@ -41,22 +41,31 @@
 
 ## Producer Lists
 
-Query posts from specific accounts:
+Query posts from specific accounts using a producer list:
 
 ```r
-# Get producer list IDs
-producers <- fromJSON(client$get(path = "lists/producers")$text)
+# Get producer list (note: lists/producers/ not producer-lists/)
+response <- client$get(path = paste0("lists/producers/", list_id))
+list_data <- fromJSON(response$text, flatten = TRUE)
 
-# Query with surface_ids
+# Response: $producers is a data.frame with cols: id, name, type
+ids <- list_data$producers$id
+platform <- tolower(list_data$platform)
+
+# Use correct ID parameter for platform
+id_param <- if (platform == "instagram") "account_ids" else "surface_ids"
+
+params <- list(
+    "since" = "2024-01-01",
+    "mode" = "SNAPSHOT",
+    "name" = "Producer List Query",
+    "description" = "Posts from tracked accounts"
+)
+params[[id_param]] <- paste(ids, collapse = ",")
+
 response <- client$post(
-    path = "facebook/posts/job",
-    params = list(
-        "surface_ids" = list("page_id_1", "page_id_2"),
-        "since" = "2024-01-01",
-        "mode" = "SNAPSHOT",
-        "name" = "Producer List Query",
-        "description" = "Posts from tracked accounts"
-    )
+    path = paste0(platform, "/posts/job"),
+    params = params
 )
 ```
 
@@ -112,3 +121,12 @@ params = list("limit" = 100, "offset" = 0)
 | Instagram | Post comments | N/A | Use nested URL: `/instagram/posts/{id}/comments/preview` |
 
 **Common Error:** Using `surface_ids` for Instagram returns "Missing required parameters". Use `post_ids` instead.
+
+## Producer List Endpoint
+
+```
+✓ Correct: lists/producers/{list_id}
+✗ Wrong:   producer-lists/{list_id}     ← Returns 404
+```
+
+The producer list response contains a `$producers` data.frame (columns: id, name, type), not a `$ids` vector.
