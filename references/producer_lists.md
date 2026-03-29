@@ -1,24 +1,24 @@
 # Producer Lists
 
-Producer lists are pre-defined sets of account IDs for Facebook Pages or Instagram Accounts.
+Producer lists are pre-defined sets of accounts for Facebook Pages/Profiles or Instagram Accounts, created in the Content Library UI.
 
-## Critical Platform Differences
+## Critical: Endpoint Path
 
-| Platform | ID Parameter | Entity Types |
-|----------|--------------|--------------|
-| Facebook | `surface_ids` | pages, groups, profiles |
-| Instagram | `account_ids` | accounts |
+```
+✓ Correct:  lists/producers/{list_id}
+✗ Wrong:    producer-lists/{list_id}     ← Returns 404
+```
+
+The MCL UI shows the correct path when you click the API ID button on a producer list.
+
+## Critical: Platform Differences
+
+| Platform | Post ID Parameter | Account ID Parameter | Entity Types |
+|----------|-------------------|---------------------|--------------|
+| Facebook | `surface_ids` | `surface_ids` | pages, groups, profiles |
+| Instagram | `post_ids` | `account_ids` | accounts |
 
 **This is the #1 source of errors when working with producer lists.**
-
-## Correct Endpoints
-
-| Action | Endpoint | Method |
-|--------|----------|--------|
-| List all producer lists | `/lists/producers` | GET |
-| Get specific producer list | `/lists/producers/{alias_id}` | GET |
-
-**Note:** The old `/producer-lists` endpoint is incorrect and will return 404.
 
 ## List All Producer Lists
 
@@ -32,150 +32,52 @@ client$set_default_version(client$LATEST_VERSION)
 response <- client$get(path = "lists/producers")
 lists <- fromJSON(response$text, flatten = TRUE)
 
-# View available lists with platform
-print(lists$producer_lists[, c("id", "name", "platform", "entity_type")])
+# View available lists
+print(lists)
 ```
 
-## Get Producer IDs from List
+## Get Producer List Details
 
-### Response Structure (CRITICAL)
-
-The API returns a `producers` array of objects, **NOT** a simple `ids` array:
-
-```json
-{
-  "id": "2026-01-04-ozau",
-  "name": "List Name",
-  "platform": "instagram",
-  "producers": [
-    {"id": "24590850730565550", "name": "Account Name", "type": "personal"},
-    {"id": "8835619496490162", "name": "Another Account", "type": "creator"}
-  ]
-}
-```
-
-### Correct ID Extraction
+The response contains a `producers` **data.frame** with columns `id`, `name`, `type` — not a simple vector of IDs.
 
 ```r
-list_id <- "2026-01-04-xxxx"
+list_id <- "2026-03-29-bqtm"
 
-# Get list data
 response <- client$get(path = paste0("lists/producers/", list_id))
 list_data <- fromJSON(response$text, flatten = TRUE)
 
-# Platform is in metadata
-platform <- tolower(list_data$platform)  # "facebook" or "instagram"
+# Response structure:
+# list_data$id        - character: list ID
+# list_data$name      - character: list name
+# list_data$platform  - character: "facebook" or "instagram"
+# list_data$producers - data.frame: columns (id, name, type)
 
-# ✓ CORRECT - Extract from producers array
-producers_df <- list_data$producers
-producer_ids <- producers_df$id
+cat("List name:", list_data$name, "\n")
+cat("Platform:", list_data$platform, "\n")
+cat("Producer count:", nrow(list_data$producers), "\n")
 
-# ✗ WRONG - This field doesn't exist
-# producer_ids <- list_data$ids  # ERROR!
+# Extract the producers data.frame
+producers <- list_data$producers
+head(producers)
+#          id                    name   type
+# 1 252084...  DICO NO All'unione...   page
+# 2 250547...     Emanuele Tesauro     page
+# 3 249073...        Mauro Fagiolo  profile
 
-cat("Platform:", platform, "\n")
-cat("Total IDs:", length(producer_ids), "\n")
+# Extract just the IDs as a vector
+ids <- producers$id
 ```
 
-## Rate Limit: 250 IDs Per Request
+## Query Posts from Producer List
 
-**NEW LIMIT:** You can only pass up to **250** `account_ids` or `surface_ids` in a single request.
-
-For producer lists with more than 250 IDs, you **must** batch them.
-
-## Batching Large Producer Lists
-
-```r
-# Batch producer IDs (max 250 per request)
-batch_size <- 250L
-batches <- split(producer_ids, ceiling(seq_along(producer_ids) / batch_size))
-
-cat("Total producers:", length(producer_ids), "\n")
-cat("Number of batches:", length(batches), "\n\n")
-
-# Submit separate jobs per batch
-all_job_ids <- c()
-
-for (b in seq_along(batches)) {
-  batch_ids <- batches[[b]]
-  cat("Batch", b, "of", length(batches), "-", length(batch_ids), "IDs\n")
-  flush.console()
-
-  # Build parameters
-  params <- list(
-    "since" = "2026-01-01",
-    "until" = "2026-01-31",
-    "limit" = 100L,
-    "mode" = "SNAPSHOT",
-    "name" = sprintf("Query - Batch %d of %d", b, length(batches)),
-    "description" = "Batched query for large producer list"
-  )
-
-  # Platform-specific ID parameter
-  if (platform == "instagram") {
-    params[["account_ids"]] <- paste(batch_ids, collapse = ",")
-    endpoint <- "instagram/posts/job"
-  } else {
-    params[["surface_ids"]] <- paste(batch_ids, collapse = ",")
-    endpoint <- "facebook/posts/job"
-  }
-
-  # Submit job
-  response <- client$post(path = endpoint, params = params)
-  job_data <- fromJSON(response$text, flatten = TRUE)
-  all_job_ids <- c(all_job_ids, job_data$id)
-
-  # Rate limit: 1 async job per minute
-  if (b < length(batches)) {
-    cat("Waiting 60s for rate limit...\n\n")
-    flush.console()
-    Sys.sleep(60)
-  }
-}
-
-cat("Submitted", length(all_job_ids), "jobs\n")
-```
-
-## Combining Results with Mismatched Columns
-
-**CRITICAL:** API responses from different batches may have different columns. Using `rbind()` will fail.
-
-```r
-library(dplyr)
-
-# Collect job results
-all_results <- list()
-
-for (job_id in all_job_ids) {
-  job <- client$get_async_job(job_id = job_id)
-
-  # Wait for completion
-  while (job$get_status() == "IN_PROGRESS") {
-    Sys.sleep(10)
-  }
-
-  # Save and load
-  job$write_data_to_file(directory = "results", filename = paste0(job_id, ".json"))
-  result <- fromJSON(file.path("results", paste0(job_id, ".json")), flatten = TRUE)
-  all_results[[length(all_results) + 1]] <- result
-}
-
-# ✗ WRONG - Fails with mismatched columns
-# combined <- do.call(rbind, all_results)  # ERROR!
-
-# ✓ CORRECT - Handles different columns
-combined <- bind_rows(all_results)
-```
-
-## Auto-Detect Platform Pattern
+### Auto-Detect Platform Pattern
 
 ```r
 # Get list metadata first
 response <- client$get(path = paste0("lists/producers/", list_id))
 list_data <- fromJSON(response$text, flatten = TRUE)
-
 platform <- tolower(list_data$platform)
-producer_ids <- list_data$producers$id
+ids <- list_data$producers$id  # Note: $producers$id, not $ids
 
 # Build correct parameter name
 id_param <- if (platform == "instagram") "account_ids" else "surface_ids"
@@ -189,7 +91,7 @@ params <- list(
   "name" = "Posts from Producer List",
   "description" = "Researcher: X, IRB: Y"
 )
-params[[id_param]] <- paste(producer_ids, collapse = ",")
+params[[id_param]] <- paste(ids, collapse = ",")
 
 # Submit job
 response <- client$post(
@@ -200,6 +102,67 @@ job_data <- fromJSON(response$text, flatten = TRUE)
 job_id <- job_data$id
 ```
 
+### Platform and Endpoint ID Parameters
+
+```r
+get_id_param_name <- function(platform, endpoint_type = "posts") {
+  platform <- tolower(platform)
+
+  if (platform == "instagram") {
+    if (endpoint_type == "posts") return("post_ids")
+    if (endpoint_type == "accounts") return("account_ids")
+  } else if (platform == "facebook") {
+    return("surface_ids")
+  }
+
+  stop("Unknown platform/endpoint combination")
+}
+```
+
+## Batching Large Producer Lists
+
+When a producer list has many IDs, batch them to stay under the ~100,000 result limit:
+
+```r
+batch_ids <- function(ids, batch_size = 50) {
+  n <- length(ids)
+  batches <- split(ids, ceiling(seq_along(ids) / batch_size))
+  return(batches)
+}
+
+# Process each batch
+batches <- batch_ids(ids, batch_size = 50L)
+all_job_ids <- c()
+
+for (i in seq_along(batches)) {
+  batch <- batches[[i]]
+  cat("Batch", i, "of", length(batches), "-", length(batch), "IDs\n"); flush.console()
+  
+  params <- list(
+    "since" = "2024-01-01",
+    "until" = "2024-12-31",
+    "limit" = 100L,
+    "mode" = "SNAPSHOT",
+    "name" = sprintf("Batch %d of %d", i, length(batches)),
+    "description" = "Batched producer list query"
+  )
+  params[[id_param]] <- paste(batch, collapse = ",")
+  
+  response <- client$post(
+    path = paste0(platform, "/posts/job"),
+    params = params
+  )
+  job_data <- fromJSON(response$text, flatten = TRUE)
+  all_job_ids <- c(all_job_ids, job_data$id)
+  
+  # Rate limit: 1 async query per minute
+  if (i < length(batches)) {
+    cat("Waiting 60s for rate limit...\n"); flush.console()
+    Sys.sleep(60)
+  }
+}
+```
+
 ## Query Account/Page Information
 
 To get profile metadata (not posts) for IDs in a producer list:
@@ -207,30 +170,21 @@ To get profile metadata (not posts) for IDs in a producer list:
 ### Instagram Accounts
 
 ```r
-# Batch IDs (max 250 per query)
-batch_size <- 250L
-id_batches <- split(producer_ids, ceiling(seq_along(producer_ids) / batch_size))
-
-all_accounts <- list()
+# Batch IDs (max ~50 per query for reliability)
+id_batches <- batch_ids(ids, batch_size = 50L)
 
 for (batch in id_batches) {
   params <- list(
     "account_ids" = paste(batch, collapse = ","),
-    "limit" = 1000L
+    "limit" = 100L
   )
-
+  
   response <- client$get(
     path = "instagram/accounts/preview",
     params = params
   )
-  result <- fromJSON(response$text, flatten = TRUE)
-
-  if (!is.null(result$data) && length(result$data) > 0) {
-    all_accounts[[length(all_accounts) + 1]] <- result$data
-  }
+  # Process results...
 }
-
-accounts_data <- bind_rows(all_accounts)
 ```
 
 ### Facebook Pages
@@ -239,9 +193,9 @@ accounts_data <- bind_rows(all_accounts)
 for (batch in id_batches) {
   params <- list(
     "surface_ids" = paste(batch, collapse = ","),
-    "limit" = 1000L
+    "limit" = 100L
   )
-
+  
   response <- client$get(
     path = "facebook/pages/preview",
     params = params
@@ -250,108 +204,91 @@ for (batch in id_batches) {
 }
 ```
 
----
+## Cross-Platform Account Matching
 
-# =============================================================================
-# Complete Example: Posts and Comments from Producer List
-# =============================================================================
+Find Instagram accounts that match Facebook pages in a producer list using name similarity:
 
 ```r
-library(reticulate)
-library(jsonlite)
-library(dplyr)
+library(stringdist)  # Install via: cran$InstallPackages("stringdist", dependencies = TRUE)
 
-client <- import("metacontentlibraryapi")$MetaContentLibraryAPIClient
-client$set_default_version(client$LATEST_VERSION)
+# 1. Get FB producers (names already included in response)
+response <- client$get(path = paste0("lists/producers/", list_id))
+list_data <- fromJSON(response$text, flatten = TRUE)
+fb_producers <- list_data$producers
 
-# --- 1. Get Producer List ---
-list_id <- "your-list-id"
-list_response <- client$get(path = paste0("lists/producers/", list_id))
-list_data <- fromJSON(list_response$text, flatten = TRUE)
+# 2. Search IG accounts for each FB name
+ig_candidates <- list()
+for (i in seq_len(nrow(fb_producers))) {
+  term <- gsub("[^[:alnum:][:space:]]", " ", fb_producers$name[i])
+  term <- trimws(gsub("\\s+", " ", term))
+  if (nchar(term) < 3) next
 
-platform <- tolower(list_data$platform)
-producer_ids <- list_data$producers$id  # CORRECT extraction
+  cat(sprintf("[%d/%d] Searching IG for: '%s'\n", i, nrow(fb_producers), term)); flush.console()
 
-cat("Platform:", platform, "| Producers:", length(producer_ids), "\n")
-
-# --- 2. Batch if > 250 IDs ---
-batch_size <- 250L
-batches <- split(producer_ids, ceiling(seq_along(producer_ids) / batch_size))
-
-# --- 3. Submit Jobs per Batch ---
-job_ids <- c()
-
-for (b in seq_along(batches)) {
-  params <- list(
-    "since" = "2026-01-01",
-    "until" = "2026-01-31",
-    "limit" = 100L,
-    "mode" = "SNAPSHOT",
-    "name" = paste0("Posts - Batch ", b),
-    "description" = "Batched producer list query"
-  )
-
-  # Platform-specific ID parameter
-  if (platform == "instagram") {
-    params[["account_ids"]] <- paste(batches[[b]], collapse = ",")
-    endpoint <- "instagram/posts/job"
-  } else {
-    params[["surface_ids"]] <- paste(batches[[b]], collapse = ",")
-    endpoint <- "facebook/posts/job"
-  }
-
-  response <- client$post(path = endpoint, params = params)
-  job_ids <- c(job_ids, fromJSON(response$text)$id)
-
-  if (b < length(batches)) Sys.sleep(60)  # Rate limit
-}
-
-# --- 4. Wait and Collect Results ---
-all_posts <- list()
-
-for (job_id in job_ids) {
-  job <- client$get_async_job(job_id = job_id)
-  while (job$get_status() == "IN_PROGRESS") Sys.sleep(10)
-
-  job$write_data_to_file(directory = "results", filename = paste0(job_id, ".json"))
-  posts <- fromJSON(file.path("results", paste0(job_id, ".json")), flatten = TRUE)
-  all_posts[[length(all_posts) + 1]] <- posts
-}
-
-# IMPORTANT: Use bind_rows for mismatched columns
-posts_data <- bind_rows(all_posts)
-
-# --- 5. Get Comments (Instagram nested endpoint) ---
-if (platform == "instagram") {
-  all_comments <- list()
-
-  for (post_id in posts_data$id) {
-    response <- client$get(
-      path = paste0("instagram/posts/", post_id, "/comments/preview"),
-      params = list("limit" = 100L)
+  results <- tryCatch({
+    resp <- client$get(
+      path = "instagram/accounts/preview",
+      params = list("q" = term, "limit" = 10L)
     )
-    result <- fromJSON(response$text, flatten = TRUE)
+    parsed <- fromJSON(resp$text, flatten = TRUE)
+    if (!is.null(parsed$data) && is.data.frame(parsed$data) && nrow(parsed$data) > 0) {
+      parsed$data
+    } else NULL
+  }, error = function(e) { cat("  Error:", e$message, "\n"); NULL })
 
-    if (!is.null(result$data) && length(result$data) > 0) {
-      comments_df <- as.data.frame(result$data)
-      comments_df$source_post_id <- post_id
-      all_comments[[length(all_comments) + 1]] <- comments_df
-    }
-
-    Sys.sleep(1)  # Rate limit: 60/min
+  if (!is.null(results)) {
+    results$fb_source_id <- fb_producers$id[i]
+    results$fb_source_name <- fb_producers$name[i]
+    ig_candidates[[i]] <- results
   }
 
-  comments_data <- bind_rows(all_comments)
+  Sys.sleep(1.5)  # Sync rate limit
 }
+
+# 3. Score by name similarity (Jaro-Winkler)
+ig_all <- bind_rows(ig_candidates)
+scored <- ig_all %>%
+  rowwise() %>%
+  mutate(
+    name_sim = 1 - stringdist(tolower(name), tolower(fb_source_name), method = "jw"),
+    user_sim = 1 - stringdist(tolower(username), tolower(gsub("[^[:alnum:]]", "", fb_source_name)), method = "jw"),
+    best_sim = max(name_sim, user_sim, na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  distinct(id, .keep_all = TRUE) %>%
+  mutate(
+    tier = case_when(
+      best_sim >= 0.90 ~ "HIGH",
+      best_sim >= 0.75 ~ "MEDIUM",
+      best_sim >= 0.60 ~ "LOW",
+      TRUE             ~ "REVIEW"
+    )
+  ) %>%
+  arrange(desc(best_sim))
 ```
+
+### Instagram Account Fields (from /preview)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique account ID |
+| `name` | string | Display name |
+| `username` | string | Instagram handle |
+| `biography` | string | Profile bio text |
+| `account_type` | string | "business" or "creator" |
+| `is_verified` | boolean | Verified badge |
+| `follower_count` | integer | Followers |
+| `following_count` | integer | Following |
+| `creation_date` | string | Account creation (e.g., "March 2016") |
+| `website` | string | Profile website URL(s) |
 
 ## Common Errors
 
 | Error | Cause | Fix |
 |-------|-------|-----|
+| 404 "Path not found" | Using `producer-lists/` path | Use `lists/producers/` |
+| "first argument must be a vector" | Accessing `$ids` instead of `$producers$id` | Use `list_data$producers$id` |
 | "Invalid parameter" | Wrong ID param name | Use `surface_ids` for Facebook, `account_ids` for Instagram |
-| "Path '/producer-lists' was not found" (404) | Wrong endpoint | Use `/lists/producers` instead |
-| "Invalid vector size" / "account_ids must have at most 250 elements" | Too many IDs | Batch into groups of 250 |
-| `rbind` "numbers of columns do not match" | Combining dataframes with different columns | Use `dplyr::bind_rows()` |
-| Producer list returns 0 IDs | Parsing wrong field | Extract from `list_data$producers$id` not `list_data$ids` |
+| "missing value where TRUE/FALSE needed" | `nrow()` on NULL from empty search | Use safe response handling (check `is.null` and `is.data.frame` before `nrow`) |
 | Empty results | IDs from wrong platform | Verify producer list platform matches endpoint |
+| Results truncated | Too many IDs | Batch into smaller groups |

@@ -2,14 +2,12 @@
 name: mcl-api-r
 description: Meta Content Library (MCL) API v6.0 helper for R users on Meta Research Platforms. Use when researchers need to query Facebook, Instagram, or Threads public content using R via reticulate in the Meta Secure Research Environment (SRE) or SOMAR Virtual Data Enclave (VDE). Covers async queries, collections, jobs, pagination, rate limits, SNAPSHOT mode, and proper integer handling.
 version: 1.2.0
-updated: 2026-01
+updated: 2026-03-29
 ---
 
 # Meta Content Library API v6.0 for R
 
-> **Skill Version:** 1.2.0 | **Updated:** 2026-01 | [Changelog](#changelog)
->
-> **Official API Changelog:** https://developers.facebook.com/docs/content-library-and-api/changelog
+> **Skill Version:** 1.2.0 | **Updated:** 2026-03-29 | [Changelog](#changelog)
 
 ## Environment
 
@@ -23,6 +21,7 @@ updated: 2026-01
 2. **Integer literals**: Use `L` suffix (e.g., `limit = 100L`)
 3. **Always document**: Include `name`, `description`, `mode = "SNAPSHOT"` in every query
 4. **Use `flush.console()`** after `cat()` in Jupyter for real-time output
+5. **Safe response handling**: Always validate API responses before calling `nrow()` — see [Safe Response Handling](#safe-response-handling)
 
 ## Core Concepts
 
@@ -43,7 +42,6 @@ Collection (folder for organization)
 ```r
 library(reticulate)
 library(jsonlite)
-library(dplyr)
 
 client <- import("metacontentlibraryapi")$MetaContentLibraryAPIClient
 async_utils <- import("metacontentlibraryapi")$MetaContentLibraryAPIAsyncUtils
@@ -81,7 +79,8 @@ write(toJSON(spec, pretty = TRUE), "openapi_spec.json")
 ```
 Facebook:  /facebook/{posts|pages|groups|events|profiles|comments}/{preview|job|estimate}
 Instagram: /instagram/{posts|accounts|channels|comments}/{preview|job|estimate}
-Utility:   /budgets, /async/jobs, /async/queries, /async/collections, /lists/producers
+Utility:   /budgets, /async/jobs, /async/queries, /async/collections
+Producer:  /lists/producers, /lists/producers/{list_id}
 ```
 
 - **preview** (GET): Sync, max 1000 results - exploration only
@@ -111,6 +110,32 @@ client$get(
   path = "instagram/comments/preview",
   params = list("post_ids" = post_id)
 )
+```
+
+## Safe Response Handling
+
+API responses may return NULL, empty lists, or non-data.frame objects. Always validate before calling `nrow()`:
+
+```r
+# ✓ Correct - safe pattern
+safe_get_data <- function(response_text) {
+  parsed <- fromJSON(response_text, flatten = TRUE)
+  if (!is.null(parsed$data) && is.data.frame(parsed$data) && nrow(parsed$data) > 0) {
+    return(parsed$data)
+  }
+  return(NULL)
+}
+
+# Usage
+resp <- client$get(path = "instagram/accounts/preview", params = list("q" = "test", "limit" = 10L))
+results <- safe_get_data(resp$text)
+if (!is.null(results)) {
+  cat("Found", nrow(results), "results\n")
+}
+
+# ✗ Wrong - will error on NULL/empty responses
+results <- fromJSON(resp$text, flatten = TRUE)$data
+if (nrow(results) > 0) { ... }  # Error: missing value where TRUE/FALSE needed
 ```
 
 ## Async Query Template
@@ -162,8 +187,6 @@ job$write_data_to_file(directory = "results", filename = "climate_2024.json")
 | Comment budget | 500,000 comments/7-day rolling (separate) |
 | Max async results | ~100,000 per query |
 | Snapshots | 100 per user |
-| `account_ids` per request | 250 |
-| `surface_ids` per request | 250 |
 
 **Check budget:**
 ```r
@@ -209,29 +232,34 @@ new_job_id <- fromJSON(rerun_response$text, flatten = TRUE)$id
 | Type mismatch | Missing `L` suffix | Add `L` to integers |
 | Budget exceeded | Quota depleted | Wait for 7-day rolling reset |
 | Invalid parameter | Wrong ID param for platform | Facebook: `surface_ids`, Instagram: `account_ids` |
+| 404 on producer-lists/ | Wrong endpoint path | Use `lists/producers/` not `producer-lists/` |
+| "first argument must be a vector" | Accessing field that doesn't exist | Inspect raw response with `fromJSON(resp$text)` |
+| "missing value where TRUE/FALSE needed" | `nrow()` on NULL | Use safe response handling pattern |
 
 ## References
 
 - `references/query_params.md` - Search parameters and filters
 - `references/chunking.md` - Large dataset handling
 - `references/collections.md` - Organizing queries
-- `references/producer_lists.md` - Working with producer lists (surface_ids vs account_ids)
+- `references/producer_lists.md` - Working with producer lists (endpoint paths, response structure, cross-platform matching)
 - `references/utilities.md` - Quota check, package install, job retrieval
 - `references/common_errors.md` - Troubleshooting and error solutions
-- [Official API Changelog](https://developers.facebook.com/docs/content-library-and-api/changelog) - Meta's API updates and changes
+- `references/field_reference.md` - Available fields by entity type
+- `references/query_syntax.md` - Boolean operators and search syntax
+- `references/common_patterns.md` - Reusable code patterns
 
 ---
 
 ## Changelog
 
-### v1.2.0 (2026-01)
-- **BREAKING**: Fixed producer lists endpoint (`/lists/producers` not `/producer-lists`)
-- **BREAKING**: Fixed producer ID extraction (`list_data$producers$id` not `list_data$ids`)
-- Added `account_ids` and `surface_ids` limit of 250 per request
-- Added batching pattern for large producer lists
-- Added `dplyr::bind_rows()` recommendation for combining results
-- Added new common errors and solutions
-- Added complete working example for posts + comments retrieval
+### v1.2.0 (2026-03-29)
+- **BREAKING**: Fixed producer list endpoint: `lists/producers/{id}` not `producer-lists/{id}`
+- **BREAKING**: Producer list response uses `$producers` data.frame (cols: id, name, type), not `$ids` vector
+- Added safe response handling pattern for API responses (prevents `nrow()` on NULL)
+- Added Instagram accounts response field documentation (id, name, username, biography, account_type, is_verified, follower_count, following_count, creation_date, website)
+- Added cross-platform account matching workflow to producer_lists.md
+- Added producer endpoint to Key Endpoints section
+- Updated common_errors.md with 404 producer list, NULL response, and nrow() errors
 
 ### v1.1.0 (2025-01-04)
 - Fixed Instagram parameter documentation (`post_ids` not `surface_ids`)
