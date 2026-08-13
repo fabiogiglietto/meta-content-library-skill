@@ -62,6 +62,7 @@ if (!is.null(results)) {
 | Type mismatch | Missing `L` suffix on integers | Add `L`: `limit = 100L` |
 | Method not allowed | GET on /job endpoint | Use POST for async job endpoints |
 | Budget exceeded | Quota depleted | Wait for 7-day rolling reset, check with `/budgets` |
+| `'list' object has no attribute 'items'` | Passed `params = list()` (empty list) | reticulate converts an empty R list to a Python list `[]`, and the client calls `.items()` on it. Omit `params` when there are none, or pass a named list. |
 
 ## Debugging with OpenAPI Spec
 
