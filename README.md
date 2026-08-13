@@ -119,6 +119,9 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Changelog
 
+### v1.3.0 (2026-08-13)
+- **IMPORTANT**: Documented that MCL IDs are library-specific and differ from Facebook/Instagram URL IDs. Added a "Finding Surface IDs" section with per-entity lookup endpoints and error rows for subcode 3790088 and the empty-`params` reticulate pitfall.
+
 ### v1.2.0 (2026-03-29)
 - **BREAKING**: Fixed producer list endpoint path (`lists/producers/` not `producer-lists/`)
 - **BREAKING**: Fixed producer list response structure (`$producers` data.frame, not `$ids` vector)
