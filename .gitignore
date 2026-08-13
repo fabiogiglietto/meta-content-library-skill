@@ -1,1 +1,49 @@
+# History files
+.Rhistory
+.Rapp.history
+
+# Session data files
+.RData
+.RDataTmp
+
+# User-specific files
+.Ruserdata
+
+# Example code in package build process
+*-Ex.R
+
+# Output files from R CMD build / check
+/*.tar.gz
+/*.Rcheck/
+
+# RStudio files
+.Rproj.user/
+
+# Produced vignettes
+vignettes/*.html
+vignettes/*.pdf
+
+# OAuth2 token, created by httr
+.httr-oauth
+
+# knitr and R Markdown cache directories
+*_cache/
+/cache/
+
+# Temporary files created by R Markdown
+*.utf8.md
+*.knit.md
+
+# R environment variables
+.Renviron
+
+# renv (keep renv.lock tracked)
+renv/library/
+renv/local/
+renv/cellar/
+renv/python/
+renv/sandbox/
+renv/staging/
+
+# Project-specific
 top_italian_politicians_week.R
