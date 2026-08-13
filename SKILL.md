@@ -1,13 +1,13 @@
 ---
 name: mcl-api-r
 description: Meta Content Library (MCL) API v6.0 helper for R users on Meta Research Platforms. Use when researchers need to query Facebook, Instagram, or Threads public content using R via reticulate in the Meta Secure Research Environment (SRE) or SOMAR Virtual Data Enclave (VDE). Covers async queries, collections, jobs, pagination, rate limits, SNAPSHOT mode, and proper integer handling.
-version: 1.2.0
-updated: 2026-03-29
+version: 1.3.0
+updated: 2026-08-13
 ---
 
 # Meta Content Library API v6.0 for R
 
-> **Skill Version:** 1.2.0 | **Updated:** 2026-03-29 | [Changelog](#changelog)
+> **Skill Version:** 1.3.0 | **Updated:** 2026-08-13 | [Changelog](#changelog)
 
 ## Environment
 
@@ -111,6 +111,38 @@ client$get(
   params = list("post_ids" = post_id)
 )
 ```
+
+## Finding Surface IDs (MCL IDs ≠ Facebook/Instagram URL IDs)
+
+**Critical:** The numeric IDs in Facebook/Instagram URLs are **NOT** valid Meta Content Library IDs. MCL assigns its own library-specific IDs (privacy by design). Passing a raw URL ID as `surface_ids` / `account_ids` fails with `error_subcode 3790088` ("Invalid Meta Content Library ID").
+
+You must look the entity up by name and read the `id` MCL returns:
+
+```r
+# GROUP -> get its MCL surface id (do NOT use the number from the group URL)
+resp <- client$get(
+  path   = "facebook/groups/preview",
+  params = list("q" = "GROUP NAME", "limit" = 50L)
+)
+groups <- fromJSON(resp$text, flatten = TRUE)$data
+print(groups[, c("id", "name", "member_count")])   # use this `id`, not the URL number
+
+GROUP_ID <- "PASTE_MCL_ID_FROM_SEARCH"   # e.g. 963780196442228, NOT the URL's 910620404641635
+```
+
+Lookup endpoints by entity (search with `q`, read `id` from `$data`):
+
+| Entity | Endpoint | ID used in queries |
+|--------|----------|--------------------|
+| Facebook group    | `facebook/groups/preview`    | `surface_ids` |
+| Facebook page     | `facebook/pages/preview`     | `surface_ids` |
+| Facebook profile  | `facebook/profiles/preview`  | `surface_ids` |
+| Instagram account | `instagram/accounts/preview` | `account_ids` |
+
+Notes:
+- Group search only covers **public** groups indexed in the Content Library; a private or non-indexed group won't appear and isn't queryable.
+- Disambiguate similar names using `member_count` (and `description` if present).
+- Don't pass `params = list()` (empty list). reticulate converts it to a Python list `[]` and the client calls `.items()` on it → `'list' object has no attribute 'items'`. Omit `params` when there are none, or pass a named list.
 
 ## Safe Response Handling
 
@@ -235,6 +267,8 @@ new_job_id <- fromJSON(rerun_response$text, flatten = TRUE)$id
 | 404 on producer-lists/ | Wrong endpoint path | Use `lists/producers/` not `producer-lists/` |
 | "first argument must be a vector" | Accessing field that doesn't exist | Inspect raw response with `fromJSON(resp$text)` |
 | "missing value where TRUE/FALSE needed" | `nrow()` on NULL | Use safe response handling pattern |
+| Invalid Meta Content Library ID (subcode 3790088) | Used a raw Facebook/Instagram URL ID as `surface_ids`/`account_ids` | Search the entity by name (e.g. `facebook/groups/preview` with `q`) and use the returned `id` |
+| `'list' object has no attribute 'items'` | Passed `params = list()` (empty list) | Omit `params`, or pass a named list |
 
 ## References
 
@@ -251,6 +285,9 @@ new_job_id <- fromJSON(rerun_response$text, flatten = TRUE)$id
 ---
 
 ## Changelog
+
+### v1.3.0 (2026-08-13)
+- **IMPORTANT**: Documented that MCL IDs are library-specific and differ from Facebook/Instagram URL IDs. Added a "Finding Surface IDs" section with per-entity lookup endpoints and error rows for subcode 3790088 and the empty-`params` reticulate pitfall.
 
 ### v1.2.0 (2026-03-29)
 - **BREAKING**: Fixed producer list endpoint: `lists/producers/{id}` not `producer-lists/{id}`

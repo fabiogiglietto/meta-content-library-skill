@@ -45,7 +45,7 @@ if (!is.null(results)) {
 | Error | Cause | Solution |
 |-------|-------|----------|
 | "Missing required parameters. Input at least one parameter [q, post_ids, account_ids]" | Used `surface_ids` for Instagram | Use `post_ids` for posts, `account_ids` for accounts |
-| "Invalid Meta Content Library ID" | Post/account not in MCL | Post may be private, deleted, or from account with <1K followers. Use IDs returned from MCL searches. |
+| "Invalid Meta Content Library ID" (subcode 3790088) | Used a raw Instagram URL ID, or the post/account is not in MCL | MCL IDs are library-specific and differ from the numeric IDs in Instagram URLs. Look the account up with `instagram/accounts/preview` (search with `q`) and use the returned `id`. If a search-returned ID still fails, the post may be private, deleted, or from an account with <1K followers. |
 | "Invalid Meta Content Library ID" on comments endpoint | Wrong endpoint pattern | Use nested URL `/instagram/posts/{id}/comments/preview` instead of parameter-based query |
 
 ## Facebook Errors
@@ -53,6 +53,7 @@ if (!is.null(results)) {
 | Error | Cause | Solution |
 |-------|-------|----------|
 | "Missing required parameters" | Wrong ID parameter | Use `surface_ids` for Facebook entities |
+| "Invalid Meta Content Library ID" (subcode 3790088) | Used the numeric ID from a Facebook group/page URL as `surface_ids` | URL IDs are never valid MCL IDs. Search by name (e.g. `facebook/groups/preview` with `q`) and use the returned `id`. Private or non-indexed groups don't appear in search and aren't queryable. |
 
 ## General Errors
 
@@ -61,6 +62,7 @@ if (!is.null(results)) {
 | Type mismatch | Missing `L` suffix on integers | Add `L`: `limit = 100L` |
 | Method not allowed | GET on /job endpoint | Use POST for async job endpoints |
 | Budget exceeded | Quota depleted | Wait for 7-day rolling reset, check with `/budgets` |
+| `'list' object has no attribute 'items'` | Passed `params = list()` (empty list) | reticulate converts an empty R list to a Python list `[]`, and the client calls `.items()` on it. Omit `params` when there are none, or pass a named list. |
 
 ## Debugging with OpenAPI Spec
 
