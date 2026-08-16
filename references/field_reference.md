@@ -1,5 +1,12 @@
 # Field Reference by Endpoint
 
+> **Every field typed `string` below that holds an ID** (`id`, `producer_id`,
+> `post_id`, `parent_id`, `author_id`, `host_id`, `shared_from_id`, …) must end up
+> as a **character** vector in R. Some endpoints send these as unquoted JSON
+> numbers, so `fromJSON()` types them `numeric` — losing digits above 2^53 and
+> printing as `9.6378e+14`. Parse with `mcl_fromJSON()` (SKILL.md § "ID Handling").
+> Only counts and timestamps are genuinely numeric.
+
 ## Table of Contents
 1. [Facebook Posts](#facebook-posts)
 2. [Facebook Pages](#facebook-pages)
@@ -198,6 +205,8 @@
 | `parent_id` | string | Parent post if reply |
 
 ## Field Availability Notes
+
+**ID fields**: Documented as `string`, but not always quoted in the JSON payload. Always load them as character (`mcl_fromJSON()`); never compare, join, or deduplicate on a numeric ID.
 
 1. **View counts**: Not available for all posts; depends on privacy settings
 2. **Image text (OCR)**: Only available for content from last ~180 days

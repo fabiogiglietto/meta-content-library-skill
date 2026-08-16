@@ -1,13 +1,13 @@
 ---
 name: mcl-api-r
-description: Meta Content Library (MCL) API v6.0 helper for R users on Meta Research Platforms. Use when researchers need to query Facebook, Instagram, or Threads public content using R via reticulate in the Meta Secure Research Environment (SRE) or SOMAR Virtual Data Enclave (VDE). Covers async queries, collections, jobs, pagination, rate limits, SNAPSHOT mode, and proper integer handling.
-version: 1.3.0
-updated: 2026-08-13
+description: Meta Content Library (MCL) API v6.0 helper for R users on Meta Research Platforms. Use when researchers need to query Facebook, Instagram, or Threads public content using R via reticulate in the Meta Secure Research Environment (SRE) or SOMAR Virtual Data Enclave (VDE). Covers async queries, collections, jobs, pagination, rate limits, SNAPSHOT mode, loading IDs as character, and proper integer handling.
+version: 1.4.0
+updated: 2026-08-16
 ---
 
 # Meta Content Library API v6.0 for R
 
-> **Skill Version:** 1.3.0 | **Updated:** 2026-08-13 | [Changelog](#changelog)
+> **Skill Version:** 1.4.0 | **Updated:** 2026-08-16 | [Changelog](#changelog)
 
 ## Environment
 
@@ -22,6 +22,7 @@ updated: 2026-08-13
 3. **Always document**: Include `name`, `description`, `mode = "SNAPSHOT"` in every query
 4. **Use `flush.console()`** after `cat()` in Jupyter for real-time output
 5. **Safe response handling**: Always validate API responses before calling `nrow()` — see [Safe Response Handling](#safe-response-handling)
+6. **IDs are character, always**: Never let `fromJSON()` parse an ID into a `numeric`. Parse every MCL response with `mcl_fromJSON()` — see [ID Handling](#id-handling-always-load-ids-as-character)
 
 ## Core Concepts
 
@@ -47,6 +48,63 @@ client <- import("metacontentlibraryapi")$MetaContentLibraryAPIClient
 async_utils <- import("metacontentlibraryapi")$MetaContentLibraryAPIAsyncUtils
 client$set_default_version(client$LATEST_VERSION)
 ```
+
+Also define `mcl_fromJSON()` from [ID Handling](#id-handling-always-load-ids-as-character) — every example in this skill parses responses with it instead of `fromJSON()`.
+
+## ID Handling (Always Load IDs as Character)
+
+MCL IDs are 15–19 digit numbers. Some endpoints return them **unquoted** in JSON, and `jsonlite::fromJSON()` then parses them as `numeric`. Two things break:
+
+- **Silent precision loss** above 2^53 (~9.0e15): `17841400000000123` comes back as `17841400000000124`. Unrecoverable after parsing — no post-hoc coercion can restore the digits.
+- **Scientific notation** below 2^53: the value is exact but prints/pastes as `9.6378e+14`, so `paste0("instagram/posts/", post_id, "/comments/preview")` builds a garbage URL and the API answers *"Invalid Meta Content Library ID"* (subcode 3790088) — the same error you get from a raw URL ID.
+
+There's also a typing hazard: `bigint_as_char = TRUE` alone converts a column **only when some value in that batch exceeds 2^53**, so the same column is `chr` in one chunk and `num` in the next, and `bind_rows()` fails with *"Can't combine `id` <character> and `id` <double>"*.
+
+**Fix both at once — parse with `bigint_as_char = TRUE`, then coerce every ID field unconditionally:**
+
+```r
+# Matches id, post_id, surface_ids, parent_id, and flattened author.id / producer.id
+MCL_ID_PATTERN <- "(^|[._])ids?$"
+
+mcl_fix_ids <- function(x, name = "") {
+  if (is.data.frame(x)) {
+    x[] <- Map(mcl_fix_ids, x, names(x))
+    return(x)
+  }
+  if (is.list(x)) {                      # nested lists and list-columns of IDs
+    nms <- names(x)
+    if (is.null(nms)) nms <- rep(name, length(x))
+    x[] <- Map(mcl_fix_ids, x, nms)
+    return(x)
+  }
+  if (grepl(MCL_ID_PATTERN, name) && is.numeric(x)) {   # numeric only: is_invalid_id stays logical
+    out <- rep(NA_character_, length(x))  # keeps JSON null as NA, not the string "NA"
+    ok <- !is.na(x)
+    out[ok] <- sprintf("%.0f", x[ok])     # full digits, never scientific notation
+    return(out)
+  }
+  x
+}
+
+# Use this for EVERY MCL response — response text or a job's saved .json file
+mcl_fromJSON <- function(txt) {
+  mcl_fix_ids(fromJSON(txt, flatten = TRUE, bigint_as_char = TRUE))
+}
+```
+
+Rules that follow from this:
+
+| Do | Don't |
+|----|-------|
+| `mcl_fromJSON(resp$text)` | `fromJSON(resp$text, flatten = TRUE)` |
+| `mcl_fromJSON(file.path("results", "job.json"))` | `fromJSON(filepath, flatten = TRUE)` |
+| `sprintf("%.0f", x)` to fix a stray numeric ID | `as.character(x)` — returns `"1.784e+16"` for big IDs |
+| `read_csv(f, col_types = cols(.default = col_character()))` | `read_csv(f)` — re-parses ID columns as double |
+| Keep IDs as character in `distinct()`, joins, `paste(ids, collapse = ",")` | Comparing/merging on numeric IDs |
+
+`options(scipen = 999)` only changes **display** — the value is still a double and still rounds above 2^53. It is not a fix.
+
+If an ID reaches R as a number from somewhere else (a CSV, a Python object via reticulate, a spreadsheet), convert it with `sprintf("%.0f", x)` immediately — and treat anything at or above 2^53 as already corrupted, since re-fetching it from MCL is the only way back.
 
 ## OpenAPI Specification
 
@@ -124,10 +182,10 @@ resp <- client$get(
   path   = "facebook/groups/preview",
   params = list("q" = "GROUP NAME", "limit" = 50L)
 )
-groups <- fromJSON(resp$text, flatten = TRUE)$data
+groups <- mcl_fromJSON(resp$text)$data
 print(groups[, c("id", "name", "member_count")])   # use this `id`, not the URL number
 
-GROUP_ID <- "PASTE_MCL_ID_FROM_SEARCH"   # e.g. 963780196442228, NOT the URL's 910620404641635
+GROUP_ID <- "PASTE_MCL_ID_FROM_SEARCH"   # quoted! e.g. "963780196442228", NOT the URL's 910620404641635
 ```
 
 Lookup endpoints by entity (search with `q`, read `id` from `$data`):
@@ -141,17 +199,18 @@ Lookup endpoints by entity (search with `q`, read `id` from `$data`):
 
 Notes:
 - Group search only covers **public** groups indexed in the Content Library; a private or non-indexed group won't appear and isn't queryable.
+- Always hard-code and pass IDs as **quoted strings**. An unquoted 15+ digit literal in R is a double and will be sent in scientific notation → subcode 3790088.
 - Disambiguate similar names using `member_count` (and `description` if present).
 - Don't pass `params = list()` (empty list). reticulate converts it to a Python list `[]` and the client calls `.items()` on it → `'list' object has no attribute 'items'`. Omit `params` when there are none, or pass a named list.
 
 ## Safe Response Handling
 
-API responses may return NULL, empty lists, or non-data.frame objects. Always validate before calling `nrow()`:
+API responses may return NULL, empty lists, or non-data.frame objects. Always validate before calling `nrow()`. This is the single funnel for MCL data — it parses with `mcl_fromJSON()`, so IDs come out as character:
 
 ```r
 # ✓ Correct - safe pattern
 safe_get_data <- function(response_text) {
-  parsed <- fromJSON(response_text, flatten = TRUE)
+  parsed <- mcl_fromJSON(response_text)   # IDs as character, see ID Handling
   if (!is.null(parsed$data) && is.data.frame(parsed$data) && nrow(parsed$data) > 0) {
     return(parsed$data)
   }
@@ -165,7 +224,7 @@ if (!is.null(results)) {
   cat("Found", nrow(results), "results\n")
 }
 
-# ✗ Wrong - will error on NULL/empty responses
+# ✗ Wrong - will error on NULL/empty responses, and mangles IDs into doubles
 results <- fromJSON(resp$text, flatten = TRUE)$data
 if (nrow(results) > 0) { ... }  # Error: missing value where TRUE/FALSE needed
 ```
@@ -178,7 +237,7 @@ estimate_response <- client$get(
     path = "facebook/posts/estimate",
     params = list("q" = "climate change", "since" = "2024-01-01", "until" = "2024-12-31")
 )
-estimate <- fromJSON(estimate_response$text, flatten = TRUE)
+estimate <- mcl_fromJSON(estimate_response$text)
 cat("Estimated:", estimate$estimated_results, "| Complete:", estimate$expected_complete, "\n")
 
 # 2. Submit job (creates query + first job)
@@ -194,9 +253,9 @@ response <- client$post(
         "description" = "Baseline dataset. PI: Dr. Smith, IRB #2024-001"
     )
 )
-job_data <- fromJSON(response$text, flatten = TRUE)
-job_id <- job_data$id
-query_id <- job_data$query_id
+job_data <- mcl_fromJSON(response$text)
+job_id <- job_data$id          # character
+query_id <- job_data$query_id  # character
 
 # 3. Monitor status
 job <- client$get_async_job(job_id = job_id)
@@ -205,8 +264,9 @@ while(job$get_status() != "COMPLETE") {
     cat("Status:", job$get_status(), "\n"); flush.console()
 }
 
-# 4. Save results
+# 4. Save results, then load with IDs as character
 job$write_data_to_file(directory = "results", filename = "climate_2024.json")
+posts <- mcl_fromJSON(file.path("results", "climate_2024.json"))
 ```
 
 ## Rate Limits & Budget
@@ -222,7 +282,7 @@ job$write_data_to_file(directory = "results", filename = "climate_2024.json")
 
 **Check budget:**
 ```r
-budget <- fromJSON(client$get(path = "budgets")$text, flatten = TRUE)
+budget <- mcl_fromJSON(client$get(path = "budgets")$text)
 cat("Available:", budget$queries$max_usage_limit - budget$queries$total_usage, "\n")
 ```
 
@@ -252,7 +312,7 @@ rerun_response <- client$post(
     path = paste0("async/queries/", query_id, "/job"),
     body = list(mode = "SNAPSHOT")
 )
-new_job_id <- fromJSON(rerun_response$text, flatten = TRUE)$id
+new_job_id <- mcl_fromJSON(rerun_response$text)$id
 ```
 
 ## Common Errors
@@ -265,9 +325,12 @@ new_job_id <- fromJSON(rerun_response$text, flatten = TRUE)$id
 | Budget exceeded | Quota depleted | Wait for 7-day rolling reset |
 | Invalid parameter | Wrong ID param for platform | Facebook: `surface_ids`, Instagram: `account_ids` |
 | 404 on producer-lists/ | Wrong endpoint path | Use `lists/producers/` not `producer-lists/` |
-| "first argument must be a vector" | Accessing field that doesn't exist | Inspect raw response with `fromJSON(resp$text)` |
+| "first argument must be a vector" | Accessing field that doesn't exist | Inspect the parsed response with `str(mcl_fromJSON(resp$text))` |
 | "missing value where TRUE/FALSE needed" | `nrow()` on NULL | Use safe response handling pattern |
 | Invalid Meta Content Library ID (subcode 3790088) | Used a raw Facebook/Instagram URL ID as `surface_ids`/`account_ids` | Search the entity by name (e.g. `facebook/groups/preview` with `q`) and use the returned `id` |
+| Invalid Meta Content Library ID (subcode 3790088) with a *correct* ID | ID held as `numeric`, so it was sent as `9.6378e+14` | Parse with `mcl_fromJSON()`; pass IDs as quoted character — see [ID Handling](#id-handling-always-load-ids-as-character) |
+| "Can't combine `id` <character> and `id` <double>" | `bigint_as_char` typed the column per batch | Coerce all ID fields unconditionally via `mcl_fromJSON()` |
+| Join/`distinct()` misses obvious matches, IDs end in 0 | ID parsed as double, digits rounded above 2^53 | Re-parse the source with `mcl_fromJSON()` — rounded IDs cannot be repaired |
 | `'list' object has no attribute 'items'` | Passed `params = list()` (empty list) | Omit `params`, or pass a named list |
 
 ## References
@@ -285,6 +348,11 @@ new_job_id <- fromJSON(rerun_response$text, flatten = TRUE)$id
 ---
 
 ## Changelog
+
+### v1.4.0 (2026-08-16)
+- **IMPORTANT**: All IDs (surface, post, comment, account, job, query) must be loaded as **character**. Added an "ID Handling" section with `mcl_fromJSON()` / `mcl_fix_ids()`, which combine `bigint_as_char = TRUE` (exactness above 2^53) with unconditional `sprintf("%.0f", ...)` coercion of every ID field (no scientific notation, no per-batch type drift).
+- Folded ID coercion into `safe_get_data()` and switched every example in SKILL.md and the reference files from `fromJSON()` to `mcl_fromJSON()`.
+- Added error rows for scientific-notation 3790088, `bind_rows()` type mismatch, and silent precision loss in joins/dedup.
 
 ### v1.3.0 (2026-08-13)
 - **IMPORTANT**: Documented that MCL IDs are library-specific and differ from Facebook/Instagram URL IDs. Added a "Finding Surface IDs" section with per-entity lookup endpoints and error rows for subcode 3790088 and the empty-`params` reticulate pitfall.

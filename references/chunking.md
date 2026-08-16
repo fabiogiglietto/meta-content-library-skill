@@ -2,6 +2,13 @@
 
 When `expected_complete = FALSE`, split queries to avoid truncation.
 
+> **Parse every chunk with `mcl_fromJSON()`** (defined in SKILL.md § "ID Handling
+> (Always Load IDs as Character)"). Chunking is where plain `fromJSON()` bites
+> hardest: a chunk containing an ID above 2^53 types `id` as character while
+> another chunk types it as double, and `bind_rows()` then fails with
+> *"Can't combine `id` <character> and `id` <double>"*. Deduplicating on doubles
+> is also unsafe — rounded IDs collide.
+
 ## Automatic Date Chunking
 
 ```r
@@ -35,10 +42,10 @@ query_with_chunking <- function(query_text, start_date, end_date, platform = "fa
     cat("Chunk", i, ":", chunk$since, "to", chunk$until, "\n"); flush.console()
     
     # Check estimate first
-    est <- fromJSON(client$get(
+    est <- mcl_fromJSON(client$get(
       path = paste0(platform, "/", content_type, "/estimate"),
       params = list("q" = query_text, "since" = chunk$since, "until" = chunk$until)
-    )$text, flatten = TRUE)
+    )$text)
     
     if (!isTRUE(est$expected_complete)) {
       cat("  Warning: Chunk exceeds 100k, consider smaller chunks\n")
@@ -57,8 +64,8 @@ query_with_chunking <- function(query_text, start_date, end_date, platform = "fa
       )
     )
     
-    job_data <- fromJSON(response$text, flatten = TRUE)
-    all_job_ids[[i]] <- job_data$id
+    job_data <- mcl_fromJSON(response$text)
+    all_job_ids[[i]] <- job_data$id   # character
     
     cat("  Job ID:", job_data$id, "\n"); flush.console()
     
@@ -107,8 +114,8 @@ combine_chunk_results <- function(job_ids, output_dir = "results") {
     filename <- paste0("chunk_", i, "_", job_id, ".json")
     job$write_data_to_file(directory = output_dir, filename = filename)
     
-    # Load data
-    data <- fromJSON(file.path(output_dir, filename), flatten = TRUE)
+    # Load data (IDs as character, so chunk column types always match)
+    data <- mcl_fromJSON(file.path(output_dir, filename))
     if (nrow(data) > 0) {
       data$source_chunk <- i
       data$source_job_id <- job_id
@@ -122,6 +129,7 @@ combine_chunk_results <- function(job_ids, output_dir = "results") {
   combined <- bind_rows(all_data)
   
   if ("id" %in% colnames(combined)) {
+    stopifnot(is.character(combined$id))   # guard: never dedup on numeric IDs
     before <- nrow(combined)
     combined <- distinct(combined, id, .keep_all = TRUE)
     cat("\nDeduplicated:", before, "->", nrow(combined), "records\n")

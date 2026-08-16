@@ -1,7 +1,7 @@
 # MCL API R Skill - Code Testing Procedure
 
-> **Version:** 1.0
-> **Last Updated:** 2026-01-05
+> **Version:** 1.1
+> **Last Updated:** 2026-08-16
 > **Purpose:** Comprehensive testing procedure for all code examples in the MCL API R Skill repository
 
 ## Overview
@@ -31,7 +31,7 @@ Since code cannot be executed automatically, each example must be:
 
 ### Step 0: Verify Environment
 
-**Location:** SKILL.md (lines 43-51)
+**Location:** SKILL.md § "Setup"
 
 ```r
 library(reticulate)
@@ -41,12 +41,40 @@ library(dplyr)
 client <- import("metacontentlibraryapi")$MetaContentLibraryAPIClient
 async_utils <- import("metacontentlibraryapi")$MetaContentLibraryAPIAsyncUtils
 client$set_default_version(client$LATEST_VERSION)
+
+# ID-safe parsing helper (SKILL.md § ID Handling) - required by every test below
+MCL_ID_PATTERN <- "(^|[._])ids?$"
+
+mcl_fix_ids <- function(x, name = "") {
+  if (is.data.frame(x)) {
+    x[] <- Map(mcl_fix_ids, x, names(x))
+    return(x)
+  }
+  if (is.list(x)) {
+    nms <- names(x)
+    if (is.null(nms)) nms <- rep(name, length(x))
+    x[] <- Map(mcl_fix_ids, x, nms)
+    return(x)
+  }
+  if (grepl(MCL_ID_PATTERN, name) && is.numeric(x)) {   # numeric only: is_invalid_id stays logical
+    out <- rep(NA_character_, length(x))
+    ok <- !is.na(x)
+    out[ok] <- sprintf("%.0f", x[ok])
+    return(out)
+  }
+  x
+}
+
+mcl_fromJSON <- function(txt) {
+  mcl_fix_ids(fromJSON(txt, flatten = TRUE, bigint_as_char = TRUE))
+}
 ```
 
 **Expected Outcome:**
 - No errors
 - Client object created successfully
 - Version set to LATEST_VERSION
+- `mcl_fromJSON` and `mcl_fix_ids` defined (used in place of `fromJSON` throughout)
 
 **Screenshot Required:** Yes - showing successful library loading
 
@@ -56,7 +84,7 @@ client$set_default_version(client$LATEST_VERSION)
 
 ### Test 1.1: Check Quota Status
 
-**Location:** utilities.md (lines 7-36)
+**Location:** utilities.md § "Check Quota Status"
 
 **Purpose:** Verify quota checking functionality
 
@@ -69,7 +97,7 @@ client <- import("metacontentlibraryapi")$MetaContentLibraryAPIClient
 client$set_default_version(client$LATEST_VERSION)
 
 response <- client$get(path = "budgets")
-budgets <- fromJSON(response$text, flatten = TRUE)
+budgets <- mcl_fromJSON(response$text)
 
 # Extract query budget
 queries <- budgets$queries
@@ -108,7 +136,7 @@ cat(sprintf("\nComments Budget: %s available\n", format(comments_avail, big.mark
 
 ### Test 1.2: Install R Packages
 
-**Location:** utilities.md (lines 55-69)
+**Location:** utilities.md § "Install R Packages"
 
 **Purpose:** Test package installation via fbrir
 
@@ -135,7 +163,7 @@ cran$InstallPackages("flextable", dependencies = TRUE)
 
 ### Test 1.3: Retrieve Completed Job Data
 
-**Location:** utilities.md (lines 75-105)
+**Location:** utilities.md § "Retrieve Completed Job Data"
 
 **Purpose:** Test job data retrieval
 
@@ -163,7 +191,7 @@ if (status == "COMPLETE") {
   job$write_data_to_file(directory = output_dir, filename = filename)
 
   filepath <- file.path(output_dir, filename)
-  job_data <- fromJSON(filepath, flatten = TRUE)
+  job_data <- mcl_fromJSON(filepath)
 
   cat("Retrieved", nrow(job_data), "records\n")
 }
@@ -186,7 +214,7 @@ if (status == "COMPLETE") {
 
 ### Test 1.4: Get Job Metadata
 
-**Location:** utilities.md (lines 108-117)
+**Location:** utilities.md § "Get Job Metadata"
 
 **Prerequisites:** Existing job ID
 
@@ -195,7 +223,7 @@ if (status == "COMPLETE") {
 job_id <- "YOUR_ACTUAL_JOB_ID"  # Replace with real job ID
 
 job_response <- client$get(path = paste0("async/jobs/", job_id))
-job_metadata <- fromJSON(job_response$text, flatten = TRUE)
+job_metadata <- mcl_fromJSON(job_response$text)
 
 cat("Mode:", job_metadata$mode, "\n")
 cat("Query ID:", job_metadata$query_id, "\n")
@@ -217,12 +245,12 @@ cat("Created:", as.POSIXct(job_metadata$creation_time, origin = "1970-01-01"), "
 
 ### Test 1.5: List All Jobs
 
-**Location:** utilities.md (lines 133-139)
+**Location:** utilities.md § "List All Jobs"
 
 **Code:**
 ```r
 jobs_response <- client$get(path = "async/jobs")
-jobs_data <- fromJSON(jobs_response$text, flatten = TRUE)
+jobs_data <- mcl_fromJSON(jobs_response$text)
 
 print(jobs_data$jobs[, c("id", "status", "mode", "query_id")])
 ```
@@ -244,7 +272,7 @@ print(jobs_data$jobs[, c("id", "status", "mode", "query_id")])
 
 ### Test 2.1: Retrieve OpenAPI Spec
 
-**Location:** SKILL.md (lines 54-61)
+**Location:** SKILL.md § "OpenAPI Specification"
 
 **Code:**
 ```r
@@ -265,7 +293,7 @@ spec <- client$openapi_spec()
 
 ### Test 2.2: Explore Endpoints
 
-**Location:** SKILL.md (lines 67-77)
+**Location:** SKILL.md § "OpenAPI Spec Discovery"
 
 **Code:**
 ```r
@@ -295,7 +323,7 @@ write(toJSON(spec, pretty = TRUE), "openapi_spec.json")
 
 ### Test 3.1: Check Estimate
 
-**Location:** SKILL.md (lines 119-125)
+**Location:** SKILL.md § "Async Query Template" (step 1)
 
 **Code:**
 ```r
@@ -303,7 +331,7 @@ estimate_response <- client$get(
     path = "facebook/posts/estimate",
     params = list("q" = "climate change", "since" = "2024-01-01", "until" = "2024-12-31")
 )
-estimate <- fromJSON(estimate_response$text, flatten = TRUE)
+estimate <- mcl_fromJSON(estimate_response$text)
 cat("Estimated:", estimate$estimated_results, "| Complete:", estimate$expected_complete, "\n")
 ```
 
@@ -322,7 +350,7 @@ cat("Estimated:", estimate$estimated_results, "| Complete:", estimate$expected_c
 
 ### Test 3.2: Submit Async Job
 
-**Location:** SKILL.md (lines 127-143)
+**Location:** SKILL.md § "Async Query Template" (step 2)
 
 **Code:**
 ```r
@@ -338,7 +366,7 @@ response <- client$post(
         "description" = "Testing async query submission"
     )
 )
-job_data <- fromJSON(response$text, flatten = TRUE)
+job_data <- mcl_fromJSON(response$text)
 job_id <- job_data$id
 query_id <- job_data$query_id
 
@@ -364,7 +392,7 @@ cat("Query ID:", query_id, "\n")
 
 ### Test 3.3: Monitor Job Status
 
-**Location:** SKILL.md (lines 145-150)
+**Location:** SKILL.md § "Async Query Template" (step 3)
 
 **Prerequisites:** job_id from Test 3.2
 
@@ -400,7 +428,7 @@ for (i in 1:3) {
 
 ### Test 3.4: Save Job Results
 
-**Location:** SKILL.md (lines 152-153)
+**Location:** SKILL.md § "Async Query Template" (step 4)
 
 **Prerequisites:** Completed job from Test 3.3
 
@@ -424,7 +452,7 @@ cat("Results saved to results/climate_test.json\n")
 # Verify file exists
 if (file.exists("results/climate_test.json")) {
     cat("File created successfully\n")
-    data <- fromJSON("results/climate_test.json", flatten = TRUE)
+    data <- mcl_fromJSON("results/climate_test.json")
     cat("Retrieved", nrow(data), "records\n")
 }
 ```
@@ -446,7 +474,7 @@ if (file.exists("results/climate_test.json")) {
 
 ### Test 3.5: Rerun Existing Query
 
-**Location:** SKILL.md (lines 194-201)
+**Location:** SKILL.md § "Rerun a Query"
 
 **Prerequisites:** query_id from Test 3.2
 
@@ -458,7 +486,7 @@ rerun_response <- client$post(
     path = paste0("async/queries/", query_id, "/job"),
     body = list(mode = "SNAPSHOT")
 )
-new_job_id <- fromJSON(rerun_response$text, flatten = TRUE)$id
+new_job_id <- mcl_fromJSON(rerun_response$text)$id
 cat("New job created:", new_job_id, "\n")
 ```
 
@@ -479,7 +507,7 @@ cat("New job created:", new_job_id, "\n")
 
 ### Test 4.1: List All Producer Lists
 
-**Location:** producer_lists.md (lines 25-37)
+**Location:** producer_lists.md § "List All Producer Lists"
 
 **Code:**
 ```r
@@ -490,7 +518,7 @@ client <- import("metacontentlibraryapi")$MetaContentLibraryAPIClient
 client$set_default_version(client$LATEST_VERSION)
 
 response <- client$get(path = "lists/producers")
-lists <- fromJSON(response$text, flatten = TRUE)
+lists <- mcl_fromJSON(response$text)
 
 print(lists$producer_lists[, c("id", "name", "platform", "entity_type")])
 ```
@@ -512,7 +540,7 @@ print(lists$producer_lists[, c("id", "name", "platform", "entity_type")])
 
 ### Test 4.2: Get Producer IDs from List (Correct Extraction)
 
-**Location:** producer_lists.md (lines 59-78)
+**Location:** producer_lists.md § "Get Producer List Details"
 
 **Prerequisites:** list_id from Test 4.1
 
@@ -521,7 +549,7 @@ print(lists$producer_lists[, c("id", "name", "platform", "entity_type")])
 list_id <- "YOUR_ACTUAL_LIST_ID"  # Replace with real list ID
 
 response <- client$get(path = paste0("lists/producers/", list_id))
-list_data <- fromJSON(response$text, flatten = TRUE)
+list_data <- mcl_fromJSON(response$text)
 
 platform <- tolower(list_data$platform)
 producers_df <- list_data$producers
@@ -550,7 +578,7 @@ print(head(producer_ids, 5))
 
 ### Test 4.3: Batching Large Producer Lists
 
-**Location:** producer_lists.md (lines 89-137)
+**Location:** producer_lists.md § "Batching Large Producer Lists"
 
 **Prerequisites:** producer_ids from Test 4.2 (preferably >250 IDs, or simulate with smaller batch)
 
@@ -582,7 +610,7 @@ cat("Batch 1 size:", length(batches[[1]]), "\n")
 
 ### Test 4.4: Submit Batched Query (Instagram)
 
-**Location:** producer_lists.md (lines 99-134)
+**Location:** producer_lists.md § "Query Posts from Producer List"
 
 **Prerequisites:**
 - Instagram producer list from Test 4.2
@@ -621,7 +649,7 @@ cat("Endpoint:", endpoint, "\n")
 cat("Parameter name:", ifelse(platform == "instagram", "account_ids", "surface_ids"), "\n")
 
 response <- client$post(path = endpoint, params = params)
-job_data <- fromJSON(response$text, flatten = TRUE)
+job_data <- mcl_fromJSON(response$text)
 cat("Job submitted:", job_data$id, "\n")
 ```
 
@@ -640,7 +668,7 @@ cat("Job submitted:", job_data$id, "\n")
 
 ### Test 4.5: Query Instagram Account Information
 
-**Location:** producer_lists.md (lines 209-234)
+**Location:** producer_lists.md § "Query Account/Page Information"
 
 **Prerequisites:** Instagram producer_ids from Test 4.2
 
@@ -658,7 +686,7 @@ response <- client$get(
   path = "instagram/accounts/preview",
   params = params
 )
-result <- fromJSON(response$text, flatten = TRUE)
+result <- mcl_fromJSON(response$text)
 
 if (!is.null(result$data) && length(result$data) > 0) {
   cat("Retrieved", nrow(result$data), "accounts\n")
@@ -681,7 +709,7 @@ if (!is.null(result$data) && length(result$data) > 0) {
 
 ### Test 4.6: Complete Example - Posts and Comments
 
-**Location:** producer_lists.md (lines 259-346)
+**Location:** producer_lists.md § "Cross-Platform Account Matching"
 
 **Prerequisites:** Valid producer list with <10 accounts for testing
 
@@ -697,7 +725,7 @@ client$set_default_version(client$LATEST_VERSION)
 # Get small producer list for testing
 list_id <- "YOUR_LIST_ID"  # Use list with <10 accounts
 list_response <- client$get(path = paste0("lists/producers/", list_id))
-list_data <- fromJSON(list_response$text, flatten = TRUE)
+list_data <- mcl_fromJSON(list_response$text)
 
 platform <- tolower(list_data$platform)
 producer_ids <- head(list_data$producers$id, 5)  # Use only 5 for testing
@@ -723,7 +751,7 @@ if (platform == "instagram") {
 }
 
 response <- client$post(path = endpoint, params = params)
-job_id <- fromJSON(response$text)$id
+job_id <- mcl_fromJSON(response$text)$id
 cat("Job submitted:", job_id, "\n")
 
 # Wait for completion
@@ -736,7 +764,7 @@ while (job$get_status() == "IN_PROGRESS") {
 
 # Save results
 job$write_data_to_file(directory = "results", filename = paste0(job_id, ".json"))
-posts_data <- fromJSON(file.path("results", paste0(job_id, ".json")), flatten = TRUE)
+posts_data <- mcl_fromJSON(file.path("results", paste0(job_id, ".json")))
 cat("Retrieved", nrow(posts_data), "posts\n")
 
 # Get comments for first post (Instagram only)
@@ -748,7 +776,7 @@ if (platform == "instagram" && nrow(posts_data) > 0) {
     path = paste0("instagram/posts/", post_id, "/comments/preview"),
     params = list("limit" = 10L)
   )
-  result <- fromJSON(response$text, flatten = TRUE)
+  result <- mcl_fromJSON(response$text)
 
   if (!is.null(result$data) && length(result$data) > 0) {
     cat("Retrieved", nrow(result$data), "comments\n")
@@ -779,7 +807,7 @@ if (platform == "instagram" && nrow(posts_data) > 0) {
 
 ### Test 5.1: Automatic Date Chunking Function
 
-**Location:** chunking.md (lines 7-73)
+**Location:** chunking.md § "Automatic Date Chunking"
 
 **Code:**
 ```r
@@ -838,7 +866,7 @@ for (i in 1:min(3, length(test_chunks))) {
 
 ### Test 5.2: Combining Chunked Results with bind_rows
 
-**Location:** chunking.md (lines 85-138) and common_patterns.md (lines 105-131)
+**Location:** chunking.md § "Combining Chunked Results" and common_patterns.md § "Combining Results with Mismatched Columns"
 
 **Prerequisites:** Multiple job IDs from chunked query (can simulate with 2-3 jobs)
 
@@ -858,7 +886,7 @@ for (i in seq_along(job_ids)) {
   # Load previously saved results
   filepath <- file.path("results", paste0(job_id, ".json"))
   if (file.exists(filepath)) {
-    data <- fromJSON(filepath, flatten = TRUE)
+    data <- mcl_fromJSON(filepath)
     if (nrow(data) > 0) {
       all_data[[i]] <- data
       cat("  Loaded", nrow(data), "records\n")
@@ -896,7 +924,7 @@ cat("Columns:", ncol(combined_correct), "\n")
 
 ### Test 6.1: Create Collection
 
-**Location:** collections.md (lines 6-14)
+**Location:** collections.md § "Collections (Folders)"
 
 **Code:**
 ```r
@@ -907,7 +935,7 @@ response <- client$post(
         description = "Collection created during testing procedure"
     )
 )
-collection_id <- fromJSON(response$text, flatten = TRUE)$id
+collection_id <- mcl_fromJSON(response$text)$id
 cat("Created collection:", collection_id, "\n")
 ```
 
@@ -927,7 +955,7 @@ cat("Created collection:", collection_id, "\n")
 
 ### Test 6.2: Set Default Collection
 
-**Location:** collections.md (lines 16-20)
+**Location:** collections.md § "Collections (Folders)"
 
 **Prerequisites:** collection_id from Test 6.1
 
@@ -955,11 +983,11 @@ cat("Collection set as default\n")
 
 ### Test 6.3: List All Collections
 
-**Location:** collections.md (lines 22-23)
+**Location:** collections.md § "Collections (Folders)"
 
 **Code:**
 ```r
-collections <- fromJSON(client$get(path = "async/collections")$text, flatten = TRUE)
+collections <- mcl_fromJSON(client$get(path = "async/collections")$text)
 print(collections$collections[, c("id", "name", "default")])
 ```
 
@@ -978,7 +1006,7 @@ print(collections$collections[, c("id", "name", "default")])
 
 ### Test 6.4: Update Query Metadata
 
-**Location:** collections.md (lines 41-48)
+**Location:** collections.md § "Query Management"
 
 **Prerequisites:** query_id from Test 3.2
 
@@ -996,9 +1024,8 @@ client$post(
 cat("Query metadata updated\n")
 
 # Verify update
-query_details <- fromJSON(
-    client$get(path = paste0("async/queries/", query_id))$text,
-    flatten = TRUE
+query_details <- mcl_fromJSON(
+    client$get(path = paste0("async/queries/", query_id))$text
 )
 cat("New name:", query_details$name, "\n")
 ```
@@ -1018,7 +1045,7 @@ cat("New name:", query_details$name, "\n")
 
 ### Test 6.5: Move Query to Collection
 
-**Location:** collections.md (lines 50-54)
+**Location:** collections.md § "Query Management"
 
 **Prerequisites:**
 - query_id from Test 3.2
@@ -1036,9 +1063,8 @@ client$post(
 cat("Query moved to collection\n")
 
 # Verify
-query_details <- fromJSON(
-    client$get(path = paste0("async/queries/", query_id))$text,
-    flatten = TRUE
+query_details <- mcl_fromJSON(
+    client$get(path = paste0("async/queries/", query_id))$text
 )
 cat("Collection ID:", query_details$collection_id, "\n")
 ```
@@ -1059,7 +1085,7 @@ cat("Collection ID:", query_details$collection_id, "\n")
 
 ### Test 7.1: Instagram Post Comments (Nested URL)
 
-**Location:** SKILL.md (lines 102-114)
+**Location:** SKILL.md § "Nested Endpoints"
 
 **Prerequisites:** Instagram post_id (from previous Instagram query or known ID)
 
@@ -1073,7 +1099,7 @@ response_correct <- client$get(
   path = paste0("instagram/posts/", post_id, "/comments/preview"),
   params = list("limit" = 10L)
 )
-result <- fromJSON(response_correct$text, flatten = TRUE)
+result <- mcl_fromJSON(response_correct$text)
 
 if (!is.null(result$data) && length(result$data) > 0) {
   cat("Retrieved", nrow(result$data), "comments\n")
@@ -1098,7 +1124,7 @@ if (!is.null(result$data) && length(result$data) > 0) {
 
 ### Test 7.2: Wrong Nested Endpoint Pattern (Expected to Fail)
 
-**Location:** SKILL.md (lines 110-114)
+**Location:** SKILL.md § "Nested Endpoints"
 
 **Purpose:** Demonstrate incorrect pattern causes error
 
@@ -1134,7 +1160,7 @@ tryCatch({
 
 ### Test 8.1: Basic Data Collection with Pagination
 
-**Location:** common_patterns.md (lines 27-73)
+**Location:** common_patterns.md § "Robust Data Collection with Pagination"
 
 **Note:** This is a more complex function. Test basic structure first.
 
@@ -1171,7 +1197,7 @@ cat("Function defined successfully\n")
 
 ### Test 8.2: Time Series Analysis
 
-**Location:** common_patterns.md (lines 143-159)
+**Location:** common_patterns.md § "Time Series Analysis"
 
 **Prerequisites:** Data from completed job with creation_time field
 
@@ -1181,7 +1207,7 @@ library(dplyr)
 library(lubridate)
 
 # Load some posts data
-posts <- fromJSON("results/YOUR_JOB_FILE.json", flatten = TRUE)
+posts <- mcl_fromJSON("results/YOUR_JOB_FILE.json")
 
 daily_volume <- posts %>%
   mutate(date = as_date(creation_time)) %>%
@@ -1208,7 +1234,7 @@ cat("Total posts:", sum(daily_volume$n_posts), "\n")
 
 ### Test 8.3: Engagement Metrics
 
-**Location:** common_patterns.md (lines 199-211)
+**Location:** common_patterns.md § "Engagement Analysis"
 
 **Prerequisites:** Posts data with statistics fields
 
@@ -1216,7 +1242,7 @@ cat("Total posts:", sum(daily_volume$n_posts), "\n")
 ```r
 library(dplyr)
 
-posts <- fromJSON("results/YOUR_JOB_FILE.json", flatten = TRUE)
+posts <- mcl_fromJSON("results/YOUR_JOB_FILE.json")
 
 engagement_summary <- posts %>%
   summarise(
@@ -1248,7 +1274,7 @@ print(engagement_summary)
 
 ### Test 9.1: Integer Type Error (Intentional Failure)
 
-**Location:** SKILL.md (line 134), common_errors.md (line 21)
+**Location:** SKILL.md § "Common Errors" and common_errors.md § "General Errors"
 
 **Purpose:** Demonstrate type mismatch error
 
@@ -1305,7 +1331,7 @@ cat("Success with L suffix\n")
 
 ### Test 9.2: Wrong Endpoint Error
 
-**Location:** producer_lists.md (line 353), common_errors.md (line 25)
+**Location:** producer_lists.md § "Critical: Endpoint Path" and common_errors.md § "Producer List Errors"
 
 **Purpose:** Demonstrate 404 error with old endpoint
 
@@ -1322,7 +1348,7 @@ tryCatch({
 
 # CORRECT endpoint
 response <- client$get(path = "lists/producers")
-lists <- fromJSON(response$text, flatten = TRUE)
+lists <- mcl_fromJSON(response$text)
 cat("Success with correct endpoint\n")
 cat("Found", nrow(lists$producer_lists), "producer lists\n")
 ```
@@ -1341,7 +1367,7 @@ cat("Found", nrow(lists$producer_lists), "producer lists\n")
 
 ### Test 9.3: Platform-Specific Parameter Error
 
-**Location:** query_params.md (line 114), common_errors.md (line 7)
+**Location:** query_params.md § "Platform-Specific ID Parameters" and common_errors.md § "Instagram Errors"
 
 **Purpose:** Demonstrate Instagram parameter error
 
@@ -1369,7 +1395,7 @@ response <- client$get(
   path = "instagram/posts/preview",
   params = list("post_ids" = post_id, "limit" = 10L)
 )
-result <- fromJSON(response$text, flatten = TRUE)
+result <- mcl_fromJSON(response$text)
 cat("Success with correct parameter (post_ids)\n")
 ```
 
@@ -1386,12 +1412,114 @@ cat("Success with correct parameter (post_ids)\n")
 
 ---
 
+## Test Suite 10: ID Handling (SKILL.md § ID Handling)
+
+### Test 10.1: Helper Unit Test (Offline — No API Calls, No Budget)
+
+**Location:** SKILL.md § "ID Handling (Always Load IDs as Character)"
+
+**Purpose:** Verify `mcl_fromJSON()` on a fixture covering every failure mode: an ID above 2^53, an ID below it, a JSON `null` ID, a nested (flattened) ID, a list-column of IDs, a boolean `is_invalid_id` flag, empty result sets, and two "chunks" that must bind together.
+
+**Run this first**, before any test that spends budget: it needs no API call, and it fails loudly if the environment's `jsonlite` is too old to honour `bigint_as_char`.
+
+**Code:**
+```r
+chunk_big <- '{"id":"17800000000000001","data":[
+  {"id":17841400000000123, "post_id":963780196442228, "parent_id":null,
+   "author":{"id":122098765432101234,"name":"a"},
+   "reply_ids":[963780196442228, 17841400000000123],
+   "is_invalid_id":true, "like_count":5, "text":"hi"}]}'
+
+chunk_small <- '{"id":"17800000000000002","data":[
+  {"id":963780196442229, "post_id":963780196442228, "parent_id":963780196442230,
+   "author":{"id":9637801964422281,"name":"b"}, "reply_ids":[],
+   "is_invalid_id":false, "like_count":7, "text":"ho"}]}'
+
+a <- mcl_fromJSON(chunk_big)$data
+b <- mcl_fromJSON(chunk_small)$data
+
+stopifnot(
+  identical(a$id, "17841400000000123"),   # no precision loss above 2^53
+  identical(b$id, "963780196442229"),     # no scientific notation below 2^53
+  is.character(a$author.id),              # flattened nested ID
+  is.na(a$parent_id) && !identical(a$parent_id, "NA"),  # null stays NA
+  is.character(a$reply_ids[[1]]),         # list-column of IDs
+  isTRUE(a$is_invalid_id),                # *_id flags stay logical, not "1"
+  is.integer(a$like_count)                # non-ID numerics untouched
+)
+
+# Empty / null result sets must parse without error
+stopifnot(length(mcl_fromJSON('{"data":[]}')$data) == 0,
+          is.null(mcl_fromJSON('{"data":null}')$data))
+
+combined <- bind_rows(a, b)               # would fail with plain fromJSON()
+stopifnot(is.character(combined$id))
+print(combined[, c("id", "post_id", "parent_id", "author.id")])
+
+# Contrast: what plain fromJSON() does
+fromJSON(chunk_big, flatten = TRUE)$data$id   # 1.78414e+16, last digits already wrong
+```
+
+**Expected Outcome:**
+- All `stopifnot()` checks pass silently
+- Printed IDs show full digits, no `e+15`/`e+16`, `parent_id` shows `<NA>` (not `"NA"`)
+- `is_invalid_id` remains `logical`, and empty/null `data` parses without error
+- The final contrast line prints `1.78414e+16`, demonstrating the bug being prevented
+
+**Validation Checklist:**
+- [ ] No `stopifnot` failure
+- [ ] `bind_rows()` across chunks succeeds
+- [ ] Big ID preserved exactly as `17841400000000123`
+- [ ] `parent_id` is `NA`, not the string `"NA"`
+- [ ] `is_invalid_id` is `TRUE`/`FALSE`, not `"1"`/`"0"`
+- [ ] Empty and null `data` payloads parse without error
+
+**Screenshot Required:** Yes - CRITICAL
+
+---
+
+### Test 10.2: ID Types on Live Data
+
+**Location:** references/utilities.md § "Verify IDs Loaded as Character"
+
+**Prerequisites:** Any data.frame from a previous test (e.g. `job_data` from Test 1.3, producers from Test 4.2, or a `preview` response)
+
+**Code:**
+```r
+resp <- client$get(path = "facebook/pages/preview", params = list("q" = "news", "limit" = 10L))
+pages <- mcl_fromJSON(resp$text)$data
+
+str(pages[grep(MCL_ID_PATTERN, names(pages))])   # all chr
+check_ids(pages)                                  # helper from utilities.md
+
+# Round-trip an ID back into a request (the 3790088 trap)
+pid <- pages$id[1]
+stopifnot(is.character(pid), !grepl("e\\+", pid))
+resp2 <- client$get(path = "facebook/pages/preview",
+                    params = list("surface_ids" = pid, "limit" = 5L))
+mcl_fromJSON(resp2$text)$data[, c("id", "name")]
+```
+
+**Expected Outcome:**
+- Every ID column reports as `chr`
+- `check_ids()` prints the OK line and does not stop
+- The `surface_ids` round-trip returns the same page, no "Invalid Meta Content Library ID" (subcode 3790088)
+
+**Validation Checklist:**
+- [ ] All ID columns character
+- [ ] No scientific notation anywhere in ID values
+- [ ] Round-trip query succeeds with the returned `id`
+
+**Screenshot Required:** Yes - CRITICAL
+
+---
+
 ## Testing Summary and Reporting
 
 ### After Completing All Tests
 
 1. **Count Results:**
-   - Total tests: 35
+   - Total tests: 37
    - Passed: ___
    - Failed: ___
    - Skipped (due to prerequisites): ___
@@ -1406,6 +1534,8 @@ cat("Success with correct parameter (post_ids)\n")
    - [ ] Test 7.1: Nested endpoints
    - [ ] Test 9.1: Integer type handling
    - [ ] Test 9.3: Platform-specific parameters
+   - [ ] Test 10.1: ID handling helper (offline)
+   - [ ] Test 10.2: ID types on live data
 
 3. **Screenshot Organization:**
    Create folder structure:
@@ -1419,7 +1549,8 @@ cat("Success with correct parameter (post_ids)\n")
    ├── suite6_collections/
    ├── suite7_nested/
    ├── suite8_patterns/
-   └── suite9_errors/
+   ├── suite9_errors/
+   └── suite10_ids/
    ```
 
 4. **Error Documentation:**
@@ -1472,8 +1603,8 @@ If a test fails:
 
 ## Test Completion Checklist
 
-- [ ] All 35 tests attempted
-- [ ] Critical tests (9) passed
+- [ ] All 37 tests attempted
+- [ ] Critical tests (11) passed
 - [ ] Screenshots captured and organized
 - [ ] Errors documented
 - [ ] Environment info recorded
@@ -1486,4 +1617,4 @@ If a test fails:
 
 **End of Testing Procedure**
 
-Version: 1.0 | Last Updated: 2026-01-05
+Version: 1.1 | Last Updated: 2026-08-16

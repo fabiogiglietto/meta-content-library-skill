@@ -12,6 +12,7 @@ This skill helps researchers query Facebook, Instagram, and Threads public conte
 - **SNAPSHOT mode** for reproducible research (data preserved up to 1 year)
 - **Producer list workflows** with auto-detect platform (surface_ids vs account_ids)
 - **Cross-platform account matching** (find Instagram equivalents of Facebook pages)
+- **IDs always as character** (`mcl_fromJSON()`) — no scientific notation, no precision loss above 2^53
 - **Safe response handling** patterns for robust API interaction
 - **Quota monitoring** and budget management
 - **Large dataset chunking** strategies for 100K+ result queries
@@ -58,6 +59,7 @@ Once installed, Claude will automatically use this skill when you ask about:
 - "Create an async query for Instagram posts from my producer list"
 - "How do I handle large datasets that exceed 100,000 results?"
 - "Find Instagram accounts matching my Facebook producer list"
+- "Why do my post IDs show up as 9.6378e+14?"
 
 ## Key Files
 
@@ -86,6 +88,7 @@ Once installed, Claude will automatically use this skill when you ask about:
 8. **Producer list path**: Use `lists/producers/{id}` not `producer-lists/{id}`
 9. **Producer list response**: IDs are in `$producers$id` (data.frame), not `$ids` (vector)
 10. **Safe response handling**: Always check `is.null()` and `is.data.frame()` before `nrow()`
+11. **IDs as character**: Parse every response with `mcl_fromJSON()` (`bigint_as_char = TRUE` + `sprintf("%.0f", ...)` on all ID fields). Never let an ID be a `numeric`, and never pass one into a URL or `surface_ids` unquoted
 
 ## Environment
 
@@ -118,6 +121,11 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 MIT License - see [LICENSE](LICENSE) for details.
 
 ## Changelog
+
+### v1.4.0 (2026-08-16)
+- **IMPORTANT**: All IDs (surface, post, comment, account, job, query) are now loaded as **character**. New "ID Handling" section in `SKILL.md` with `mcl_fromJSON()` / `mcl_fix_ids()`, folded into `safe_get_data()` and used by every example.
+- Prevents silent precision loss above 2^53, scientific notation in URLs/parameters (a second cause of subcode 3790088), and per-chunk `bind_rows()` type mismatches.
+- Added ID-hygiene guidance for joins, dedup, and CSV round-trips; new offline + live ID tests in `TESTING_PROCEDURE.md`.
 
 ### v1.3.0 (2026-08-13)
 - **IMPORTANT**: Documented that MCL IDs are library-specific and differ from Facebook/Instagram URL IDs. Added a "Finding Surface IDs" section with per-entity lookup endpoints and error rows for subcode 3790088 and the empty-`params` reticulate pitfall.
