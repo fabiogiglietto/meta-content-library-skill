@@ -1,5 +1,9 @@
 # Common Analysis Patterns
 
+> All examples parse responses with `mcl_fromJSON()`, defined in SKILL.md §
+> "ID Handling (Always Load IDs as Character)". It keeps every ID field a
+> character string — plain `fromJSON()` turns IDs into doubles.
+
 ## Table of Contents
 1. [Setup and Data Collection](#setup-and-data-collection)
 2. [Time Series Analysis](#time-series-analysis)
@@ -118,7 +122,7 @@ for (job_id in job_ids) {
   }
 
   job$write_data_to_file(directory = "results", filename = paste0(job_id, ".json"))
-  result <- fromJSON(file.path("results", paste0(job_id, ".json")), flatten = TRUE)
+  result <- mcl_fromJSON(file.path("results", paste0(job_id, ".json")))
   all_results[[length(all_results) + 1]] <- result
 }
 
@@ -136,6 +140,43 @@ combined <- bind_rows(all_results)
 - Fills missing columns with `NA`
 - Preserves all columns from all dataframes
 - Works with lists of dataframes
+
+**Type mismatch, not just column mismatch:** `bind_rows()` also refuses to combine
+the same column when its type differs across batches — *"Can't combine `id`
+<character> and `id` <double>"*. That is exactly what plain `fromJSON()` produces,
+because `bigint_as_char` converts a column only in the batches that happen to
+contain an ID above 2^53. `mcl_fromJSON()` coerces every ID field unconditionally,
+so all batches agree.
+
+### ID Hygiene in Analysis
+
+Once loaded as character, keep IDs that way through the whole pipeline:
+
+```r
+# Joins and dedup — character keys only
+combined <- bind_rows(all_results) %>%
+  distinct(id, .keep_all = TRUE)
+
+posts_with_meta <- posts %>%
+  left_join(accounts, by = c("producer_id" = "id"))   # both character, or the join silently misses
+
+# Round-tripping through CSV: force character on read
+write_csv(posts, "posts.csv")
+posts <- read_csv("posts.csv", col_types = cols(.default = col_character()))
+# or per column: cols(id = col_character(), producer_id = col_character())
+
+# ✗ Never do this - re-introduces the double
+posts$id <- as.numeric(posts$id)
+
+# Sanity check before any join/dedup/export
+# (list-columns hold vectors of IDs, already fixed element-wise by mcl_fix_ids;
+#  logical flags such as is_invalid_id are left alone by design)
+stopifnot(!any(vapply(posts[grep(MCL_ID_PATTERN, names(posts))], is.numeric, logical(1))))
+```
+
+Note: `.rds`/`.parquet` preserve the character type; CSV does not carry types, and
+opening a CSV of IDs in Excel converts them to scientific notation on sight. Prefer
+`saveRDS()` for intermediate artifacts that contain IDs.
 
 ## Time Series Analysis
 

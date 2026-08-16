@@ -1,5 +1,9 @@
 # Query Parameters Reference
 
+> All examples parse responses with `mcl_fromJSON()`, defined in SKILL.md §
+> "ID Handling (Always Load IDs as Character)". It keeps every ID field a
+> character string — plain `fromJSON()` turns IDs into doubles.
+
 ## Common Parameters (All Endpoints)
 
 | Parameter | Type | Description |
@@ -10,7 +14,7 @@
 | `limit` | integer | Results per page (use `L` suffix: `100L`) |
 | `lang` | string | Language filter (ISO 639-1: "en", "es") |
 | `country` | string | Country filter (ISO 3166-1: "US", "GB") |
-| `surface_ids` | list | Filter to specific Page/Account IDs |
+| `surface_ids` | list | Filter to specific Page/Account IDs — **character strings only** |
 
 ## Async-Only Parameters
 
@@ -46,7 +50,7 @@ Query posts from specific accounts using a producer list:
 ```r
 # Get producer list (note: lists/producers/ not producer-lists/)
 response <- client$get(path = paste0("lists/producers/", list_id))
-list_data <- fromJSON(response$text, flatten = TRUE)
+list_data <- mcl_fromJSON(response$text)
 
 # Response: $producers is a data.frame with cols: id, name, type
 ids <- list_data$producers$id
@@ -88,10 +92,10 @@ response <- client$post(
 ## Estimate Response
 
 ```r
-estimate <- fromJSON(client$get(
+estimate <- mcl_fromJSON(client$get(
     path = "facebook/posts/estimate",
     params = list("q" = "election", "since" = "2024-01-01", "until" = "2024-12-31")
-)$text, flatten = TRUE)
+)$text)
 
 # Key fields:
 # estimate$estimated_results - Approximate count
@@ -108,6 +112,26 @@ params = list("limit" = 100L, "offset" = 0L)
 
 # ✗ Wrong - will cause type errors
 params = list("limit" = 100, "offset" = 0)
+```
+
+## ID Parameters Are Always Character (Critical!)
+
+`L` applies to counts and limits — **never to IDs**. IDs are 15–19 digits, far
+beyond `.Machine$integer.max`, and a bare numeric literal becomes a double that
+is sent in scientific notation → "Invalid Meta Content Library ID" (subcode
+3790088).
+
+```r
+# ✓ Correct - quoted strings
+params = list("surface_ids" = "963780196442228,252084123456789", "limit" = 100L)
+params[[id_param]] <- paste(ids, collapse = ",")   # ids came from mcl_fromJSON() → character
+
+# ✗ Wrong - numeric IDs
+params = list("surface_ids" = 963780196442228)          # sent as 9.6378e+14
+params = list("surface_ids" = paste(as.numeric(ids), collapse = ","))
+
+# Rescue an ID that arrived as numeric from elsewhere (CSV, spreadsheet, reticulate)
+ids <- sprintf("%.0f", ids)     # NOT as.character(), which yields "1.784e+16"
 ```
 
 ## Platform-Specific ID Parameters

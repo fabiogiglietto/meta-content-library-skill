@@ -1,5 +1,9 @@
 # Producer Lists
 
+> All examples parse responses with `mcl_fromJSON()`, defined in SKILL.md §
+> "ID Handling (Always Load IDs as Character)". It keeps every ID field a
+> character string — plain `fromJSON()` turns IDs into doubles.
+
 Producer lists are pre-defined sets of accounts for Facebook Pages/Profiles or Instagram Accounts, created in the Content Library UI.
 
 ## Critical: Endpoint Path
@@ -30,7 +34,7 @@ client <- import("metacontentlibraryapi")$MetaContentLibraryAPIClient
 client$set_default_version(client$LATEST_VERSION)
 
 response <- client$get(path = "lists/producers")
-lists <- fromJSON(response$text, flatten = TRUE)
+lists <- mcl_fromJSON(response$text)
 
 # View available lists
 print(lists)
@@ -44,7 +48,7 @@ The response contains a `producers` **data.frame** with columns `id`, `name`, `t
 list_id <- "2026-03-29-bqtm"
 
 response <- client$get(path = paste0("lists/producers/", list_id))
-list_data <- fromJSON(response$text, flatten = TRUE)
+list_data <- mcl_fromJSON(response$text)
 
 # Response structure:
 # list_data$id        - character: list ID
@@ -64,8 +68,9 @@ head(producers)
 # 2 250547...     Emanuele Tesauro     page
 # 3 249073...        Mauro Fagiolo  profile
 
-# Extract just the IDs as a vector
+# Extract just the IDs as a vector (character, thanks to mcl_fromJSON)
 ids <- producers$id
+stopifnot(is.character(ids))   # a numeric vector here means fromJSON() was used
 ```
 
 ## Query Posts from Producer List
@@ -75,7 +80,7 @@ ids <- producers$id
 ```r
 # Get list metadata first
 response <- client$get(path = paste0("lists/producers/", list_id))
-list_data <- fromJSON(response$text, flatten = TRUE)
+list_data <- mcl_fromJSON(response$text)
 platform <- tolower(list_data$platform)
 ids <- list_data$producers$id  # Note: $producers$id, not $ids
 
@@ -98,7 +103,7 @@ response <- client$post(
   path = paste0(platform, "/posts/job"),
   params = params
 )
-job_data <- fromJSON(response$text, flatten = TRUE)
+job_data <- mcl_fromJSON(response$text)
 job_id <- job_data$id
 ```
 
@@ -152,7 +157,7 @@ for (i in seq_along(batches)) {
     path = paste0(platform, "/posts/job"),
     params = params
   )
-  job_data <- fromJSON(response$text, flatten = TRUE)
+  job_data <- mcl_fromJSON(response$text)
   all_job_ids <- c(all_job_ids, job_data$id)
   
   # Rate limit: 1 async query per minute
@@ -213,7 +218,7 @@ library(stringdist)  # Install via: cran$InstallPackages("stringdist", dependenc
 
 # 1. Get FB producers (names already included in response)
 response <- client$get(path = paste0("lists/producers/", list_id))
-list_data <- fromJSON(response$text, flatten = TRUE)
+list_data <- mcl_fromJSON(response$text)
 fb_producers <- list_data$producers
 
 # 2. Search IG accounts for each FB name
@@ -230,7 +235,7 @@ for (i in seq_len(nrow(fb_producers))) {
       path = "instagram/accounts/preview",
       params = list("q" = term, "limit" = 10L)
     )
-    parsed <- fromJSON(resp$text, flatten = TRUE)
+    parsed <- mcl_fromJSON(resp$text)
     if (!is.null(parsed$data) && is.data.frame(parsed$data) && nrow(parsed$data) > 0) {
       parsed$data
     } else NULL
@@ -290,5 +295,6 @@ scored <- ig_all %>%
 | "first argument must be a vector" | Accessing `$ids` instead of `$producers$id` | Use `list_data$producers$id` |
 | "Invalid parameter" | Wrong ID param name | Use `surface_ids` for Facebook, `account_ids` for Instagram |
 | "missing value where TRUE/FALSE needed" | `nrow()` on NULL from empty search | Use safe response handling (check `is.null` and `is.data.frame` before `nrow`) |
+| "Invalid Meta Content Library ID" (3790088) with IDs straight from a list | IDs parsed as numeric → `paste(ids, collapse = ",")` produces `"9.6378e+14,..."` | Parse the list with `mcl_fromJSON()`; check `is.character(ids)` before batching |
 | Empty results | IDs from wrong platform | Verify producer list platform matches endpoint |
 | Results truncated | Too many IDs | Batch into smaller groups |
