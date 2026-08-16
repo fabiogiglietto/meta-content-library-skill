@@ -1,5 +1,9 @@
 # MCL API Utilities
 
+> All examples parse responses with `mcl_fromJSON()`, defined in SKILL.md §
+> "ID Handling (Always Load IDs as Character)". It keeps every ID field a
+> character string — plain `fromJSON()` turns IDs into doubles.
+
 Verified working code for common utility tasks.
 
 ## Check Quota Status
@@ -12,7 +16,7 @@ client <- import("metacontentlibraryapi")$MetaContentLibraryAPIClient
 client$set_default_version(client$LATEST_VERSION)
 
 response <- client$get(path = "budgets")
-budgets <- fromJSON(response$text, flatten = TRUE)
+budgets <- mcl_fromJSON(response$text)
 
 # Extract query budget (posts, pages, groups, events, accounts)
 queries <- budgets$queries
@@ -98,7 +102,7 @@ if (status == "COMPLETE") {
   
   # Load into R
   filepath <- file.path(output_dir, filename)
-  job_data <- fromJSON(filepath, flatten = TRUE)
+  job_data <- mcl_fromJSON(filepath)
   
   cat("Retrieved", nrow(job_data), "records\n")
 }
@@ -109,7 +113,7 @@ if (status == "COMPLETE") {
 ```r
 # Full job details
 job_response <- client$get(path = paste0("async/jobs/", job_id))
-job_metadata <- fromJSON(job_response$text, flatten = TRUE)
+job_metadata <- mcl_fromJSON(job_response$text)
 
 cat("Mode:", job_metadata$mode, "\n")
 cat("Query ID:", job_metadata$query_id, "\n")
@@ -120,7 +124,7 @@ cat("Created:", as.POSIXct(job_metadata$creation_time, origin = "1970-01-01"), "
 
 ```r
 query_response <- client$get(path = paste0("async/queries/", job_metadata$query_id))
-query_info <- fromJSON(query_response$text, flatten = TRUE)
+query_info <- mcl_fromJSON(query_response$text)
 
 cat("Query Name:", query_info$name, "\n")
 cat("Platform:", query_info$platform, "\n")
@@ -132,10 +136,38 @@ cat("Parameters:", query_info$params, "\n")
 
 ```r
 jobs_response <- client$get(path = "async/jobs")
-jobs_data <- fromJSON(jobs_response$text, flatten = TRUE)
+jobs_data <- mcl_fromJSON(jobs_response$text)
 
 # View summary
 print(jobs_data$jobs[, c("id", "status", "mode", "query_id")])
+```
+
+## Verify IDs Loaded as Character
+
+Run this on any data.frame before joining, deduplicating, or exporting — it fails
+loudly if an ID slipped through as a double:
+
+```r
+check_ids <- function(df) {
+  id_cols <- grep(MCL_ID_PATTERN, names(df), value = TRUE)   # "(^|[._])ids?$"
+  bad <- id_cols[vapply(df[id_cols], is.numeric, logical(1))]   # logical is_invalid_id is fine
+
+  if (length(bad)) {
+    stop("Numeric ID column(s): ", paste(bad, collapse = ", "),
+         " — re-parse the source with mcl_fromJSON()")
+  }
+  # Digits above 2^53 are already rounded and cannot be repaired
+  risky <- vapply(df[id_cols], function(x) {
+    if (!is.character(x)) return(FALSE)
+    any(nchar(x) >= 16, na.rm = TRUE)
+  }, logical(1))
+
+  cat(sprintf("%d ID column(s) OK (%d with 16+ digit values)\n",
+              length(id_cols), sum(risky)))
+  invisible(TRUE)
+}
+
+check_ids(posts)
 ```
 
 ## SNAPSHOT vs LIVE Data Retention

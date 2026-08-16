@@ -1,5 +1,9 @@
 # Collections and Query Management
 
+> All examples parse responses with `mcl_fromJSON()`, defined in SKILL.md §
+> "ID Handling (Always Load IDs as Character)". It keeps every ID field a
+> character string — plain `fromJSON()` turns IDs into doubles.
+
 ## Collections (Folders)
 
 ```r
@@ -11,7 +15,7 @@ response <- client$post(
         description = "PI: Dr. Smith, IRB #2024-001, NSF Grant #12345"
     )
 )
-collection_id <- fromJSON(response$text, flatten = TRUE)$id
+collection_id <- mcl_fromJSON(response$text)$id
 
 # Set as default (new queries auto-added here)
 client$post(
@@ -20,7 +24,7 @@ client$post(
 )
 
 # List all collections
-collections <- fromJSON(client$get(path = "async/collections")$text, flatten = TRUE)
+collections <- mcl_fromJSON(client$get(path = "async/collections")$text)
 
 # Delete collection (queries remain)
 client$delete(path = paste0("async/collections/", collection_id))
@@ -30,12 +34,11 @@ client$delete(path = paste0("async/collections/", collection_id))
 
 ```r
 # List all queries
-queries <- fromJSON(client$get(path = "async/queries")$text, flatten = TRUE)
+queries <- mcl_fromJSON(client$get(path = "async/queries")$text)
 
 # Get specific query with all its jobs
-query_details <- fromJSON(
-    client$get(path = paste0("async/queries/", query_id))$text, 
-    flatten = TRUE
+query_details <- mcl_fromJSON(
+    client$get(path = paste0("async/queries/", query_id))$text
 )
 
 # Update query metadata
@@ -67,12 +70,11 @@ client$delete(path = paste0("async/queries/", query_id))
 
 ```r
 # List all jobs
-jobs <- fromJSON(client$get(path = "async/jobs")$text, flatten = TRUE)
+jobs <- mcl_fromJSON(client$get(path = "async/jobs")$text)
 
 # Get job metadata
-job_meta <- fromJSON(
-    client$get(path = paste0("async/jobs/", job_id))$text, 
-    flatten = TRUE
+job_meta <- mcl_fromJSON(
+    client$get(path = paste0("async/jobs/", job_id))$text
 )
 # Returns: id, status, mode, query_id, creation_time
 
