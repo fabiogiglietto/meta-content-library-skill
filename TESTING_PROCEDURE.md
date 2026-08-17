@@ -638,10 +638,10 @@ params <- list(
 )
 
 if (platform == "instagram") {
-  params[["account_ids"]] <- paste(batch_ids, collapse = ",")
+  params[["account_ids"]] <- as.list(batch_ids)
   endpoint <- "instagram/posts/job"
 } else {
-  params[["surface_ids"]] <- paste(batch_ids, collapse = ",")
+  params[["surface_ids"]] <- as.list(batch_ids)
   endpoint <- "facebook/posts/job"
 }
 
@@ -678,7 +678,7 @@ cat("Job submitted:", job_data$id, "\n")
 test_ids <- head(producer_ids, 5)
 
 params <- list(
-  "account_ids" = paste(test_ids, collapse = ","),
+  "account_ids" = as.list(test_ids),
   "limit" = 1000L
 )
 
@@ -743,10 +743,10 @@ params <- list(
 )
 
 if (platform == "instagram") {
-  params[["account_ids"]] <- paste(producer_ids, collapse = ",")
+  params[["account_ids"]] <- as.list(producer_ids)
   endpoint <- "instagram/posts/job"
 } else {
-  params[["surface_ids"]] <- paste(producer_ids, collapse = ",")
+  params[["surface_ids"]] <- as.list(producer_ids)
   endpoint <- "facebook/posts/job"
 }
 

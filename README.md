@@ -11,6 +11,7 @@ This skill helps researchers query Facebook, Instagram, and Threads public conte
 - **Async query patterns** with proper integer handling (`L` suffix)
 - **SNAPSHOT mode** for reproducible research (data preserved up to 1 year)
 - **Producer list workflows** with auto-detect platform (surface_ids vs account_ids)
+- **Producer list creation** via the UI CSV import (`Producer URL` column, max 1,000)
 - **Cross-platform account matching** (find Instagram equivalents of Facebook pages)
 - **IDs always as character** (`mcl_fromJSON()`) — no scientific notation, no precision loss above 2^53
 - **Safe response handling** patterns for robust API interaction
@@ -88,7 +89,9 @@ Once installed, Claude will automatically use this skill when you ask about:
 8. **Producer list path**: Use `lists/producers/{id}` not `producer-lists/{id}`
 9. **Producer list response**: IDs are in `$producers$id` (data.frame), not `$ids` (vector)
 10. **Safe response handling**: Always check `is.null()` and `is.data.frame()` before `nrow()`
-11. **IDs as character**: Parse every response with `mcl_fromJSON()` (`bigint_as_char = TRUE` + `sprintf("%.0f", ...)` on all ID fields). Never let an ID be a `numeric`, and never pass one into a URL or `surface_ids` unquoted
+11. **ID params are arrays**: Pass `surface_ids` / `account_ids` / `post_ids` as `as.list(ids)` — a comma-joined string or a single ID is rejected with "Invalid parameter"
+12. **Producer lists are created in the UI**: import a CSV with one `Producer URL` column (max 1,000 `https://www.facebook.com/<username>` URLs) — import is by URL, not by MCL id
+13. **IDs as character**: Parse every response with `mcl_fromJSON()` (`bigint_as_char = TRUE` + `sprintf("%.0f", ...)` on all ID fields). Never let an ID be a `numeric`, and never pass one into a URL or `surface_ids` unquoted
 
 ## Environment
 
@@ -122,9 +125,18 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Changelog
 
-### v1.5.0 (2026-08-17)
+### v1.6.0 (2026-08-17)
 - Documented that the API rejects double-quoted phrase searches (subcode
   3790184) even though the UI supports them; use single-word OR tokens.
+
+### v1.5.0 (2026-08-17)
+- Documented creating producer lists via the GUI CSV import: single `Producer URL`
+  column of `https://www.facebook.com/<username>` URLs, max 1,000 producers, import
+  is by URL not by MCL id. Added a recipe for building a list from active public
+  commenters.
+- Clarified that `surface_ids` / `account_ids` / `post_ids` must be passed as
+  **arrays** (`as.list(ids)`); a scalar is rejected with "Invalid parameter",
+  including a length-1 vector reticulate converts to a string.
 
 ### v1.4.0 (2026-08-16)
 - **IMPORTANT**: All IDs (surface, post, comment, account, job, query) are now loaded as **character**. New "ID Handling" section in `SKILL.md` with `mcl_fromJSON()` / `mcl_fix_ids()`, folded into `safe_get_data()` and used by every example.

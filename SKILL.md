@@ -1,13 +1,13 @@
 ---
 name: mcl-api-r
 description: Meta Content Library (MCL) API v6.0 helper for R users on Meta Research Platforms. Use when researchers need to query Facebook, Instagram, or Threads public content using R via reticulate in the Meta Secure Research Environment (SRE) or SOMAR Virtual Data Enclave (VDE). Covers async queries, collections, jobs, pagination, rate limits, SNAPSHOT mode, loading IDs as character, and proper integer handling.
-version: 1.5.0
+version: 1.6.0
 updated: 2026-08-17
 ---
 
 # Meta Content Library API v6.0 for R
 
-> **Skill Version:** 1.5.0 | **Updated:** 2026-08-17 | [Changelog](#changelog)
+> **Skill Version:** 1.6.0 | **Updated:** 2026-08-17 | [Changelog](#changelog)
 
 ## Environment
 
@@ -100,7 +100,7 @@ Rules that follow from this:
 | `mcl_fromJSON(file.path("results", "job.json"))` | `fromJSON(filepath, flatten = TRUE)` |
 | `sprintf("%.0f", x)` to fix a stray numeric ID | `as.character(x)` — returns `"1.784e+16"` for big IDs |
 | `read_csv(f, col_types = cols(.default = col_character()))` | `read_csv(f)` — re-parses ID columns as double |
-| Keep IDs as character in `distinct()`, joins, `paste(ids, collapse = ",")` | Comparing/merging on numeric IDs |
+| Keep IDs as character in `distinct()`, joins, and `as.list(ids)` params | Comparing/merging on numeric IDs |
 
 `options(scipen = 999)` only changes **display** — the value is still a double and still rounds above 2^53. It is not a fix.
 
@@ -140,6 +140,13 @@ Instagram: /instagram/{posts|accounts|channels|comments}/{preview|job|estimate}
 Utility:   /budgets, /async/jobs, /async/queries, /async/collections
 Producer:  /lists/producers, /lists/producers/{list_id}
 ```
+
+Producer lists are **created in the Content Library UI**, not via the API: import
+a CSV with a single `Producer URL` column of `https://www.facebook.com/<username>`
+URLs, max 1,000 producers. Import is by URL, not by MCL id — see
+`references/producer_lists.md`. Reading a list uses `lists/producers/{list_id}`
+(not `producer-lists/{id}`) and returns a `$producers` data.frame (id, name, type)
+plus `$platform`.
 
 - **preview** (GET): Sync, max 1000 results - exploration only
 - **job** (POST): Async, unlimited results - use for research
@@ -196,6 +203,16 @@ Lookup endpoints by entity (search with `q`, read `id` from `$data`):
 | Facebook page     | `facebook/pages/preview`     | `surface_ids` |
 | Facebook profile  | `facebook/profiles/preview`  | `surface_ids` |
 | Instagram account | `instagram/accounts/preview` | `account_ids` |
+
+**ID params are arrays.** `surface_ids` / `account_ids` / `post_ids` must be
+passed as arrays — a scalar is rejected with `"Invalid parameter"`, and that
+includes a single ID (reticulate converts a length-1 R vector into a Python
+string). Use `as.list()` unconditionally:
+
+```r
+params[["surface_ids"]] <- as.list(ids)   # ✓ array at every length
+params[["surface_ids"]] <- ids[1]         # ✗ sent as a scalar string
+```
 
 Notes:
 - Group search only covers **public** groups indexed in the Content Library; a private or non-indexed group won't appear and isn't queryable.
@@ -324,6 +341,7 @@ new_job_id <- mcl_fromJSON(rerun_response$text)$id
 | Type mismatch | Missing `L` suffix | Add `L` to integers |
 | Budget exceeded | Quota depleted | Wait for 7-day rolling reset |
 | Invalid parameter | Wrong ID param for platform | Facebook: `surface_ids`, Instagram: `account_ids` |
+| Invalid parameter with the right param name | ID param sent as a scalar (comma-joined string, or a length-1 vector reticulate turned into a string) | Pass an array: `as.list(ids)` |
 | 404 on producer-lists/ | Wrong endpoint path | Use `lists/producers/` not `producer-lists/` |
 | "first argument must be a vector" | Accessing field that doesn't exist | Inspect the parsed response with `str(mcl_fromJSON(resp$text))` |
 | "missing value where TRUE/FALSE needed" | `nrow()` on NULL | Use safe response handling pattern |
@@ -350,9 +368,19 @@ new_job_id <- mcl_fromJSON(rerun_response$text)$id
 
 ## Changelog
 
-### v1.5.0 (2026-08-17)
+### v1.6.0 (2026-08-17)
 - Documented that the API rejects double-quoted phrase searches (subcode
   3790184) even though the UI supports them; use single-word OR tokens.
+
+### v1.5.0 (2026-08-17)
+- Documented creating producer lists via the GUI CSV import: single `Producer URL`
+  column of `https://www.facebook.com/<username>` URLs, max 1,000 producers, import
+  is by URL not by MCL id. Added a recipe for building a list from active public
+  commenters.
+- Clarified that `surface_ids` / `account_ids` / `post_ids` must be passed as
+  **arrays** (`as.list(ids)`); a scalar is rejected with "Invalid parameter",
+  including a length-1 vector reticulate converts to a string. Updated every
+  affected example.
 
 ### v1.4.0 (2026-08-16)
 - **IMPORTANT**: All IDs (surface, post, comment, account, job, query) must be loaded as **character**. Added an "ID Handling" section with `mcl_fromJSON()` / `mcl_fix_ids()`, which combine `bigint_as_char = TRUE` (exactness above 2^53) with unconditional `sprintf("%.0f", ...)` coercion of every ID field (no scientific notation, no per-batch type drift).
