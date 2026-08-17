@@ -206,12 +206,12 @@ Lookup endpoints by entity (search with `q`, read `id` from `$data`):
 
 **ID params are arrays.** `surface_ids` / `account_ids` / `post_ids` must be
 passed as arrays — a scalar is rejected with `"Invalid parameter"`, and that
-includes a comma-joined string *and* a single ID (reticulate converts a length-1
-R vector into a Python string). Use `as.list()` unconditionally:
+includes a single ID (reticulate converts a length-1 R vector into a Python
+string). Use `as.list()` unconditionally:
 
 ```r
 params[["surface_ids"]] <- as.list(ids)   # ✓ array at every length
-params[["surface_ids"]] <- paste(ids, collapse = ",")   # ✗ scalar string
+params[["surface_ids"]] <- ids[1]         # ✗ sent as a scalar string
 ```
 
 Notes:
@@ -369,12 +369,13 @@ new_job_id <- mcl_fromJSON(rerun_response$text)$id
 
 ### v1.5.0 (2026-08-17)
 - Documented creating producer lists via the GUI CSV import: single `Producer URL`
-  column of https://www.facebook.com/<username> URLs, max 1,000 producers, import
+  column of `https://www.facebook.com/<username>` URLs, max 1,000 producers, import
   is by URL not by MCL id. Added a recipe for building a list from active public
   commenters.
 - Clarified that `surface_ids` / `account_ids` / `post_ids` must be passed as
-  **arrays** (`as.list(ids)`); a comma-joined string or a single ID is rejected
-  with "Invalid parameter". Updated every affected example.
+  **arrays** (`as.list(ids)`); a scalar is rejected with "Invalid parameter",
+  including a length-1 vector reticulate converts to a string. Updated every
+  affected example.
 
 ### v1.4.0 (2026-08-16)
 - **IMPORTANT**: All IDs (surface, post, comment, account, job, query) must be loaded as **character**. Added an "ID Handling" section with `mcl_fromJSON()` / `mcl_fix_ids()`, which combine `bigint_as_char = TRUE` (exactness above 2^53) with unconditional `sprintf("%.0f", ...)` coercion of every ID field (no scientific notation, no per-batch type drift).

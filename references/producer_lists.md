@@ -27,15 +27,11 @@ The MCL UI shows the correct path when you click the API ID button on a producer
 ## Critical: ID Parameters Must Be Arrays
 
 `surface_ids` / `account_ids` / `post_ids` are **array** parameters. A scalar is
-rejected with `"Invalid parameter"` — including a single ID, and including a
-comma-joined string:
+rejected with `"Invalid parameter"` — including the case of a single ID:
 
 ```r
 # ✓ Correct - array (Python list), even for one ID
 params[[id_param]] <- as.list(ids)
-
-# ✗ Wrong - comma-joined scalar string
-params[[id_param]] <- paste(ids, collapse = ",")
 
 # ✗ Wrong - a length-1 R vector: reticulate converts it to a Python *string*
 params[[id_param]] <- ids[1]
@@ -90,8 +86,8 @@ producers <- top_commenters %>%
   #    No username -> no URL -> cannot be imported.
   filter(!is.na(owner.username), nzchar(owner.username),
          !is.na(owner.name),     nzchar(owner.name)) %>%
-  # 2. One row per account (a commenter table repeats accounts across rows;
-  #    duplicates would silently burn slots against the 1,000 cap)
+  # 2. Safety net in case the upstream table isn't already one row per account —
+  #    duplicates would silently burn slots against the 1,000 cap
   mutate(username = tolower(trimws(owner.username))) %>%
   distinct(username, .keep_all = TRUE) %>%
   # 3. Score activity as a weighted blend of percentile ranks, so no single
@@ -392,7 +388,7 @@ scored <- ig_all %>%
 | 404 "Path not found" | Using `producer-lists/` path | Use `lists/producers/` |
 | "first argument must be a vector" | Accessing `$ids` instead of `$producers$id` | Use `list_data$producers$id` |
 | "Invalid parameter" | Wrong ID param name | Use `surface_ids` for Facebook, `account_ids` for Instagram |
-| "Invalid parameter" with the right param name | ID param passed as a scalar (comma-joined string, or a length-1 vector reticulate turned into a Python string) | Pass an array: `params[[id_param]] <- as.list(ids)` |
+| "Invalid parameter" with the right param name | ID param passed as a scalar — e.g. a length-1 vector that reticulate turned into a Python string | Pass an array: `params[[id_param]] <- as.list(ids)` |
 | "missing value where TRUE/FALSE needed" | `nrow()` on NULL from empty search | Use safe response handling (check `is.null` and `is.data.frame` before `nrow`) |
 | "Invalid Meta Content Library ID" (3790088) with IDs straight from a list | IDs parsed as numeric → `paste(ids, collapse = ",")` produces `"9.6378e+14,..."` | Parse the list with `mcl_fromJSON()`; check `is.character(ids)` before batching |
 | Empty results | IDs from wrong platform | Verify producer list platform matches endpoint |

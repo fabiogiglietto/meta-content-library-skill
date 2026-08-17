@@ -127,12 +127,12 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ### v1.5.0 (2026-08-17)
 - Documented creating producer lists via the GUI CSV import: single `Producer URL`
-  column of https://www.facebook.com/<username> URLs, max 1,000 producers, import
+  column of `https://www.facebook.com/<username>` URLs, max 1,000 producers, import
   is by URL not by MCL id. Added a recipe for building a list from active public
   commenters.
 - Clarified that `surface_ids` / `account_ids` / `post_ids` must be passed as
-  **arrays** (`as.list(ids)`); a comma-joined string or a single ID is rejected
-  with "Invalid parameter".
+  **arrays** (`as.list(ids)`); a scalar is rejected with "Invalid parameter",
+  including a length-1 vector reticulate converts to a string.
 
 ### v1.4.0 (2026-08-16)
 - **IMPORTANT**: All IDs (surface, post, comment, account, job, query) are now loaded as **character**. New "ID Handling" section in `SKILL.md` with `mcl_fromJSON()` / `mcl_fix_ids()`, folded into `safe_get_data()` and used by every example.

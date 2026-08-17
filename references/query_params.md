@@ -131,7 +131,7 @@ params = list("surface_ids" = 963780196442228)          # sent as 9.6378e+14
 params = list("surface_ids" = as.list(as.numeric(ids))) # each sent as 9.6378e+14
 
 # ✗ Wrong - scalar instead of array → "Invalid parameter"
-params = list("surface_ids" = paste(ids, collapse = ","))
+params = list("surface_ids" = ids[1])   # length-1 vector → Python string
 
 # Rescue an ID that arrived as numeric from elsewhere (CSV, spreadsheet, reticulate)
 ids <- sprintf("%.0f", ids)     # NOT as.character(), which yields "1.784e+16"

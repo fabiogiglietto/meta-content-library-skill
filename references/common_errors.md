@@ -75,7 +75,7 @@ if (!is.null(results)) {
 | "Missing required parameters" | Wrong ID parameter | Use `surface_ids` for Facebook entities |
 | "Invalid Meta Content Library ID" (subcode 3790088) | Used the numeric ID from a Facebook group/page URL as `surface_ids` | URL IDs are never valid MCL IDs. Search by name (e.g. `facebook/groups/preview` with `q`) and use the returned `id`. Private or non-indexed groups don't appear in search and aren't queryable. |
 | "Invalid Meta Content Library ID" (subcode 3790088) with a valid MCL ID | `surface_ids` built from numeric IDs → each value is sent as `9.6378e+14` | Keep IDs character end-to-end (`mcl_fromJSON()`), or convert with `sprintf("%.0f", ids)` before building the array |
-| "Invalid parameter" with a correct `surface_ids` / `account_ids` / `post_ids` name | ID param sent as a scalar — a comma-joined string, or a length-1 R vector that reticulate turned into a Python string | Pass an array: `params[[id_param]] <- as.list(ids)` |
+| "Invalid parameter" with a correct `surface_ids` / `account_ids` / `post_ids` name | ID param sent as a scalar — e.g. a length-1 R vector that reticulate turned into a Python string | Pass an array: `params[[id_param]] <- as.list(ids)` |
 
 ## General Errors
 
