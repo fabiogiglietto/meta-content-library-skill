@@ -3,7 +3,7 @@
 ## Table of Contents
 1. [Basic Queries](#basic-queries)
 2. [Boolean Operators](#boolean-operators)
-3. [Phrase Matching](#phrase-matching)
+3. [Phrase Matching (UI only, not supported by the API)](#phrase-matching-ui-only-not-supported-by-the-api)
 4. [Field-Specific Searches](#field-specific-searches)
 5. [Date Filtering](#date-filtering)
 6. [Engagement Filters](#engagement-filters)
@@ -39,20 +39,47 @@ client$search_fb_posts(q = "vaccine NOT covid")
 client$search_fb_posts(q = "(climate OR environment) AND (policy OR legislation)")
 ```
 
-## Phrase Matching
+## Phrase Matching (UI only, not supported by the API)
 
-Exact phrase matching with quotes:
+> **API caveat: no quoted phrases.** Unlike the Content Library UI, the API
+> rejects double-quoted phrase searches (error_subcode 3790184: "Searching
+> with phrases using double quotes is not supported"). Use single-word tokens
+> joined with OR. To approximate a multi-word entity, use a distinctive single
+> token (e.g. `Meloni` instead of `"Giorgia Meloni"`, `M5S` instead of
+> `"Movimento 5 Stelle"`), or `wordA OR wordB` — never `"wordA wordB"`.
+
+The full error returned by a Facebook posts job/estimate:
+
+```json
+{"title":"Invalid Keyword Search",
+ "detail":"Searching with phrases using double quotes is not supported. Please search without double quotes.",
+ "error_subcode":3790184,"status":400}
+```
+
+Quote-free equivalents:
 
 ```r
-# Exact phrase
+# ✗ Rejected by the API (works only in the UI)
 client$search_fb_posts(q = '"climate change"')
 
-# Phrase with other terms
-client$search_fb_posts(q = '"climate change" policy')
+# ✓ Distinctive single token
+client$search_fb_posts(q = "climate")
 
-# Multiple phrases
-client$search_fb_posts(q = '"global warming" OR "climate change"')
+# ✓ Tokens joined with OR
+client$search_fb_posts(q = "climate OR warming")
+
+# ✓ Narrow with AND instead of a phrase
+client$search_fb_posts(q = "climate AND policy")
 ```
+
+`OR` does not reproduce a phrase — it matches posts containing *either* word, so
+it broadens the corpus rather than matching the bigram. Prefer a distinctive
+single token where one exists, and use `AND` when both words must appear.
+
+Note that `q = "climate change"` — an R string holding two space-separated
+words — is fine: no double-quote character reaches the API. What 3790184
+rejects is a query **value** containing `"` characters, i.e. `q = '"climate
+change"'`.
 
 ## Field-Specific Searches
 
@@ -254,7 +281,7 @@ client$search_fb_posts(
 2. **Use date ranges** - Always specify start/end dates
 3. **Leverage filters** - Country, language, engagement filters reduce result size
 4. **Test in UI first** - Validate queries in Content Library UI before API
-5. **Escape special characters** - Use backslash for literal quotes, parentheses
+5. **No double-quoted phrases** - The API rejects them (subcode 3790184); use single-word tokens joined with `OR`
 6. **Avoid stop words** - Common words (the, a, is) may be ignored
 
 ## Error Messages
@@ -262,6 +289,7 @@ client$search_fb_posts(
 | Error | Cause | Solution |
 |-------|-------|----------|
 | `INVALID_QUERY` | Syntax error in query | Check quotes, parentheses balance |
+| `Invalid Keyword Search` (subcode 3790184) | Query used a double-quoted phrase | Remove the double quotes; use single-word tokens joined with `OR` (quoted phrases work in the UI, not the API) |
 | `DATE_RANGE_TOO_LARGE` | Range exceeds limit | Split into smaller date chunks |
 | `RATE_LIMIT_EXCEEDED` | Too many requests | Wait and retry, or use async |
 | `FIELD_NOT_AVAILABLE` | Invalid field requested | Check field_reference.md |

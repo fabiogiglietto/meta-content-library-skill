@@ -36,8 +36,12 @@
 # NOT (exclude)
 "q" = "vaccine NOT covid"
 
-# Exact phrase
+# ✗ Exact phrase - NOT supported by the API (subcode 3790184), UI only
 "q" = '"climate change"'
+
+# ✓ Use a distinctive single token, or tokens joined with OR
+# (OR broadens — it matches either word, not the phrase)
+"q" = "climate OR warming"
 
 # Complex
 "q" = '(climate OR environment) AND (policy OR legislation)'
@@ -65,7 +69,7 @@ params <- list(
     "name" = "Producer List Query",
     "description" = "Posts from tracked accounts"
 )
-params[[id_param]] <- paste(ids, collapse = ",")
+params[[id_param]] <- as.list(ids)   # array, not a comma-joined string
 
 response <- client$post(
     path = paste0(platform, "/posts/job"),

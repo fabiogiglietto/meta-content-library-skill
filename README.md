@@ -125,6 +125,10 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Changelog
 
+### v1.6.0 (2026-08-17)
+- Documented that the API rejects double-quoted phrase searches (subcode
+  3790184) even though the UI supports them; use single-word OR tokens.
+
 ### v1.5.0 (2026-08-17)
 - Documented creating producer lists via the GUI CSV import: single `Producer URL`
   column of `https://www.facebook.com/<username>` URLs, max 1,000 producers, import
