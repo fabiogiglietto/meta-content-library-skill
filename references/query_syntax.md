@@ -3,7 +3,7 @@
 ## Table of Contents
 1. [Basic Queries](#basic-queries)
 2. [Boolean Operators](#boolean-operators)
-3. [Phrase Matching (UI only — not supported by the API)](#phrase-matching-ui-only--not-supported-by-the-api)
+3. [Phrase Matching (UI only, not supported by the API)](#phrase-matching-ui-only-not-supported-by-the-api)
 4. [Field-Specific Searches](#field-specific-searches)
 5. [Date Filtering](#date-filtering)
 6. [Engagement Filters](#engagement-filters)
@@ -39,7 +39,7 @@ client$search_fb_posts(q = "vaccine NOT covid")
 client$search_fb_posts(q = "(climate OR environment) AND (policy OR legislation)")
 ```
 
-## Phrase Matching (UI only — not supported by the API)
+## Phrase Matching (UI only, not supported by the API)
 
 > **API caveat: no quoted phrases.** Unlike the Content Library UI, the API
 > rejects double-quoted phrase searches (error_subcode 3790184: "Searching
@@ -71,6 +71,10 @@ client$search_fb_posts(q = "climate OR warming")
 # ✓ Narrow with AND instead of a phrase
 client$search_fb_posts(q = "climate AND policy")
 ```
+
+`OR` does not reproduce a phrase — it matches posts containing *either* word, so
+it broadens the corpus rather than matching the bigram. Prefer a distinctive
+single token where one exists, and use `AND` when both words must appear.
 
 Note that `q = "climate change"` — an R string holding two space-separated
 words — is fine: no double-quote character reaches the API. What 3790184

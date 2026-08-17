@@ -40,6 +40,7 @@
 "q" = '"climate change"'
 
 # ✓ Use a distinctive single token, or tokens joined with OR
+# (OR broadens — it matches either word, not the phrase)
 "q" = "climate OR warming"
 
 # Complex
