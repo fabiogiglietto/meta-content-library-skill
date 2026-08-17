@@ -1,13 +1,13 @@
 ---
 name: mcl-api-r
 description: Meta Content Library (MCL) API v6.0 helper for R users on Meta Research Platforms. Use when researchers need to query Facebook, Instagram, or Threads public content using R via reticulate in the Meta Secure Research Environment (SRE) or SOMAR Virtual Data Enclave (VDE). Covers async queries, collections, jobs, pagination, rate limits, SNAPSHOT mode, loading IDs as character, and proper integer handling.
-version: 1.4.0
-updated: 2026-08-16
+version: 1.5.0
+updated: 2026-08-17
 ---
 
 # Meta Content Library API v6.0 for R
 
-> **Skill Version:** 1.4.0 | **Updated:** 2026-08-16 | [Changelog](#changelog)
+> **Skill Version:** 1.5.0 | **Updated:** 2026-08-17 | [Changelog](#changelog)
 
 ## Environment
 
@@ -332,6 +332,7 @@ new_job_id <- mcl_fromJSON(rerun_response$text)$id
 | "Can't combine `id` <character> and `id` <double>" | `bigint_as_char` typed the column per batch | Coerce all ID fields unconditionally via `mcl_fromJSON()` |
 | Join/`distinct()` misses obvious matches, IDs end in 0 | ID parsed as double, digits rounded above 2^53 | Re-parse the source with `mcl_fromJSON()` — rounded IDs cannot be repaired |
 | `'list' object has no attribute 'items'` | Passed `params = list()` (empty list) | Omit `params`, or pass a named list |
+| Invalid Keyword Search (subcode 3790184) | Query used a double-quoted phrase | Remove double quotes; use single-word tokens joined with `OR` (quoted phrases work in the UI, not the API) |
 
 ## References
 
@@ -348,6 +349,10 @@ new_job_id <- mcl_fromJSON(rerun_response$text)$id
 ---
 
 ## Changelog
+
+### v1.5.0 (2026-08-17)
+- Documented that the API rejects double-quoted phrase searches (subcode
+  3790184) even though the UI supports them; use single-word OR tokens.
 
 ### v1.4.0 (2026-08-16)
 - **IMPORTANT**: All IDs (surface, post, comment, account, job, query) must be loaded as **character**. Added an "ID Handling" section with `mcl_fromJSON()` / `mcl_fix_ids()`, which combine `bigint_as_char = TRUE` (exactness above 2^53) with unconditional `sprintf("%.0f", ...)` coercion of every ID field (no scientific notation, no per-batch type drift).

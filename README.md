@@ -122,6 +122,10 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Changelog
 
+### v1.5.0 (2026-08-17)
+- Documented that the API rejects double-quoted phrase searches (subcode
+  3790184) even though the UI supports them; use single-word OR tokens.
+
 ### v1.4.0 (2026-08-16)
 - **IMPORTANT**: All IDs (surface, post, comment, account, job, query) are now loaded as **character**. New "ID Handling" section in `SKILL.md` with `mcl_fromJSON()` / `mcl_fix_ids()`, folded into `safe_get_data()` and used by every example.
 - Prevents silent precision loss above 2^53, scientific notation in URLs/parameters (a second cause of subcode 3790088), and per-chunk `bind_rows()` type mismatches.
