@@ -122,13 +122,16 @@ is sent in scientific notation → "Invalid Meta Content Library ID" (subcode
 3790088).
 
 ```r
-# ✓ Correct - quoted strings
-params = list("surface_ids" = "963780196442228,252084123456789", "limit" = 100L)
-params[[id_param]] <- paste(ids, collapse = ",")   # ids came from mcl_fromJSON() → character
+# ✓ Correct - array of quoted strings
+params = list("surface_ids" = list("963780196442228", "252084123456789"), "limit" = 100L)
+params[[id_param]] <- as.list(ids)   # ids came from mcl_fromJSON() → character
 
 # ✗ Wrong - numeric IDs
 params = list("surface_ids" = 963780196442228)          # sent as 9.6378e+14
-params = list("surface_ids" = paste(as.numeric(ids), collapse = ","))
+params = list("surface_ids" = as.list(as.numeric(ids))) # each sent as 9.6378e+14
+
+# ✗ Wrong - scalar instead of array → "Invalid parameter"
+params = list("surface_ids" = ids[1])   # length-1 vector → Python string
 
 # Rescue an ID that arrived as numeric from elsewhere (CSV, spreadsheet, reticulate)
 ids <- sprintf("%.0f", ids)     # NOT as.character(), which yields "1.784e+16"
