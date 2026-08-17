@@ -36,8 +36,11 @@
 # NOT (exclude)
 "q" = "vaccine NOT covid"
 
-# Exact phrase
+# ✗ Exact phrase - NOT supported by the API (subcode 3790184), UI only
 "q" = '"climate change"'
+
+# ✓ Use a distinctive single token, or tokens joined with OR
+"q" = "climate OR warming"
 
 # Complex
 "q" = '(climate OR environment) AND (policy OR legislation)'
