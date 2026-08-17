@@ -69,7 +69,7 @@ params <- list(
     "name" = "Producer List Query",
     "description" = "Posts from tracked accounts"
 )
-params[[id_param]] <- paste(ids, collapse = ",")
+params[[id_param]] <- as.list(ids)   # array, not a comma-joined string
 
 response <- client$post(
     path = paste0(platform, "/posts/job"),
