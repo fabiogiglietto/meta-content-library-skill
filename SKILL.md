@@ -1,6 +1,6 @@
 ---
 name: mcl-api-r
-description: Meta Content Library (MCL) API v6.0 helper for R users on Meta Research Platforms. Use when researchers need to query Facebook or Instagram public content using R via reticulate in the Meta Secure Research Environment (SRE) or SOMAR Virtual Data Enclave (VDE). Covers async queries, collections, jobs, pagination, rate limits, SNAPSHOT mode, loading IDs as character, and proper integer handling.
+description: Meta Content Library (MCL) API v6.0 helper for R users on Meta Research Platforms. Use when researchers need to query Facebook or Instagram public content using R via reticulate in the Meta Secure Research Environment (SRE) or SOMAR Virtual Data Enclave (VDE). Covers async queries, collections, jobs, rate limits, SNAPSHOT mode, producer lists, loading IDs as character, and proper integer handling.
 version: 1.8.0
 updated: 2026-08-18
 ---
@@ -142,7 +142,7 @@ See `references/producer_lists.md` for the CSV import format, the response
 shape, and batching.
 
 - **preview** (GET): Sync, max 1000 results - exploration only
-- **job** (POST): Async, unlimited results - use for research
+- **job** (POST): Async, up to ~100,000 results - use for research
 - **estimate** (GET): Check result count before querying
 
 ## Nested Endpoints
