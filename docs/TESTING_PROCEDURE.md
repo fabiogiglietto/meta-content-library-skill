@@ -1,7 +1,7 @@
 # MCL API R Skill - Code Testing Procedure
 
-> **Version:** 1.1
-> **Last Updated:** 2026-08-16
+> **Version:** 1.2
+> **Last Updated:** 2026-08-18
 > **Purpose:** Comprehensive testing procedure for all code examples in the MCL API R Skill repository
 
 ## Overview
@@ -42,32 +42,10 @@ client <- import("metacontentlibraryapi")$MetaContentLibraryAPIClient
 async_utils <- import("metacontentlibraryapi")$MetaContentLibraryAPIAsyncUtils
 client$set_default_version(client$LATEST_VERSION)
 
-# ID-safe parsing helper (SKILL.md § ID Handling) - required by every test below
-MCL_ID_PATTERN <- "(^|[._])ids?$"
-
-mcl_fix_ids <- function(x, name = "") {
-  if (is.data.frame(x)) {
-    x[] <- Map(mcl_fix_ids, x, names(x))
-    return(x)
-  }
-  if (is.list(x)) {
-    nms <- names(x)
-    if (is.null(nms)) nms <- rep(name, length(x))
-    x[] <- Map(mcl_fix_ids, x, nms)
-    return(x)
-  }
-  if (grepl(MCL_ID_PATTERN, name) && is.numeric(x)) {   # numeric only: is_invalid_id stays logical
-    out <- rep(NA_character_, length(x))
-    ok <- !is.na(x)
-    out[ok] <- sprintf("%.0f", x[ok])
-    return(out)
-  }
-  x
-}
-
-mcl_fromJSON <- function(txt) {
-  mcl_fix_ids(fromJSON(txt, flatten = TRUE, bigint_as_char = TRUE))
-}
+# ID-safe parsing helper - required by every test below.
+# Paste the definitions of MCL_ID_PATTERN, mcl_fix_ids() and mcl_fromJSON()
+# from SKILL.md § "ID Handling (Always Load IDs as Character)".
+# SKILL.md is the single canonical copy; do not maintain a second one here.
 ```
 
 **Expected Outcome:**
@@ -1136,7 +1114,7 @@ post_id <- "YOUR_INSTAGRAM_POST_ID"
 tryCatch({
   response_wrong <- client$get(
     path = "instagram/comments/preview",
-    params = list("post_ids" = post_id, "limit" = 10L)
+    params = list("post_ids" = as.list(post_id), "limit" = 10L)
   )
   cat("ERROR: This should have failed but didn't!\n")
 }, error = function(e) {
@@ -1157,43 +1135,6 @@ tryCatch({
 ---
 
 ## Test Suite 8: Common Patterns (references/common_patterns.md)
-
-### Test 8.1: Basic Data Collection with Pagination
-
-**Location:** common_patterns.md § "Robust Data Collection with Pagination"
-
-**Note:** This is a more complex function. Test basic structure first.
-
-**Code:**
-```r
-# Test the structure without full execution
-collect_all_posts <- function(client, query, start_date, end_date, ...) {
-  all_results <- list()
-  cursor <- NULL
-  page <- 1
-
-  # Only fetch first page for testing
-  message(sprintf("Fetching page %d...", page))
-
-  # Note: This uses old API pattern, may need adjustment
-  # Just test the structure
-  cat("Function structure validated\n")
-  return(data.frame())
-}
-
-# Test function exists
-cat("Function defined successfully\n")
-```
-
-**Expected Outcome:**
-- Function structure validated
-
-**Validation Checklist:**
-- [ ] Function defines without syntax errors
-
-**Screenshot Required:** Optional
-
----
 
 ### Test 8.2: Time Series Analysis
 
@@ -1247,11 +1188,11 @@ posts <- mcl_fromJSON("results/YOUR_JOB_FILE.json")
 engagement_summary <- posts %>%
   summarise(
     n_posts = n(),
-    total_reactions = sum(statistics$reactions, na.rm = TRUE),
-    total_comments = sum(statistics$comments, na.rm = TRUE),
-    total_shares = sum(statistics$shares, na.rm = TRUE),
-    avg_reactions = mean(statistics$reactions, na.rm = TRUE),
-    median_reactions = median(statistics$reactions, na.rm = TRUE)
+    total_reactions = sum(statistics.reactions, na.rm = TRUE),
+    total_comments = sum(statistics.comments, na.rm = TRUE),
+    total_shares = sum(statistics.shares, na.rm = TRUE),
+    avg_reactions = mean(statistics.reactions, na.rm = TRUE),
+    median_reactions = median(statistics.reactions, na.rm = TRUE)
   )
 
 print(engagement_summary)
@@ -1382,7 +1323,7 @@ post_id <- "YOUR_INSTAGRAM_POST_ID"
 tryCatch({
   response <- client$get(
     path = "instagram/posts/preview",
-    params = list("surface_ids" = post_id, "limit" = 10L)
+    params = list("surface_ids" = as.list(post_id), "limit" = 10L)
   )
   cat("ERROR: Should have failed with parameter error!\n")
 }, error = function(e) {
@@ -1393,7 +1334,7 @@ tryCatch({
 # CORRECT - using post_ids for Instagram
 response <- client$get(
   path = "instagram/posts/preview",
-  params = list("post_ids" = post_id, "limit" = 10L)
+  params = list("post_ids" = as.list(post_id), "limit" = 10L)
 )
 result <- mcl_fromJSON(response$text)
 cat("Success with correct parameter (post_ids)\n")
@@ -1496,7 +1437,7 @@ check_ids(pages)                                  # helper from utilities.md
 pid <- pages$id[1]
 stopifnot(is.character(pid), !grepl("e\\+", pid))
 resp2 <- client$get(path = "facebook/pages/preview",
-                    params = list("surface_ids" = pid, "limit" = 5L))
+                    params = list("surface_ids" = as.list(pid), "limit" = 5L))
 mcl_fromJSON(resp2$text)$data[, c("id", "name")]
 ```
 

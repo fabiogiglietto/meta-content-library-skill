@@ -1,13 +1,13 @@
 ---
 name: mcl-api-r
-description: Meta Content Library (MCL) API v6.0 helper for R users on Meta Research Platforms. Use when researchers need to query Facebook, Instagram, or Threads public content using R via reticulate in the Meta Secure Research Environment (SRE) or SOMAR Virtual Data Enclave (VDE). Covers async queries, collections, jobs, pagination, rate limits, SNAPSHOT mode, loading IDs as character, and proper integer handling.
-version: 1.7.0
+description: Meta Content Library (MCL) API v6.0 helper for R users on Meta Research Platforms. Use when researchers need to query Facebook or Instagram public content using R via reticulate in the Meta Secure Research Environment (SRE) or SOMAR Virtual Data Enclave (VDE). Covers async queries, collections, jobs, pagination, rate limits, SNAPSHOT mode, loading IDs as character, and proper integer handling.
+version: 1.8.0
 updated: 2026-08-18
 ---
 
 # Meta Content Library API v6.0 for R
 
-> **Skill Version:** 1.7.0 | **Updated:** 2026-08-18 | [Changelog](#changelog)
+> **Skill Version:** 1.8.0 | **Updated:** 2026-08-18 | [Changelog](CHANGELOG.md)
 
 ## Environment
 
@@ -106,19 +106,11 @@ Rules that follow from this:
 
 If an ID reaches R as a number from somewhere else (a CSV, a Python object via reticulate, a spreadsheet), convert it with `sprintf("%.0f", x)` immediately — and treat anything at or above 2^53 as already corrupted, since re-fetching it from MCL is the only way back.
 
-## OpenAPI Specification
+## OpenAPI Spec
 
-Retrieve the complete API spec programmatically (v6.0+):
-
-```r
-spec <- client$openapi_spec()
-```
-
-Use this to discover all endpoints, parameters, and response schemas.
-
-## OpenAPI Spec Discovery
-
-When unsure about endpoint parameters, query the OpenAPI spec:
+Retrieve the complete API spec programmatically (v6.0+) — use it to discover
+endpoints, parameters, and response schemas, and to settle any question this
+skill does not answer:
 
 ```r
 spec <- client$openapi_spec()
@@ -127,6 +119,9 @@ paths <- names(spec$paths)
 # Find Instagram endpoints
 instagram_paths <- paths[grepl("instagram", paths, ignore.case = TRUE)]
 print(instagram_paths)
+
+# Inspect one endpoint's parameters
+str(spec$paths[["/instagram/posts/preview"]]$get$parameters)
 
 # Save full spec for reference
 write(toJSON(spec, pretty = TRUE), "openapi_spec.json")
@@ -141,12 +136,10 @@ Utility:   /budgets, /async/jobs, /async/queries, /async/collections
 Producer:  /lists/producers, /lists/producers/{list_id}
 ```
 
-Producer lists are **created in the Content Library UI**, not via the API: import
-a CSV with a single `Producer URL` column of `https://www.facebook.com/<username>`
-URLs, max 1,000 producers. Import is by URL, not by MCL id — see
-`references/producer_lists.md`. Reading a list uses `lists/producers/{list_id}`
-(not `producer-lists/{id}`) and returns a `$producers` data.frame (id, name, type)
-plus `$platform`.
+Producer lists are **created in the Content Library UI**, not via the API, and
+read with `lists/producers/{list_id}` — not `producer-lists/{id}`, which 404s.
+See `references/producer_lists.md` for the CSV import format, the response
+shape, and batching.
 
 - **preview** (GET): Sync, max 1000 results - exploration only
 - **job** (POST): Async, unlimited results - use for research
@@ -215,7 +208,8 @@ params[["surface_ids"]] <- ids[1]         # ✗ sent as a scalar string
 ```
 
 `post_ids` accepts at most **250 IDs per call**; chunk longer lists, and keep
-`surface_ids` batches at ≤ 250 too.
+`surface_ids` batches at ≤ 250 too — see `references/query_params.md` § "ID
+Parameter Batch Limits".
 
 Notes:
 - Group search only covers **public** groups indexed in the Content Library; a private or non-indexed group won't appear and isn't queryable.
@@ -308,19 +302,18 @@ cat("Available:", budget$queries$max_usage_limit - budget$queries$total_usage, "
 
 ## SNAPSHOT vs LIVE Mode
 
-| SNAPSHOT (recommended) | LIVE |
-|------------------------|------|
-| Data preserved up to 1 year | Deleted after 30 days |
-| Can be shared for reproducibility | Cannot be shared |
-| Refreshed every 30 days | N/A |
-| Use for research | Use for exploration only |
-| Counts against the 100-snapshot cap | Does **not** count against it |
+Use **SNAPSHOT** for anything you need to reproduce or share: data is preserved
+up to a year, refreshed every 30 days, and the job can be shared. **LIVE** data
+is deleted after 30 days and cannot be shared — but LIVE jobs do **not** count
+against the 100-snapshot cap, so run exploration LIVE and save results to disk.
+A LIVE job can be promoted later:
 
-When reproducibility isn't needed, run LIVE and save results to disk — LIVE jobs
-don't consume a snapshot slot, and a LIVE job can be promoted later with
-`client$post(path = paste0("async/jobs/", job_id, "/snapshot"))`. Free slots by
-deleting finished snapshots; see `references/collections.md` § "The 100-Snapshot
-Cap".
+```r
+client$post(path = paste0("async/jobs/", job_id, "/snapshot"))
+```
+
+Full comparison, the 100-snapshot cap (subcode 3790172), and how to free slots:
+`references/collections.md` § "The 100-Snapshot Cap".
 
 ## The 100,000 Result Limit
 
@@ -351,26 +344,24 @@ new_job_id <- mcl_fromJSON(rerun_response$text)$id
 
 ## Common Errors
 
+These are the errors that change how you write a query in the first place. For
+the diagnostic long tail — type mismatches, silent join misses, NULL responses,
+wrong response fields — see `references/common_errors.md`.
+
 | Error | Cause | Fix |
 |-------|-------|-----|
 | Method not allowed | GET on /job endpoint | Use POST |
 | Results limited to 1000 | Using sync /preview | Switch to async /job |
 | Type mismatch | Missing `L` suffix | Add `L` to integers |
-| Budget exceeded | Quota depleted | Wait for 7-day rolling reset |
 | Invalid parameter | Wrong ID param for platform | Facebook: `surface_ids`, Instagram: `account_ids` |
 | Invalid parameter with the right param name | ID param sent as a scalar (comma-joined string, or a length-1 vector reticulate turned into a string) | Pass an array: `as.list(ids)` |
-| 404 on producer-lists/ | Wrong endpoint path | Use `lists/producers/` not `producer-lists/` |
-| "first argument must be a vector" | Accessing field that doesn't exist | Inspect the parsed response with `str(mcl_fromJSON(resp$text))` |
-| "missing value where TRUE/FALSE needed" | `nrow()` on NULL | Use safe response handling pattern |
-| Invalid Meta Content Library ID (subcode 3790088) | Used a raw Facebook/Instagram URL ID as `surface_ids`/`account_ids` | Search the entity by name (e.g. `facebook/groups/preview` with `q`) and use the returned `id` |
-| Invalid Meta Content Library ID (subcode 3790088) with a *correct* ID | ID held as `numeric`, so it was sent as `9.6378e+14` | Parse with `mcl_fromJSON()`; pass IDs as quoted character — see [ID Handling](#id-handling-always-load-ids-as-character) |
-| "Can't combine `id` <character> and `id` <double>" | `bigint_as_char` typed the column per batch | Coerce all ID fields unconditionally via `mcl_fromJSON()` |
-| Join/`distinct()` misses obvious matches, IDs end in 0 | ID parsed as double, digits rounded above 2^53 | Re-parse the source with `mcl_fromJSON()` — rounded IDs cannot be repaired |
 | `'list' object has no attribute 'items'` | Passed `params = list()` (empty list) | Omit `params`, or pass a named list |
 | Invalid Keyword Search (subcode 3790184) | Query used a double-quoted phrase | Remove double quotes; use single-word tokens joined with `OR` (quoted phrases work in the UI, not the API) |
-| Invalid Meta Content Library ID (subcode 3790088) when resolving a reshare | The reshared original is out of scope, and one bad ID rejects the whole `post_ids` call | Bisect the batch and skip the offending IDs — see `references/field_reference.md` § "Reshares" |
+| Invalid Meta Content Library ID (subcode 3790088) | Used a raw Facebook/Instagram URL ID as `surface_ids`/`account_ids` | Search the entity by name (e.g. `facebook/groups/preview` with `q`) and use the returned `id` |
+| Invalid Meta Content Library ID (subcode 3790088) with a *correct* ID | ID held as `numeric`, so it was sent as `9.6378e+14` | Parse with `mcl_fromJSON()`; pass IDs as quoted character — see [ID Handling](#id-handling-always-load-ids-as-character) |
 | Estimated response size too large (subcode 3790057) | Query would return more than ~100,000 results | Split by date window, and/or query fewer `surface_ids` |
 | Exceeded async snapshots limit (subcode 3790172) | More than 100 concurrent SNAPSHOT jobs | Use `mode = "LIVE"` when reproducibility isn't needed; delete finished snapshots |
+| Budget exceeded | Quota depleted | Wait for 7-day rolling reset |
 | Producer-list post query estimates ~0 results | List is mostly ordinary profiles, whose posts aren't in the queryable dataset | Verified or 25,000+ follower profiles only — see `references/field_reference.md` § "Data Scope" |
 
 ## References
@@ -384,75 +375,4 @@ new_job_id <- mcl_fromJSON(rerun_response$text)$id
 - `references/field_reference.md` - Available fields by entity type, reshare resolution, data scope
 - `references/common_patterns.md` - Reusable code patterns
 
----
-
-## Changelog
-
-### v1.7.0 (2026-08-18)
-- Consolidated verified API behaviors: MCL IDs != URL IDs (3790088); ID params
-  must be arrays; empty-params reticulate pitfall; no double-quoted phrases
-  (3790184); 100k single-query cap (3790057) -> date windows; SNAPSHOT cap
-  (3790172) vs LIVE + LIVE->SNAPSHOT conversion; profile post-inclusion thresholds
-  (verified/25k+ followers); comment (owner.*) vs post (post_owner.*) schemas;
-  replies require a second parent_ids pull; reshares carry shared_post_id resolved
-  via post_ids; producer-list CSV import format (Producer URL, max 1000).
-
-### v1.6.0 (2026-08-17)
-- Documented that the API rejects double-quoted phrase searches (subcode
-  3790184) even though the UI supports them; use single-word OR tokens.
-
-### v1.5.0 (2026-08-17)
-- Documented creating producer lists via the GUI CSV import: single `Producer URL`
-  column of `https://www.facebook.com/<username>` URLs, max 1,000 producers, import
-  is by URL not by MCL id. Added a recipe for building a list from active public
-  commenters.
-- Clarified that `surface_ids` / `account_ids` / `post_ids` must be passed as
-  **arrays** (`as.list(ids)`); a scalar is rejected with "Invalid parameter",
-  including a length-1 vector reticulate converts to a string. Updated every
-  affected example.
-
-### v1.4.0 (2026-08-16)
-- **IMPORTANT**: All IDs (surface, post, comment, account, job, query) must be loaded as **character**. Added an "ID Handling" section with `mcl_fromJSON()` / `mcl_fix_ids()`, which combine `bigint_as_char = TRUE` (exactness above 2^53) with unconditional `sprintf("%.0f", ...)` coercion of every ID field (no scientific notation, no per-batch type drift).
-- Folded ID coercion into `safe_get_data()` and switched every example in SKILL.md and the reference files from `fromJSON()` to `mcl_fromJSON()`.
-- Added error rows for scientific-notation 3790088, `bind_rows()` type mismatch, and silent precision loss in joins/dedup.
-
-### v1.3.0 (2026-08-13)
-- **IMPORTANT**: Documented that MCL IDs are library-specific and differ from Facebook/Instagram URL IDs. Added a "Finding Surface IDs" section with per-entity lookup endpoints and error rows for subcode 3790088 and the empty-`params` reticulate pitfall.
-
-### v1.2.0 (2026-03-29)
-- **BREAKING**: Fixed producer list endpoint: `lists/producers/{id}` not `producer-lists/{id}`
-- **BREAKING**: Producer list response uses `$producers` data.frame (cols: id, name, type), not `$ids` vector
-- Added safe response handling pattern for API responses (prevents `nrow()` on NULL)
-- Added Instagram accounts response field documentation (id, name, username, biography, account_type, is_verified, follower_count, following_count, creation_date, website)
-- Added cross-platform account matching workflow to producer_lists.md
-- Added producer endpoint to Key Endpoints section
-- Updated common_errors.md with 404 producer list, NULL response, and nrow() errors
-
-### v1.1.0 (2025-01-04)
-- Fixed Instagram parameter documentation (`post_ids` not `surface_ids`)
-- Added nested endpoints documentation for Instagram comments/replies
-- Added OpenAPI spec discovery pattern for debugging
-- Added common_errors.md reference file
-- Clarified platform-specific ID parameter differences
-
-### v1.0.0 (2025-01-04)
-- Initial release
-- Core async query patterns with integer `L` suffix handling
-- SNAPSHOT mode documentation
-- Producer list support with platform auto-detection
-- Quota monitoring from verified working code
-- Package installation via `fbrir`
-- Job retrieval patterns
-- Large dataset chunking
-- Collection management
-- OpenAPI spec access
-
-<!-- 
-UPDATE CHECKLIST:
-When updating this skill, remember to:
-1. Increment version in frontmatter and header
-2. Update the "updated" date
-3. Add changelog entry
-4. Update all reference files if needed
-5. Re-upload to Claude Projects
--->
+Version history: [CHANGELOG.md](CHANGELOG.md)

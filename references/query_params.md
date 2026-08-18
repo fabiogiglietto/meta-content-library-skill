@@ -115,7 +115,7 @@ Comments require `parent_ids` (post IDs):
 response <- client$post(
     path = "facebook/comments/job",
     params = list(
-        "parent_ids" = c("post_id_1", "post_id_2"),
+        "parent_ids" = as.list(post_ids),   # array, even for one ID
         "mode" = "SNAPSHOT",
         "name" = "Comments on Target Posts",
         "description" = "Comments for sentiment analysis"
@@ -176,25 +176,10 @@ ids <- sprintf("%.0f", ids)     # NOT as.character(), which yields "1.784e+16"
 The numeric ID in a Facebook/Instagram **URL** is not a valid Content Library ID
 — MCL assigns its own (privacy by design). Passing a URL ID is rejected with
 `error_subcode 3790088` ("Invalid Meta Content Library ID"). Look the entity up
-by name via the matching preview endpoint and use the `id` it returns:
+by name via the matching preview endpoint and use the `id` it returns.
 
-| Entity | Lookup endpoint | ID param in queries |
-|--------|-----------------|---------------------|
-| Facebook group    | `facebook/groups/preview`    | `surface_ids` |
-| Facebook page     | `facebook/pages/preview`     | `surface_ids` |
-| Facebook profile  | `facebook/profiles/preview`  | `surface_ids` |
-| Instagram account | `instagram/accounts/preview` | `account_ids` |
-
-```r
-resp <- client$get(
-  path   = "facebook/pages/preview",
-  params = list("q" = "PAGE NAME", "limit" = 50L)
-)
-pages <- safe_get_data(resp$text)
-pages[, c("id", "name")]      # use this `id`
-```
-
-See SKILL.md § "Finding Surface IDs" for the full pattern.
+**See SKILL.md § "Finding Surface IDs"** for the per-entity lookup table and the
+full pattern.
 
 ## ID Parameter Batch Limits
 
@@ -230,11 +215,15 @@ client$get(path = "budgets")
 |----------|----------|--------------|-------|
 | Facebook | `/facebook/posts/preview` | `surface_ids` | Pages, groups, profiles |
 | Facebook | `/facebook/comments/preview` | `parent_ids` | Post IDs as parameter |
-| Instagram | `/instagram/posts/preview` | `post_ids` | NOT `surface_ids` |
+| Instagram | `/instagram/posts/preview` | `account_ids` | Posts **by** these accounts |
+| Instagram | `/instagram/posts/preview` | `post_ids` | These **specific posts**, by ID |
 | Instagram | `/instagram/accounts/preview` | `account_ids` | Account lookup |
 | Instagram | Post comments | N/A | Use nested URL: `/instagram/posts/{id}/comments/preview` |
 
-**Common Error:** Using `surface_ids` for Instagram returns "Missing required parameters". Use `post_ids` instead.
+**Common Error:** Using `surface_ids` for Instagram returns "Missing required
+parameters. Input at least one parameter [q, post_ids, account_ids]".
+`surface_ids` is Facebook-only. See `references/producer_lists.md` §
+"`account_ids` vs `post_ids` (Instagram)" for which of the two you want.
 
 ## Producer List Endpoint
 
