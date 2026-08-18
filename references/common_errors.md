@@ -4,6 +4,9 @@
 > "ID Handling (Always Load IDs as Character)". Never call `fromJSON()` directly
 > on an MCL response — IDs come back as doubles.
 
+> This file is the **full** error catalog. `SKILL.md` § "Common Errors" carries
+> only the subset that changes how you write a first query.
+
 ## ID / Numeric Precision Errors
 
 | Error / symptom | Cause | Solution |
@@ -32,6 +35,7 @@ Notes:
 |-------|-------|----------|
 | "missing value where TRUE/FALSE needed" on `nrow()` | API returned NULL or empty list instead of data.frame | Always validate before `nrow()`: `if (!is.null(x) && is.data.frame(x) && nrow(x) > 0)` |
 | "$ operator is invalid for atomic vectors" | Accessing nested field on empty/atomic response | Parse with `mcl_fromJSON(resp$text)` and check structure before accessing fields |
+| "first argument must be a vector" | Accessing a field the response doesn't have | Inspect the parsed response first: `str(mcl_fromJSON(resp$text))` |
 
 ### Safe Response Pattern
 
@@ -76,6 +80,17 @@ if (!is.null(results)) {
 | "Invalid Meta Content Library ID" (subcode 3790088) | Used the numeric ID from a Facebook group/page URL as `surface_ids` | URL IDs are never valid MCL IDs. Search by name (e.g. `facebook/groups/preview` with `q`) and use the returned `id`. Private or non-indexed groups don't appear in search and aren't queryable. |
 | "Invalid Meta Content Library ID" (subcode 3790088) with a valid MCL ID | `surface_ids` built from numeric IDs → each value is sent as `9.6378e+14` | Keep IDs character end-to-end (`mcl_fromJSON()`), or convert with `sprintf("%.0f", ids)` before building the array |
 | "Invalid parameter" with a correct `surface_ids` / `account_ids` / `post_ids` name | ID param sent as a scalar — e.g. a length-1 R vector that reticulate turned into a Python string | Pass an array: `params[[id_param]] <- as.list(ids)` |
+
+| "Invalid Meta Content Library ID" (3790088) when resolving a reshare | The reshared original is out of scope for the Content Library, and one bad ID rejects the **whole** `post_ids` call | Bisect the batch and skip the offenders — see `references/field_reference.md` § "Reshares" |
+
+## Scope and Quota Errors
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "Estimated response size too large" (subcode 3790057) | A single query would return more than ~100,000 results | Split by date window and/or query fewer `surface_ids` — see `references/chunking.md` |
+| "Exceeded async snapshots limit" (subcode 3790172) | More than 100 concurrent SNAPSHOT jobs | Run `mode = "LIVE"` where reproducibility isn't needed, and delete finished snapshots — see `references/collections.md` § "The 100-Snapshot Cap" |
+| A producer-list post query estimates ~0 results | The list is mostly ordinary profiles, whose posts aren't in the queryable dataset | Only verified or 25,000+ follower profiles qualify — see `references/field_reference.md` § "Data Scope" |
+| "Invalid Keyword Search" (subcode 3790184) | The query used a double-quoted phrase | Drop the double quotes; use single-word tokens joined with `OR` — see `references/query_params.md` § "Query Syntax (`q`)" |
 
 ## General Errors
 

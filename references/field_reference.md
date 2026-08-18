@@ -8,6 +8,12 @@
 > printing as `9.6378e+14`. Parse with `mcl_fromJSON()` (SKILL.md § "ID Handling").
 > Only counts and timestamps are genuinely numeric.
 
+> **Provenance.** Confirmed against live responses: the Instagram account fields
+> (v1.2.0), comment `owner.*` and post `post_owner.*` / `surface.*` (v1.7.0), and
+> `shared_post_id` on reshares (v1.7.0). The remaining tables are compiled from
+> documentation and **not** confirmed against a live response — treat an
+> unexpected `NULL` column as the table being wrong, not your query.
+
 ## Table of Contents
 1. [Facebook Posts](#facebook-posts)
 2. [Facebook Pages](#facebook-pages)
@@ -115,7 +121,6 @@ resolve_originals <- function(ids) {
 | Field | Type | Description |
 |-------|------|-------------|
 | `is_reshare` | boolean | Is this a shared post |
-| `shared_from_id` | string | Original post ID if reshare |
 | `location.country` | string | Country code if geotagged |
 
 ## Facebook Pages
@@ -242,35 +247,43 @@ replies <- safe_get_data(client$post(
 
 ## Instagram Accounts
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Unique account ID |
-| `username` | string | Instagram handle |
-| `name` | string | Display name |
-| `bio` | string | Profile biography |
-| `account_type` | string | business, creator |
-| `category` | string | Business category |
-| `verified` | boolean | Has verified badge |
-| `follower_count` | integer | Number of followers |
-| `following_count` | integer | Number following |
-| `post_count` | integer | Total posts |
-| `website` | string | Profile website |
+Confirmed from a live `/instagram/accounts/preview` response (v1.2.0). The field
+table lives in `references/producer_lists.md` § "Instagram Account Fields (from
+/preview)" — `id`, `name`, `username`, `biography`, `account_type`,
+`is_verified`, `follower_count`, `following_count`, `creation_date`, `website`.
+
+Note the spellings: `biography` (not `bio`) and `is_verified` (not `verified`).
 
 ## Instagram Comments
 
 > **Note:** Comments are accessed via nested endpoints. Use `/instagram/posts/{post_id}/comments/preview` not `/instagram/comments/preview` with a `post_ids` parameter.
 
+Not confirmed against a live response. Facebook comments name the commenter under
+`owner.*`, with `author_id` present but empty (verified, v1.7.0); assume the same
+shape here and check with `str()` before relying on it.
+
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | string | Unique comment ID |
 | `post_id` | string | Parent post ID |
+| `parent_id` | string | Parent **comment** ID; empty on top-level comments |
 | `text` | string | Comment text |
 | `creation_time` | datetime | When posted |
-| `author_id` | string | Commenter account ID |
-| `likes` | integer | Like count |
-| `reply_count` | integer | Number of replies |
+| `owner.id` | string | Commenter account ID |
+| `owner.username` | string | Commenter handle |
+| `owner.name` | string | Commenter display name |
+
+Engagement fields on Instagram comments (like and reply counts) are unconfirmed
+— Facebook comments report `statistics.reaction_count` and
+`statistics.top_level_reply_count`. Check the actual shape with
+`str(mcl_fromJSON(resp$text)$data)`, or read the endpoint's entry from
+`client$openapi_spec()`.
 
 ## Threads Posts
+
+> **Unverified.** No Threads endpoint path has been confirmed for this API
+> version, and this table has not been checked against a live Threads query.
+> Discover the available paths with `client$openapi_spec()` before relying on it.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -322,18 +335,6 @@ comments and posts on other surfaces are not part of that producer's posts.
 
 ## Requesting Fields
 
-Specify fields explicitly to reduce response size:
-
-```r
-client$search_fb_posts(
-  q = "climate",
-  fields = c(
-    "id",
-    "creation_time",
-    "post_owner.name",
-    "statistics"
-  )
-)
-```
-
-Default fields vary by endpoint. Check current documentation for defaults.
+Field selection is not documented here because it has not been verified against
+a live response. To check whether an endpoint accepts a field-selection
+parameter, read its entry in the OpenAPI spec — see SKILL.md § "OpenAPI Spec".

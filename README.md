@@ -1,44 +1,47 @@
 # MCL API R Skill for Claude
 
-A Claude skill for working with Meta Content Library (MCL) API v6.0 using R.
+> **Version:** 1.8.0 — see [CHANGELOG.md](CHANGELOG.md)
+
+A Claude skill for working with the Meta Content Library (MCL) API v6.0 using R.
 
 ## Overview
 
-This skill helps researchers query Facebook, Instagram, and Threads public content using R via reticulate in Meta's Secure Research Environment (SRE) or SOMAR Virtual Data Enclave (VDE).
+This skill helps researchers query Facebook and Instagram public content using R
+via reticulate in Meta's Secure Research Environment (SRE) or the SOMAR Virtual
+Data Enclave (VDE).
 
-## Features
+Everything the skill teaches is in **[SKILL.md](SKILL.md)** and the
+`references/` files it links. This README is just the front door.
+
+## What it covers
 
 - **Async query patterns** with proper integer handling (`L` suffix)
-- **SNAPSHOT mode** for reproducible research (data preserved up to 1 year)
-- **Producer list workflows** with auto-detect platform (surface_ids vs account_ids)
-- **Producer list creation** via the UI CSV import (`Producer URL` column, max 1,000)
-- **Cross-platform account matching** (find Instagram equivalents of Facebook pages)
-- **IDs always as character** (`mcl_fromJSON()`) — no scientific notation, no precision loss above 2^53
-- **Comment vs post schemas** (`owner.*` vs `post_owner.*`), replies, and reshare resolution
-- **Data scope**: which producers' posts are actually queryable
-- **Safe response handling** patterns for robust API interaction
-- **Quota monitoring** and budget management
-- **Large dataset chunking** strategies for 100K+ result queries
-- **Collection organization** for managing research projects
-- **OpenAPI spec access** for programmatic API discovery
+- **SNAPSHOT mode** for reproducible research, and when to use LIVE instead
+- **IDs always as character** (`mcl_fromJSON()`) — no scientific notation, no
+  precision loss above 2^53, no per-batch type drift
+- **Producer lists** — UI CSV import, endpoint paths, response shape, batching,
+  and cross-platform account matching
+- **Safe response handling** for NULL and empty responses
+- **Large dataset chunking** for queries over the ~100,000-result cap
+- **Quota monitoring**, collections, and job management
+- **Verified error subcodes** (3790088, 3790184, 3790057, 3790172) with fixes
+- **OpenAPI spec access** for anything the skill doesn't answer
 
 ## Installation
 
-### For Claude Desktop / Claude Code
-
-Add to your Claude configuration:
+### Claude Desktop / Claude Code
 
 ```json
 {
   "skills": [
     {
-      "source": "github:YOUR_USERNAME/mcl-api-r-skill"
+      "source": "github:fabiogiglietto/mcl-api-r-skil"
     }
   ]
 }
 ```
 
-### Manual Installation
+### Manual
 
 1. Download the latest release
 2. Extract to your skills directory
@@ -46,16 +49,11 @@ Add to your Claude configuration:
 
 ## Usage
 
-Once installed, Claude will automatically use this skill when you ask about:
+Claude uses this skill automatically when you ask about MCL API queries in R,
+Facebook/Instagram content library research, producer lists, or quota and budget
+monitoring.
 
-- MCL API queries in R
-- Facebook/Instagram/Threads content library research
-- Meta Research Platform workflows
-- Producer list management
-- Cross-platform account matching
-- Quota and budget monitoring
-
-### Example Prompts
+### Example prompts
 
 - "Help me query Facebook posts about climate change using MCL API"
 - "How do I check my MCL quota?"
@@ -64,112 +62,35 @@ Once installed, Claude will automatically use this skill when you ask about:
 - "Find Instagram accounts matching my Facebook producer list"
 - "Why do my post IDs show up as 9.6378e+14?"
 
-## Key Files
+## Key files
 
 | File | Purpose |
 |------|---------|
-| `SKILL.md` | Core patterns, setup, critical requirements, safe response handling |
-| `references/utilities.md` | Quota checking, package installation, job retrieval |
-| `references/producer_lists.md` | Producer lists: endpoint paths, response structure, cross-platform matching |
+| `SKILL.md` | Setup, critical requirements, ID handling, first-query errors |
+| `references/query_params.md` | Search parameters, filters, `q` syntax, batch limits |
+| `references/producer_lists.md` | Producer lists: creation, endpoint paths, response structure, cross-platform matching |
 | `references/chunking.md` | Large dataset handling and date-based splitting |
-| `references/collections.md` | Query organization and reproducibility |
-| `references/query_params.md` | Search parameters and filters |
-| `references/query_syntax.md` | Boolean operators and search syntax |
-| `references/field_reference.md` | Available fields by entity type |
-| `references/common_patterns.md` | Reusable code patterns |
-| `references/common_errors.md` | Troubleshooting, error solutions, debugging patterns |
-
-## Critical Requirements
-
-1. **Always use async queries** (`POST` to `/job` endpoints) for research
-2. **Integer literals**: Use `L` suffix (e.g., `limit = 100L`)
-3. **Always document**: Include `name`, `description`, `mode = "SNAPSHOT"` in every query
-4. **Use `flush.console()`** after `cat()` in Jupyter for real-time output
-5. **Platform IDs**: Facebook uses `surface_ids`, Instagram uses `account_ids`
-6. **Instagram IDs**: Use `post_ids` (not `surface_ids`) for Instagram posts
-7. **Nested endpoints**: Instagram comments require post ID in URL path, not as parameter
-8. **Producer list path**: Use `lists/producers/{id}` not `producer-lists/{id}`
-9. **Producer list response**: IDs are in `$producers$id` (data.frame), not `$ids` (vector)
-10. **Safe response handling**: Always check `is.null()` and `is.data.frame()` before `nrow()`
-11. **ID params are arrays**: Pass `surface_ids` / `account_ids` / `post_ids` as `as.list(ids)` — a comma-joined string or a single ID is rejected with "Invalid parameter"
-12. **Producer lists are created in the UI**: import a CSV with one `Producer URL` column (max 1,000 `https://www.facebook.com/<username>` URLs) — import is by URL, not by MCL id
-13. **IDs as character**: Parse every response with `mcl_fromJSON()` (`bigint_as_char = TRUE` + `sprintf("%.0f", ...)` on all ID fields). Never let an ID be a `numeric`, and never pass one into a URL or `surface_ids` unquoted
-
-## Environment
-
-- **Platform**: Amazon WorkSpaces Secure Browser with JupyterLab
-- **Language**: R with reticulate package
-- **Export**: Entire notebook only (no copy/paste from SRE)
-
-## Rate Limits
-
-| Resource | Limit |
-|----------|-------|
-| Sync queries | 60/minute |
-| Async queries | 1/minute |
-| Query budget | 500,000 records/7-day rolling |
-| Comment budget | 500,000 comments/7-day rolling (separate) |
-| Max async results | ~100,000 per query |
+| `references/collections.md` | Query organization, SNAPSHOT vs LIVE, the 100-snapshot cap |
+| `references/field_reference.md` | Available fields by entity type, reshare resolution, data scope |
+| `references/common_patterns.md` | Analysis patterns for collected results |
+| `references/common_errors.md` | Full error catalog and debugging patterns |
+| `references/utilities.md` | Quota checking, package installation, job retrieval |
+| `docs/TESTING_PROCEDURE.md` | Manual verification procedure for the code examples |
 
 ## Requirements
 
-- Meta Research Platform access (Amazon WorkSpaces Secure Browser)
-- R with reticulate package
+- Meta Research Platform access (Amazon WorkSpaces Secure Browser with JupyterLab)
+- R with the reticulate package
 - MCL API v6.0 access
+
+Export from the SRE is by entire notebook only — no copy/paste.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit issues or pull requests.
+Contributions are welcome. Please open an issue or pull request. When changing
+documented behavior, follow the release checklist at the end of
+[CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
-## Changelog
-
-### v1.7.0 (2026-08-18)
-- Consolidated verified API behaviors: MCL IDs != URL IDs (3790088); ID params
-  must be arrays; empty-params reticulate pitfall; no double-quoted phrases
-  (3790184); 100k single-query cap (3790057) -> date windows; SNAPSHOT cap
-  (3790172) vs LIVE + LIVE->SNAPSHOT conversion; profile post-inclusion thresholds
-  (verified/25k+ followers); comment (owner.*) vs post (post_owner.*) schemas;
-  replies require a second parent_ids pull; reshares carry shared_post_id resolved
-  via post_ids; producer-list CSV import format (Producer URL, max 1000).
-
-### v1.6.0 (2026-08-17)
-- Documented that the API rejects double-quoted phrase searches (subcode
-  3790184) even though the UI supports them; use single-word OR tokens.
-
-### v1.5.0 (2026-08-17)
-- Documented creating producer lists via the GUI CSV import: single `Producer URL`
-  column of `https://www.facebook.com/<username>` URLs, max 1,000 producers, import
-  is by URL not by MCL id. Added a recipe for building a list from active public
-  commenters.
-- Clarified that `surface_ids` / `account_ids` / `post_ids` must be passed as
-  **arrays** (`as.list(ids)`); a scalar is rejected with "Invalid parameter",
-  including a length-1 vector reticulate converts to a string.
-
-### v1.4.0 (2026-08-16)
-- **IMPORTANT**: All IDs (surface, post, comment, account, job, query) are now loaded as **character**. New "ID Handling" section in `SKILL.md` with `mcl_fromJSON()` / `mcl_fix_ids()`, folded into `safe_get_data()` and used by every example.
-- Prevents silent precision loss above 2^53, scientific notation in URLs/parameters (a second cause of subcode 3790088), and per-chunk `bind_rows()` type mismatches.
-- Added ID-hygiene guidance for joins, dedup, and CSV round-trips; new offline + live ID tests in `TESTING_PROCEDURE.md`.
-
-### v1.3.0 (2026-08-13)
-- **IMPORTANT**: Documented that MCL IDs are library-specific and differ from Facebook/Instagram URL IDs. Added a "Finding Surface IDs" section with per-entity lookup endpoints and error rows for subcode 3790088 and the empty-`params` reticulate pitfall.
-
-### v1.2.0 (2026-03-29)
-- **BREAKING**: Fixed producer list endpoint path (`lists/producers/` not `producer-lists/`)
-- **BREAKING**: Fixed producer list response structure (`$producers` data.frame, not `$ids` vector)
-- Added safe response handling pattern for API responses
-- Added Instagram accounts field documentation
-- Added cross-platform account matching workflow
-- Updated common_errors.md with debugging patterns
-
-### v1.1.0 (2025-01-04)
-- Fixed Instagram parameter documentation
-- Added nested endpoints documentation
-- Added OpenAPI spec discovery pattern
-- Added common_errors.md reference file
-
-### v1.0.0 (2025-01-04)
-- Initial release
+MIT License — see [LICENSE](LICENSE) for details.

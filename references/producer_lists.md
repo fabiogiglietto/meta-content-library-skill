@@ -201,22 +201,18 @@ job_data <- mcl_fromJSON(response$text)
 job_id <- job_data$id
 ```
 
-### Platform and Endpoint ID Parameters
+### `account_ids` vs `post_ids` (Instagram)
 
-```r
-get_id_param_name <- function(platform, endpoint_type = "posts") {
-  platform <- tolower(platform)
+These are not alternatives for the same job:
 
-  if (platform == "instagram") {
-    if (endpoint_type == "posts") return("post_ids")
-    if (endpoint_type == "accounts") return("account_ids")
-  } else if (platform == "facebook") {
-    return("surface_ids")
-  }
+| Parameter | Platform | Selects |
+|-----------|----------|---------|
+| `surface_ids` | Facebook | Posts made to these pages / groups / profiles |
+| `account_ids` | Instagram | Posts **by** these accounts — the producer-list case above |
+| `post_ids` | either | These **specific posts**, by ID (e.g. resolving reshare originals) |
 
-  stop("Unknown platform/endpoint combination")
-}
-```
+So a producer-list query uses `surface_ids` on Facebook and `account_ids` on
+Instagram. `post_ids` is for when you already hold the post IDs you want.
 
 ## Batching Large Producer Lists
 

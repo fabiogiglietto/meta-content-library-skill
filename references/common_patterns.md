@@ -4,8 +4,16 @@
 > "ID Handling (Always Load IDs as Character)". It keeps every ID field a
 > character string — plain `fromJSON()` turns IDs into doubles.
 
+This file covers what you do with results **after** they are collected. For
+collecting them, see SKILL.md § "Async Query Template" (single query) and
+`references/chunking.md` (date windows, batching, combining chunks).
+
+Field names below are the **flattened** ones produced by `mcl_fromJSON()`
+(`flatten = TRUE`), so engagement counts are `statistics.reactions`, not
+`statistics$reactions`. See `references/field_reference.md`.
+
 ## Table of Contents
-1. [Setup and Data Collection](#setup-and-data-collection)
+1. [Combining and Cleaning Results](#combining-and-cleaning-results)
 2. [Time Series Analysis](#time-series-analysis)
 3. [Engagement Analysis](#engagement-analysis)
 4. [Content Analysis](#content-analysis)
@@ -13,100 +21,13 @@
 6. [Comparative Analysis](#comparative-analysis)
 7. [Export Preparation](#export-preparation)
 
-## Setup and Data Collection
-
-### Load Required Libraries
-
-```r
-# Pre-installed in MCL environment
-library(metacontentlibrary)
-library(tidyverse)
-library(lubridate)
-
-# Initialize client
-client <- MCLClient$new()
-```
-
-### Robust Data Collection with Pagination
-
-```r
-collect_all_posts <- function(client, query, start_date, end_date, ...) {
-  all_results <- list()
-  cursor <- NULL
-  page <- 1
-  
-  repeat {
-    message(sprintf("Fetching page %d...", page))
-    
-    response <- tryCatch({
-      client$search_fb_posts(
-        q = query,
-        start_date = start_date,
-        end_date = end_date,
-        limit = 1000,
-        cursor = cursor,
-        ...
-      )
-    }, error = function(e) {
-      message(sprintf("Error on page %d: %s", page, e$message))
-      return(NULL)
-    })
-    
-    if (is.null(response)) break
-    
-    all_results <- c(all_results, list(response$data))
-    
-    if (is.null(response$paging$next_cursor)) break
-    cursor <- response$paging$next_cursor
-    page <- page + 1
-    
-    Sys.sleep(0.5)  # Rate limit courtesy
-  }
-  
-  bind_rows(all_results)
-}
-
-# Usage
-posts <- collect_all_posts(
-  client,
-  query = "climate change",
-  start_date = "2024-01-01",
-  end_date = "2024-03-31",
-  lang = "en"
-)
-```
-
-### Chunk Large Date Ranges
-
-```r
-collect_by_month <- function(client, query, start_date, end_date, ...) {
-  dates <- seq(
-    ymd(start_date),
-    ymd(end_date),
-    by = "month"
-  )
-  
-  all_data <- map_dfr(seq_along(dates[-length(dates)]), function(i) {
-    chunk_start <- dates[i]
-    chunk_end <- dates[i + 1] - days(1)
-    
-    message(sprintf("Collecting %s to %s", chunk_start, chunk_end))
-    
-    collect_all_posts(
-      client, query,
-      start_date = as.character(chunk_start),
-      end_date = as.character(chunk_end),
-      ...
-    )
-  })
-  
-  all_data
-}
-```
+## Combining and Cleaning Results
 
 ### Combining Results with Mismatched Columns
 
-When combining multiple API responses (e.g., from batched queries), use `dplyr::bind_rows()` instead of `rbind()` to handle dataframes with different columns:
+When combining multiple job results (e.g. from batched or chunked queries), use
+`dplyr::bind_rows()` instead of `rbind()` to handle data frames with different
+columns:
 
 ```r
 library(dplyr)
@@ -225,7 +146,7 @@ rolling_engagement <- posts %>%
   mutate(date = as_date(creation_time)) %>%
   group_by(date) %>%
   summarise(
-    total_reactions = sum(statistics$reactions, na.rm = TRUE),
+    total_reactions = sum(statistics.reactions, na.rm = TRUE),
     .groups = "drop"
   ) %>%
   arrange(date) %>%
@@ -242,12 +163,12 @@ rolling_engagement <- posts %>%
 engagement_summary <- posts %>%
   summarise(
     n_posts = n(),
-    total_reactions = sum(statistics$reactions, na.rm = TRUE),
-    total_comments = sum(statistics$comments, na.rm = TRUE),
-    total_shares = sum(statistics$shares, na.rm = TRUE),
-    total_views = sum(statistics$views, na.rm = TRUE),
-    avg_reactions = mean(statistics$reactions, na.rm = TRUE),
-    median_reactions = median(statistics$reactions, na.rm = TRUE)
+    total_reactions = sum(statistics.reactions, na.rm = TRUE),
+    total_comments = sum(statistics.comments, na.rm = TRUE),
+    total_shares = sum(statistics.shares, na.rm = TRUE),
+    total_views = sum(statistics.views, na.rm = TRUE),
+    avg_reactions = mean(statistics.reactions, na.rm = TRUE),
+    median_reactions = median(statistics.reactions, na.rm = TRUE)
   )
 ```
 
@@ -255,25 +176,28 @@ engagement_summary <- posts %>%
 
 ```r
 engagement_by_type <- posts %>%
-  group_by(producer_type) %>%
+  group_by(post_owner.type) %>%     # page, group, event, profile
   summarise(
     n_posts = n(),
-    avg_reactions = mean(statistics$reactions, na.rm = TRUE),
-    avg_shares = mean(statistics$shares, na.rm = TRUE),
-    total_reach = sum(statistics$views, na.rm = TRUE),
+    avg_reactions = mean(statistics.reactions, na.rm = TRUE),
+    avg_shares = mean(statistics.shares, na.rm = TRUE),
+    total_reach = sum(statistics.views, na.rm = TRUE),
     .groups = "drop"
   ) %>%
   arrange(desc(total_reach))
 ```
+
+For Instagram posts the equivalent grouping column is `producer_type`
+(business / creator) — see `references/field_reference.md`.
 
 ### Top Performing Content
 
 ```r
 top_posts <- posts %>%
   mutate(
-    engagement_score = statistics$reactions + 
-                       statistics$comments * 2 + 
-                       statistics$shares * 3
+    engagement_score = statistics.reactions +
+                       statistics.comments * 2 +
+                       statistics.shares * 3
   ) %>%
   arrange(desc(engagement_score)) %>%
   head(100) %>%
@@ -288,7 +212,7 @@ top_posts <- posts %>%
 engagement_dist <- posts %>%
   mutate(
     reaction_bucket = cut(
-      statistics$reactions,
+      statistics.reactions,
       breaks = c(0, 10, 100, 1000, 10000, Inf),
       labels = c("0-10", "11-100", "101-1K", "1K-10K", "10K+"),
       include.lowest = TRUE
@@ -321,8 +245,8 @@ media_engagement <- posts %>%
   group_by(media_type) %>%
   summarise(
     n = n(),
-    avg_reactions = mean(statistics$reactions, na.rm = TRUE),
-    avg_views = mean(statistics$views, na.rm = TRUE),
+    avg_reactions = mean(statistics.reactions, na.rm = TRUE),
+    avg_views = mean(statistics.views, na.rm = TRUE),
     .groups = "drop"
   )
 ```
@@ -330,14 +254,14 @@ media_engagement <- posts %>%
 ### Hashtag Extraction (Instagram)
 
 ```r
-# Extract hashtags from text field
+# Instagram post text is in `caption`; Facebook post text is in `text`
 extract_hashtags <- function(text) {
   if (is.na(text)) return(character(0))
   str_extract_all(text, "#\\w+")[[1]]
 }
 
 hashtag_counts <- posts %>%
-  mutate(hashtags = map(text, extract_hashtags)) %>%
+  mutate(hashtags = map(caption, extract_hashtags)) %>%
   unnest(hashtags) %>%
   count(hashtags, sort = TRUE) %>%
   head(50)
@@ -345,32 +269,31 @@ hashtag_counts <- posts %>%
 
 ## Network Analysis
 
-### Co-occurrence Matrix
+### Cross-Posting (Reshares)
+
+A reshare carries `shared_post_id` — the ID of the original post — but no field
+for the original *account*. Count reshare relationships directly, or resolve the
+originals first via `post_ids` (see `references/field_reference.md` § "Reshares"):
 
 ```r
-# Which accounts frequently post about same topics?
-account_topics <- posts %>%
-  select(post_owner.id, post_owner.name) %>%
-  distinct()
-
-# Cross-posting analysis
 crossposts <- posts %>%
   filter(!is.na(shared_post_id)) %>%
   count(post_owner.id, shared_post_id, sort = TRUE)
+
+# Accounts that appear as resharers
+resharer_activity <- posts %>%
+  filter(!is.na(shared_post_id)) %>%
+  count(post_owner.id, post_owner.name, sort = TRUE, name = "n_reshares")
 ```
 
-### Interaction Networks
+### Reply Networks from Comments
+
+Comment records name the commenter under `owner.*`, and a reply carries
+`parent_id` = the comment it answers:
 
 ```r
-# Build reply/mention network from comments
-comments <- client$search_fb_comments(
-  post_ids = posts$id[1:100],
-  fields = c("id", "owner.id", "parent_id", "creation_time")
-)
-
-# Create edge list
 edges <- comments %>%
-  filter(!is.na(parent_id)) %>%
+  filter(!is.na(parent_id), nzchar(parent_id)) %>%
   select(from = owner.id, to = parent_id)
 ```
 
@@ -381,56 +304,29 @@ a Second Pull".
 
 ## Comparative Analysis
 
-### A/B Topic Comparison
+Compare corpora by collecting each one separately (one query per topic or
+platform, per SKILL.md § "Async Query Template"), then labelling and combining:
 
 ```r
-compare_topics <- function(client, topic_a, topic_b, start_date, end_date) {
-  posts_a <- collect_all_posts(client, topic_a, start_date, end_date)
-  posts_b <- collect_all_posts(client, topic_b, start_date, end_date)
-  
-  comparison <- bind_rows(
-    posts_a %>% mutate(topic = topic_a),
-    posts_b %>% mutate(topic = topic_b)
-  ) %>%
-  group_by(topic) %>%
+# posts_a, posts_b: two result sets already loaded with mcl_fromJSON()
+comparison <- bind_rows(
+  posts_a %>% mutate(group = "renewable energy"),
+  posts_b %>% mutate(group = "fossil fuels")
+) %>%
+  group_by(group) %>%
   summarise(
-    n_posts = n(),
-    n_accounts = n_distinct(post_owner.id),
-    total_engagement = sum(statistics$reactions + statistics$shares, na.rm = TRUE),
-    avg_engagement = mean(statistics$reactions + statistics$shares, na.rm = TRUE),
+    n_posts          = n(),
+    n_accounts       = n_distinct(post_owner.id),
+    total_engagement = sum(statistics.reactions + statistics.shares, na.rm = TRUE),
+    avg_engagement   = mean(statistics.reactions + statistics.shares, na.rm = TRUE),
     .groups = "drop"
   )
-  
-  comparison
-}
-
-# Usage
-comparison <- compare_topics(
-  client,
-  topic_a = "renewable energy",
-  topic_b = "fossil fuels",
-  start_date = "2024-01-01",
-  end_date = "2024-06-30"
-)
 ```
 
-### Cross-Platform Comparison
-
-```r
-# Compare same topic across Facebook and Instagram
-fb_posts <- collect_all_posts(client, "climate", "2024-01-01", "2024-03-31")
-ig_posts <- collect_all_ig_posts(client, "climate", "2024-01-01", "2024-03-31")
-
-platform_comparison <- bind_rows(
-  fb_posts %>% mutate(platform = "Facebook"),
-  ig_posts %>% mutate(platform = "Instagram")
-) %>%
-group_by(platform) %>%
-summarise(
-  n_posts = n(),
-  avg_engagement = mean(statistics$reactions, na.rm = TRUE)
-)
-```
+The same shape works across platforms — label with `platform` instead of `group`.
+Compare only fields both platforms have: Facebook posts report
+`statistics.reactions`, Instagram posts report `statistics.likes`, so rename to a
+common column before combining rather than assuming they align.
 
 ## Export Preparation
 
@@ -444,9 +340,9 @@ exportable_summary <- posts %>%
   summarise(
     n_posts = n(),
     n_unique_accounts = n_distinct(post_owner.id),
-    total_reactions = sum(statistics$reactions, na.rm = TRUE),
-    total_shares = sum(statistics$shares, na.rm = TRUE),
-    avg_reactions = mean(statistics$reactions, na.rm = TRUE),
+    total_reactions = sum(statistics.reactions, na.rm = TRUE),
+    total_shares = sum(statistics.shares, na.rm = TRUE),
+    avg_reactions = mean(statistics.reactions, na.rm = TRUE),
     .groups = "drop"
   )
 
