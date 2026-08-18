@@ -8,13 +8,14 @@
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `q` | string | Search query (keywords, phrases, boolean) |
+| `q` | string | Search query — keywords and boolean operators. **No double-quoted phrases** (subcode 3790184) |
 | `since` | string | Start date (YYYY-MM-DD) |
 | `until` | string | End date (YYYY-MM-DD) |
 | `limit` | integer | Results per page (use `L` suffix: `100L`) |
 | `lang` | string | Language filter (ISO 639-1: "en", "es") |
 | `country` | string | Country filter (ISO 3166-1: "US", "GB") |
-| `surface_ids` | list | Filter to specific Page/Account IDs — **character strings only** |
+| `surface_ids` | list | Facebook only: filter to specific page / group / profile IDs — **character strings only**, always `as.list()` |
+| `account_ids` | list | Instagram only: filter to specific account IDs — same rules |
 
 ## Async-Only Parameters
 
@@ -79,33 +80,27 @@ query **value** containing `"` characters, i.e. `q = '"climate change"'`.
 
 ## Producer Lists
 
-Query posts from specific accounts using a producer list:
+Read a list with `lists/producers/{list_id}`, then pass its IDs as the
+platform's ID parameter — `surface_ids` for Facebook, `account_ids` for
+Instagram:
 
 ```r
-# Get producer list (note: lists/producers/ not producer-lists/)
-response <- client$get(path = paste0("lists/producers/", list_id))
-list_data <- mcl_fromJSON(response$text)
+list_data <- mcl_fromJSON(client$get(path = paste0("lists/producers/", list_id))$text)
+ids       <- list_data$producers$id            # character, via mcl_fromJSON()
+platform  <- tolower(list_data$platform)
+id_param  <- if (platform == "instagram") "account_ids" else "surface_ids"
 
-# Response: $producers is a data.frame with cols: id, name, type
-ids <- list_data$producers$id
-platform <- tolower(list_data$platform)
-
-# Use correct ID parameter for platform
-id_param <- if (platform == "instagram") "account_ids" else "surface_ids"
-
-params <- list(
-    "since" = "2024-01-01",
-    "mode" = "SNAPSHOT",
-    "name" = "Producer List Query",
-    "description" = "Posts from tracked accounts"
-)
+params <- list("since" = "2024-01-01", "mode" = "SNAPSHOT",
+               "name" = "Producer List Query",
+               "description" = "Posts from tracked accounts")
 params[[id_param]] <- as.list(ids)   # array, not a comma-joined string
 
-response <- client$post(
-    path = paste0(platform, "/posts/job"),
-    params = params
-)
+response <- client$post(path = paste0(platform, "/posts/job"), params = params)
 ```
+
+`references/producer_lists.md` owns this topic: list creation, response shape,
+batching, cross-platform matching, and the `account_ids` vs `post_ids`
+distinction.
 
 ## Comments Queries
 
@@ -227,9 +222,6 @@ parameters. Input at least one parameter [q, post_ids, account_ids]".
 
 ## Producer List Endpoint
 
-```
-✓ Correct: lists/producers/{list_id}
-✗ Wrong:   producer-lists/{list_id}     ← Returns 404
-```
-
-The producer list response contains a `$producers` data.frame (columns: id, name, type), not a `$ids` vector.
+Use `lists/producers/{list_id}` — `producer-lists/{list_id}` returns 404, and
+the response carries a `$producers` data.frame (id, name, type), not a `$ids`
+vector. Details: `references/producer_lists.md`.
