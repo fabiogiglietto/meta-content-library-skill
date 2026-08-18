@@ -250,7 +250,7 @@ print(jobs_data$jobs[, c("id", "status", "mode", "query_id")])
 
 ### Test 2.1: Retrieve OpenAPI Spec
 
-**Location:** SKILL.md § "OpenAPI Specification"
+**Location:** SKILL.md § "OpenAPI Spec"
 
 **Code:**
 ```r
@@ -271,7 +271,7 @@ spec <- client$openapi_spec()
 
 ### Test 2.2: Explore Endpoints
 
-**Location:** SKILL.md § "OpenAPI Spec Discovery"
+**Location:** SKILL.md § "OpenAPI Spec"
 
 **Code:**
 ```r
@@ -1460,7 +1460,7 @@ mcl_fromJSON(resp2$text)$data[, c("id", "name")]
 ### After Completing All Tests
 
 1. **Count Results:**
-   - Total tests: 37
+   - Total tests: 34
    - Passed: ___
    - Failed: ___
    - Skipped (due to prerequisites): ___
@@ -1544,7 +1544,7 @@ If a test fails:
 
 ## Test Completion Checklist
 
-- [ ] All 37 tests attempted
+- [ ] All 34 tests attempted
 - [ ] Critical tests (11) passed
 - [ ] Screenshots captured and organized
 - [ ] Errors documented
@@ -1558,4 +1558,4 @@ If a test fails:
 
 **End of Testing Procedure**
 
-Version: 1.1 | Last Updated: 2026-08-16
+Version: 1.2 | Last Updated: 2026-08-18
