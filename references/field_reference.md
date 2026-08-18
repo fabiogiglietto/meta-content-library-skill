@@ -273,6 +273,12 @@ shape here and check with `str()` before relying on it.
 | `owner.username` | string | Commenter handle |
 | `owner.name` | string | Commenter display name |
 
+Engagement fields on Instagram comments (like and reply counts) are unconfirmed
+— Facebook comments report `statistics.reaction_count` and
+`statistics.top_level_reply_count`. Check the actual shape with
+`str(mcl_fromJSON(resp$text)$data)`, or read the endpoint's entry from
+`client$openapi_spec()`.
+
 ## Threads Posts
 
 > **Unverified.** No Threads endpoint path has been confirmed for this API
