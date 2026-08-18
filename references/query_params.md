@@ -8,13 +8,14 @@
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `q` | string | Search query (keywords, phrases, boolean) |
+| `q` | string | Search query — keywords and boolean operators. **No double-quoted phrases** (subcode 3790184) |
 | `since` | string | Start date (YYYY-MM-DD) |
 | `until` | string | End date (YYYY-MM-DD) |
 | `limit` | integer | Results per page (use `L` suffix: `100L`) |
 | `lang` | string | Language filter (ISO 639-1: "en", "es") |
 | `country` | string | Country filter (ISO 3166-1: "US", "GB") |
-| `surface_ids` | list | Filter to specific Page/Account IDs — **character strings only** |
+| `surface_ids` | list | Facebook only: filter to specific page / group / profile IDs — **character strings only**, always `as.list()` |
+| `account_ids` | list | Instagram only: filter to specific account IDs — same rules |
 
 ## Async-Only Parameters
 
@@ -24,58 +25,82 @@
 | `name` | string | Query name for identification |
 | `description` | string | Purpose, methodology, IRB info |
 
-## Boolean Query Syntax
+## Query Syntax (`q`)
+
+### Boolean Operators
+
+Combine terms with `AND`, `OR`, `NOT`, and parentheses:
 
 ```r
-# AND (both required)
-"q" = "climate AND policy"
+# AND - both terms required
+params = list("q" = "climate AND policy")
 
-# OR (either term)
-"q" = "climate OR environment"
+# OR - either term
+params = list("q" = "climate OR environment")
 
-# NOT (exclude)
-"q" = "vaccine NOT covid"
+# NOT - exclude term
+params = list("q" = "vaccine NOT covid")
 
-# ✗ Exact phrase - NOT supported by the API (subcode 3790184), UI only
-"q" = '"climate change"'
-
-# ✓ Use a distinctive single token, or tokens joined with OR
-# (OR broadens — it matches either word, not the phrase)
-"q" = "climate OR warming"
-
-# Complex
-"q" = '(climate OR environment) AND (policy OR legislation)'
+# Complex combinations with parentheses
+params = list("q" = "(climate OR environment) AND (policy OR legislation)")
 ```
+
+### No Double-Quoted Phrases (subcode 3790184)
+
+Unlike the Content Library UI, the API **rejects** double-quoted phrase searches:
+
+```json
+{"title":"Invalid Keyword Search",
+ "detail":"Searching with phrases using double quotes is not supported. Please search without double quotes.",
+ "error_subcode":3790184,"status":400}
+```
+
+```r
+# ✗ Rejected by the API (works only in the UI)
+params = list("q" = '"climate change"')
+
+# ✓ Distinctive single token
+params = list("q" = "climate")
+
+# ✓ Tokens joined with OR
+params = list("q" = "climate OR warming")
+
+# ✓ Narrow with AND instead of a phrase
+params = list("q" = "climate AND policy")
+```
+
+`OR` does not reproduce a phrase — it matches posts containing *either* word, so
+it broadens the corpus rather than matching the bigram. Prefer a distinctive
+single token where one exists (`Meloni` rather than `"Giorgia Meloni"`, `M5S`
+rather than `"Movimento 5 Stelle"`), and use `AND` when both words must appear.
+
+Note that `q = "climate change"` — an R string holding two space-separated words
+— is fine: no double-quote character reaches the API. What 3790184 rejects is a
+query **value** containing `"` characters, i.e. `q = '"climate change"'`.
 
 ## Producer Lists
 
-Query posts from specific accounts using a producer list:
+Read a list with `lists/producers/{list_id}`, then pass its IDs as the
+platform's ID parameter — `surface_ids` for Facebook, `account_ids` for
+Instagram:
 
 ```r
-# Get producer list (note: lists/producers/ not producer-lists/)
-response <- client$get(path = paste0("lists/producers/", list_id))
-list_data <- mcl_fromJSON(response$text)
+list_data <- mcl_fromJSON(client$get(path = paste0("lists/producers/", list_id))$text)
+ids       <- list_data$producers$id            # character, via mcl_fromJSON()
+platform  <- tolower(list_data$platform)
+id_param  <- if (platform == "instagram") "account_ids" else "surface_ids"
 
-# Response: $producers is a data.frame with cols: id, name, type
-ids <- list_data$producers$id
-platform <- tolower(list_data$platform)
-
-# Use correct ID parameter for platform
-id_param <- if (platform == "instagram") "account_ids" else "surface_ids"
-
-params <- list(
-    "since" = "2024-01-01",
-    "mode" = "SNAPSHOT",
-    "name" = "Producer List Query",
-    "description" = "Posts from tracked accounts"
-)
+params <- list("since" = "2024-01-01", "mode" = "SNAPSHOT",
+               "name" = "Producer List Query",
+               "description" = "Posts from tracked accounts")
 params[[id_param]] <- as.list(ids)   # array, not a comma-joined string
 
-response <- client$post(
-    path = paste0(platform, "/posts/job"),
-    params = params
-)
+response <- client$post(path = paste0(platform, "/posts/job"), params = params)
 ```
+
+`references/producer_lists.md` owns this topic: list creation, response shape,
+batching, cross-platform matching, and the `account_ids` vs `post_ids`
+distinction.
 
 ## Comments Queries
 
@@ -85,7 +110,7 @@ Comments require `parent_ids` (post IDs):
 response <- client$post(
     path = "facebook/comments/job",
     params = list(
-        "parent_ids" = c("post_id_1", "post_id_2"),
+        "parent_ids" = as.list(post_ids),   # array, even for one ID
         "mode" = "SNAPSHOT",
         "name" = "Comments on Target Posts",
         "description" = "Comments for sentiment analysis"
@@ -146,25 +171,10 @@ ids <- sprintf("%.0f", ids)     # NOT as.character(), which yields "1.784e+16"
 The numeric ID in a Facebook/Instagram **URL** is not a valid Content Library ID
 — MCL assigns its own (privacy by design). Passing a URL ID is rejected with
 `error_subcode 3790088` ("Invalid Meta Content Library ID"). Look the entity up
-by name via the matching preview endpoint and use the `id` it returns:
+by name via the matching preview endpoint and use the `id` it returns.
 
-| Entity | Lookup endpoint | ID param in queries |
-|--------|-----------------|---------------------|
-| Facebook group    | `facebook/groups/preview`    | `surface_ids` |
-| Facebook page     | `facebook/pages/preview`     | `surface_ids` |
-| Facebook profile  | `facebook/profiles/preview`  | `surface_ids` |
-| Instagram account | `instagram/accounts/preview` | `account_ids` |
-
-```r
-resp <- client$get(
-  path   = "facebook/pages/preview",
-  params = list("q" = "PAGE NAME", "limit" = 50L)
-)
-pages <- safe_get_data(resp$text)
-pages[, c("id", "name")]      # use this `id`
-```
-
-See SKILL.md § "Finding Surface IDs" for the full pattern.
+**See SKILL.md § "Finding Surface IDs"** for the per-entity lookup table and the
+full pattern.
 
 ## ID Parameter Batch Limits
 
@@ -200,17 +210,18 @@ client$get(path = "budgets")
 |----------|----------|--------------|-------|
 | Facebook | `/facebook/posts/preview` | `surface_ids` | Pages, groups, profiles |
 | Facebook | `/facebook/comments/preview` | `parent_ids` | Post IDs as parameter |
-| Instagram | `/instagram/posts/preview` | `post_ids` | NOT `surface_ids` |
+| Instagram | `/instagram/posts/preview` | `account_ids` | Posts **by** these accounts |
+| Instagram | `/instagram/posts/preview` | `post_ids` | These **specific posts**, by ID |
 | Instagram | `/instagram/accounts/preview` | `account_ids` | Account lookup |
 | Instagram | Post comments | N/A | Use nested URL: `/instagram/posts/{id}/comments/preview` |
 
-**Common Error:** Using `surface_ids` for Instagram returns "Missing required parameters". Use `post_ids` instead.
+**Common Error:** Using `surface_ids` for Instagram returns "Missing required
+parameters. Input at least one parameter [q, post_ids, account_ids]".
+`surface_ids` is Facebook-only. See `references/producer_lists.md` §
+"`account_ids` vs `post_ids` (Instagram)" for which of the two you want.
 
 ## Producer List Endpoint
 
-```
-✓ Correct: lists/producers/{list_id}
-✗ Wrong:   producer-lists/{list_id}     ← Returns 404
-```
-
-The producer list response contains a `$producers` data.frame (columns: id, name, type), not a `$ids` vector.
+Use `lists/producers/{list_id}` — `producer-lists/{list_id}` returns 404, and
+the response carries a `$producers` data.frame (id, name, type), not a `$ids`
+vector. Details: `references/producer_lists.md`.

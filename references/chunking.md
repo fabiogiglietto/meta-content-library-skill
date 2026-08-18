@@ -162,9 +162,9 @@ all_data <- combine_chunk_results(job_ids)
 | 500k - 1M | Monthly (30 days) |
 | > 1M | Weekly (7 days) or add filters |
 
-ID batch size is a separate limit: `post_ids` takes at most **250 IDs per call**,
-and `surface_ids` is best kept at ≤ 250 too. A query can therefore need chunking
-on both axes — date windows for the result cap, ID batches for the parameter cap.
+ID batch size is a separate limit — a query can need chunking on both axes: date
+windows for the result cap, ID batches for the parameter cap. See
+`references/query_params.md` § "ID Parameter Batch Limits".
 
 ## Collecting Only the Latest N Results
 
