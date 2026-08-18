@@ -172,9 +172,9 @@ check_ids(posts)
 
 ## SNAPSHOT vs LIVE Data Retention
 
-| Mode | Data Available | Shareable | Use Case |
-|------|----------------|-----------|----------|
-| SNAPSHOT | Up to 1 year | Yes | Research, reproducibility |
-| LIVE | 30 days max | No | Exploration only |
+SNAPSHOT data is kept up to a year and is shareable; LIVE data is kept ~30 days
+and is not. SNAPSHOT jobs refresh every 30 days with updated data, including
+`updated_fields` and `is_invalid_id` flags for redacted content.
 
-SNAPSHOT jobs refresh every 30 days with updated data, including `updated_fields` and `is_invalid_id` flags for redacted content.
+Full comparison and the 100-snapshot cap: `references/collections.md` § "The
+100-Snapshot Cap".
