@@ -141,6 +141,59 @@ params = list("surface_ids" = ids[1])   # length-1 vector → Python string
 ids <- sprintf("%.0f", ids)     # NOT as.character(), which yields "1.784e+16"
 ```
 
+## Finding MCL IDs (Never Use URL IDs)
+
+The numeric ID in a Facebook/Instagram **URL** is not a valid Content Library ID
+— MCL assigns its own (privacy by design). Passing a URL ID is rejected with
+`error_subcode 3790088` ("Invalid Meta Content Library ID"). Look the entity up
+by name via the matching preview endpoint and use the `id` it returns:
+
+| Entity | Lookup endpoint | ID param in queries |
+|--------|-----------------|---------------------|
+| Facebook group    | `facebook/groups/preview`    | `surface_ids` |
+| Facebook page     | `facebook/pages/preview`     | `surface_ids` |
+| Facebook profile  | `facebook/profiles/preview`  | `surface_ids` |
+| Instagram account | `instagram/accounts/preview` | `account_ids` |
+
+```r
+resp <- client$get(
+  path   = "facebook/pages/preview",
+  params = list("q" = "PAGE NAME", "limit" = 50L)
+)
+pages <- safe_get_data(resp$text)
+pages[, c("id", "name")]      # use this `id`
+```
+
+See SKILL.md § "Finding Surface IDs" for the full pattern.
+
+## ID Parameter Batch Limits
+
+`post_ids` accepts at most **250 IDs per call**. Chunk longer lists — and chunk
+`surface_ids` at ≤ 250 as well, to stay on the safe side:
+
+```r
+chunks <- split(ids, ceiling(seq_along(ids) / 250L))
+for (chunk in chunks) {
+  params <- list("limit" = 100L)
+  params[["post_ids"]] <- as.list(chunk)
+  # ...
+}
+```
+
+`references/producer_lists.md` batches at 50 for producer-list queries, which is
+well inside this limit.
+
+## Never Pass an Empty `params`
+
+```r
+# ✗ Wrong - reticulate converts list() to a Python list [], and the client
+#   calls .items() on it → 'list' object has no attribute 'items'
+client$get(path = "budgets", params = list())
+
+# ✓ Correct - omit params entirely, or pass a named list
+client$get(path = "budgets")
+```
+
 ## Platform-Specific ID Parameters
 
 | Platform | Endpoint | ID Parameter | Notes |

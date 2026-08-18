@@ -1,13 +1,13 @@
 ---
 name: mcl-api-r
 description: Meta Content Library (MCL) API v6.0 helper for R users on Meta Research Platforms. Use when researchers need to query Facebook, Instagram, or Threads public content using R via reticulate in the Meta Secure Research Environment (SRE) or SOMAR Virtual Data Enclave (VDE). Covers async queries, collections, jobs, pagination, rate limits, SNAPSHOT mode, loading IDs as character, and proper integer handling.
-version: 1.6.0
-updated: 2026-08-17
+version: 1.7.0
+updated: 2026-08-18
 ---
 
 # Meta Content Library API v6.0 for R
 
-> **Skill Version:** 1.6.0 | **Updated:** 2026-08-17 | [Changelog](#changelog)
+> **Skill Version:** 1.7.0 | **Updated:** 2026-08-18 | [Changelog](#changelog)
 
 ## Environment
 
@@ -214,6 +214,9 @@ params[["surface_ids"]] <- as.list(ids)   # ✓ array at every length
 params[["surface_ids"]] <- ids[1]         # ✗ sent as a scalar string
 ```
 
+`post_ids` accepts at most **250 IDs per call**; chunk longer lists, and keep
+`surface_ids` batches at ≤ 250 too.
+
 Notes:
 - Group search only covers **public** groups indexed in the Content Library; a private or non-indexed group won't appear and isn't queryable.
 - Always hard-code and pass IDs as **quoted strings**. An unquoted 15+ digit literal in R is a double and will be sent in scientific notation → subcode 3790088.
@@ -295,7 +298,7 @@ posts <- mcl_fromJSON(file.path("results", "climate_2024.json"))
 | Query budget | 500,000 records/7-day rolling |
 | Comment budget | 500,000 comments/7-day rolling (separate) |
 | Max async results | ~100,000 per query |
-| Snapshots | 100 per user |
+| Snapshots | 100 concurrent per user (subcode 3790172; LIVE jobs are exempt) |
 
 **Check budget:**
 ```r
@@ -311,15 +314,29 @@ cat("Available:", budget$queries$max_usage_limit - budget$queries$total_usage, "
 | Can be shared for reproducibility | Cannot be shared |
 | Refreshed every 30 days | N/A |
 | Use for research | Use for exploration only |
+| Counts against the 100-snapshot cap | Does **not** count against it |
+
+When reproducibility isn't needed, run LIVE and save results to disk — LIVE jobs
+don't consume a snapshot slot, and a LIVE job can be promoted later with
+`client$post(path = paste0("async/jobs/", job_id, "/snapshot"))`. Free slots by
+deleting finished snapshots; see `references/collections.md` § "The 100-Snapshot
+Cap".
 
 ## The 100,000 Result Limit
 
-If `estimate$expected_complete = FALSE`, your query exceeds ~100,000 results and will be truncated.
+The cap is **per query**. It surfaces two ways: silently, as
+`estimate$expected_complete = FALSE` with truncated results, or as a hard failure
+with `error_subcode 3790057` ("Estimated response size too large"). Check
+`estimate$estimated_results` before submitting.
 
 **Solutions:**
-1. Narrow date range (split into months/quarters)
-2. Add more filters (country, language, surface_ids)
+1. Split by **date** into smaller windows (months/quarters/weeks)
+2. Add more filters, or query fewer `surface_ids` per call
 3. See `references/chunking.md` for automated chunking
+
+To collect only the latest N results, iterate date windows **newest-first** and
+stop once N is reached — see `references/chunking.md` § "Collecting Only the
+Latest N Results".
 
 ## Rerun a Query
 
@@ -351,6 +368,10 @@ new_job_id <- mcl_fromJSON(rerun_response$text)$id
 | Join/`distinct()` misses obvious matches, IDs end in 0 | ID parsed as double, digits rounded above 2^53 | Re-parse the source with `mcl_fromJSON()` — rounded IDs cannot be repaired |
 | `'list' object has no attribute 'items'` | Passed `params = list()` (empty list) | Omit `params`, or pass a named list |
 | Invalid Keyword Search (subcode 3790184) | Query used a double-quoted phrase | Remove double quotes; use single-word tokens joined with `OR` (quoted phrases work in the UI, not the API) |
+| Invalid Meta Content Library ID (subcode 3790088) when resolving a reshare | The reshared original is out of scope, and one bad ID rejects the whole `post_ids` call | Bisect the batch and skip the offending IDs — see `references/field_reference.md` § "Reshares" |
+| Estimated response size too large (subcode 3790057) | Query would return more than ~100,000 results | Split by date window, and/or query fewer `surface_ids` |
+| Exceeded async snapshots limit (subcode 3790172) | More than 100 concurrent SNAPSHOT jobs | Use `mode = "LIVE"` when reproducibility isn't needed; delete finished snapshots |
+| Producer-list post query estimates ~0 results | List is mostly ordinary profiles, whose posts aren't in the queryable dataset | Verified or 25,000+ follower profiles only — see `references/field_reference.md` § "Data Scope" |
 
 ## References
 
@@ -360,13 +381,22 @@ new_job_id <- mcl_fromJSON(rerun_response$text)$id
 - `references/producer_lists.md` - Working with producer lists (endpoint paths, response structure, cross-platform matching)
 - `references/utilities.md` - Quota check, package install, job retrieval
 - `references/common_errors.md` - Troubleshooting and error solutions
-- `references/field_reference.md` - Available fields by entity type
+- `references/field_reference.md` - Available fields by entity type, reshare resolution, data scope
 - `references/query_syntax.md` - Boolean operators and search syntax
 - `references/common_patterns.md` - Reusable code patterns
 
 ---
 
 ## Changelog
+
+### v1.7.0 (2026-08-18)
+- Consolidated verified API behaviors: MCL IDs != URL IDs (3790088); ID params
+  must be arrays; empty-params reticulate pitfall; no double-quoted phrases
+  (3790184); 100k single-query cap (3790057) -> date windows; SNAPSHOT cap
+  (3790172) vs LIVE + LIVE->SNAPSHOT conversion; profile post-inclusion thresholds
+  (verified/25k+ followers); comment (owner.*) vs post (post_owner.*) schemas;
+  replies require a second parent_ids pull; reshares carry shared_post_id resolved
+  via post_ids; producer-list CSV import format (Producer URL, max 1000).
 
 ### v1.6.0 (2026-08-17)
 - Documented that the API rejects double-quoted phrase searches (subcode
