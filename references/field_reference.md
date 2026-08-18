@@ -322,18 +322,6 @@ comments and posts on other surfaces are not part of that producer's posts.
 
 ## Requesting Fields
 
-Specify fields explicitly to reduce response size:
-
-```r
-client$search_fb_posts(
-  q = "climate",
-  fields = c(
-    "id",
-    "creation_time",
-    "post_owner.name",
-    "statistics"
-  )
-)
-```
-
-Default fields vary by endpoint. Check current documentation for defaults.
+Field selection is not documented here because it has not been verified against
+a live response. To check whether an endpoint accepts a field-selection
+parameter, read its entry in the OpenAPI spec — see SKILL.md § "OpenAPI Spec".

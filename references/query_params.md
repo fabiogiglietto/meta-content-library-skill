@@ -24,28 +24,58 @@
 | `name` | string | Query name for identification |
 | `description` | string | Purpose, methodology, IRB info |
 
-## Boolean Query Syntax
+## Query Syntax (`q`)
+
+### Boolean Operators
+
+Combine terms with `AND`, `OR`, `NOT`, and parentheses:
 
 ```r
-# AND (both required)
-"q" = "climate AND policy"
+# AND - both terms required
+params = list("q" = "climate AND policy")
 
-# OR (either term)
-"q" = "climate OR environment"
+# OR - either term
+params = list("q" = "climate OR environment")
 
-# NOT (exclude)
-"q" = "vaccine NOT covid"
+# NOT - exclude term
+params = list("q" = "vaccine NOT covid")
 
-# ✗ Exact phrase - NOT supported by the API (subcode 3790184), UI only
-"q" = '"climate change"'
-
-# ✓ Use a distinctive single token, or tokens joined with OR
-# (OR broadens — it matches either word, not the phrase)
-"q" = "climate OR warming"
-
-# Complex
-"q" = '(climate OR environment) AND (policy OR legislation)'
+# Complex combinations with parentheses
+params = list("q" = "(climate OR environment) AND (policy OR legislation)")
 ```
+
+### No Double-Quoted Phrases (subcode 3790184)
+
+Unlike the Content Library UI, the API **rejects** double-quoted phrase searches:
+
+```json
+{"title":"Invalid Keyword Search",
+ "detail":"Searching with phrases using double quotes is not supported. Please search without double quotes.",
+ "error_subcode":3790184,"status":400}
+```
+
+```r
+# ✗ Rejected by the API (works only in the UI)
+params = list("q" = '"climate change"')
+
+# ✓ Distinctive single token
+params = list("q" = "climate")
+
+# ✓ Tokens joined with OR
+params = list("q" = "climate OR warming")
+
+# ✓ Narrow with AND instead of a phrase
+params = list("q" = "climate AND policy")
+```
+
+`OR` does not reproduce a phrase — it matches posts containing *either* word, so
+it broadens the corpus rather than matching the bigram. Prefer a distinctive
+single token where one exists (`Meloni` rather than `"Giorgia Meloni"`, `M5S`
+rather than `"Movimento 5 Stelle"`), and use `AND` when both words must appear.
+
+Note that `q = "climate change"` — an R string holding two space-separated words
+— is fine: no double-quote character reaches the API. What 3790184 rejects is a
+query **value** containing `"` characters, i.e. `q = '"climate change"'`.
 
 ## Producer Lists
 

@@ -375,14 +375,13 @@ new_job_id <- mcl_fromJSON(rerun_response$text)$id
 
 ## References
 
-- `references/query_params.md` - Search parameters and filters
+- `references/query_params.md` - Search parameters, filters, and `q` syntax
 - `references/chunking.md` - Large dataset handling
 - `references/collections.md` - Organizing queries
 - `references/producer_lists.md` - Working with producer lists (endpoint paths, response structure, cross-platform matching)
 - `references/utilities.md` - Quota check, package install, job retrieval
 - `references/common_errors.md` - Troubleshooting and error solutions
 - `references/field_reference.md` - Available fields by entity type, reshare resolution, data scope
-- `references/query_syntax.md` - Boolean operators and search syntax
 - `references/common_patterns.md` - Reusable code patterns
 
 ---

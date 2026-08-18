@@ -73,8 +73,7 @@ Once installed, Claude will automatically use this skill when you ask about:
 | `references/producer_lists.md` | Producer lists: endpoint paths, response structure, cross-platform matching |
 | `references/chunking.md` | Large dataset handling and date-based splitting |
 | `references/collections.md` | Query organization and reproducibility |
-| `references/query_params.md` | Search parameters and filters |
-| `references/query_syntax.md` | Boolean operators and search syntax |
+| `references/query_params.md` | Search parameters, filters, and `q` syntax |
 | `references/field_reference.md` | Available fields by entity type |
 | `references/common_patterns.md` | Reusable code patterns |
 | `references/common_errors.md` | Troubleshooting, error solutions, debugging patterns |
