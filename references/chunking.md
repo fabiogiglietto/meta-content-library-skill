@@ -2,6 +2,14 @@
 
 When `expected_complete = FALSE`, split queries to avoid truncation.
 
+> **The ~100,000-result cap is per query.** A single async query returns at most
+> ~100,000 results. Depending on the endpoint this shows up either as silent
+> truncation (`estimate$expected_complete = FALSE`) or as a hard failure with
+> `error_subcode 3790057` ("Estimated response size too large"). When
+> `estimate$estimated_results` exceeds ~100k, split by **date** into smaller
+> windows — and/or query fewer `surface_ids` per call — so each query stays under
+> the cap.
+
 > **Parse every chunk with `mcl_fromJSON()`** (defined in SKILL.md § "ID Handling
 > (Always Load IDs as Character)"). Chunking is where plain `fromJSON()` bites
 > hardest: a chunk containing an ID above 2^53 types `id` as character while
@@ -153,3 +161,51 @@ all_data <- combine_chunk_results(job_ids)
 | 100k - 500k | Quarterly (90 days) |
 | 500k - 1M | Monthly (30 days) |
 | > 1M | Weekly (7 days) or add filters |
+
+ID batch size is a separate limit: `post_ids` takes at most **250 IDs per call**,
+and `surface_ids` is best kept at ≤ 250 too. A query can therefore need chunking
+on both axes — date windows for the result cap, ID batches for the parameter cap.
+
+## Collecting Only the Latest N Results
+
+When you want the most recent N posts rather than the full history, iterate date
+windows **newest-first** and stop once N is reached — this avoids paying for
+older windows you'd discard, and keeps every query under the cap:
+
+```r
+collect_latest <- function(params_base, until, n_target, window_days = 7L,
+                           max_windows = 52L) {
+  collected <- list()
+  n_have <- 0L
+  end <- as.Date(until)
+
+  for (i in seq_len(max_windows)) {
+    start <- end - window_days
+    params <- c(params_base, list(
+      "since" = as.character(start),
+      "until" = as.character(end),
+      "limit" = 100L,
+      "mode"  = "LIVE",
+      "name"  = sprintf("Latest N - window %d", i),
+      "description" = "Newest-first collection, stops at target"
+    ))
+
+    # ... submit the job, wait, read results into `chunk` ...
+    chunk <- run_job(params)
+
+    if (!is.null(chunk) && nrow(chunk) > 0) {
+      collected[[length(collected) + 1L]] <- chunk
+      n_have <- n_have + nrow(chunk)
+      cat(sprintf("Window %s..%s: +%d (total %d/%d)\n",
+                  start, end, nrow(chunk), n_have, n_target)); flush.console()
+    }
+
+    if (n_have >= n_target) break
+    end <- start
+  }
+
+  bind_rows(collected) %>%
+    arrange(desc(creation_time)) %>%
+    head(n_target)
+}
+```

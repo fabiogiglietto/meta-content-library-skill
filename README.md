@@ -14,6 +14,8 @@ This skill helps researchers query Facebook, Instagram, and Threads public conte
 - **Producer list creation** via the UI CSV import (`Producer URL` column, max 1,000)
 - **Cross-platform account matching** (find Instagram equivalents of Facebook pages)
 - **IDs always as character** (`mcl_fromJSON()`) — no scientific notation, no precision loss above 2^53
+- **Comment vs post schemas** (`owner.*` vs `post_owner.*`), replies, and reshare resolution
+- **Data scope**: which producers' posts are actually queryable
 - **Safe response handling** patterns for robust API interaction
 - **Quota monitoring** and budget management
 - **Large dataset chunking** strategies for 100K+ result queries
@@ -124,6 +126,15 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 MIT License - see [LICENSE](LICENSE) for details.
 
 ## Changelog
+
+### v1.7.0 (2026-08-18)
+- Consolidated verified API behaviors: MCL IDs != URL IDs (3790088); ID params
+  must be arrays; empty-params reticulate pitfall; no double-quoted phrases
+  (3790184); 100k single-query cap (3790057) -> date windows; SNAPSHOT cap
+  (3790172) vs LIVE + LIVE->SNAPSHOT conversion; profile post-inclusion thresholds
+  (verified/25k+ followers); comment (owner.*) vs post (post_owner.*) schemas;
+  replies require a second parent_ids pull; reshares carry shared_post_id resolved
+  via post_ids; producer-list CSV import format (Producer URL, max 1000).
 
 ### v1.6.0 (2026-08-17)
 - Documented that the API rejects double-quoted phrase searches (subcode

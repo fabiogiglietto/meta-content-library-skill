@@ -85,6 +85,35 @@ client$post(path = paste0("async/jobs/", job_id, "/snapshot"))
 client$delete(path = paste0("async/jobs/", job_id))
 ```
 
+### The 100-Snapshot Cap
+
+SNAPSHOT-mode jobs are capped at **100 concurrent per user**; exceeding it fails
+with `error_subcode 3790172` ("Exceeded async snapshots limit"). **LIVE jobs do
+not count against the cap.**
+
+When reproducibility isn't needed for a given pull, run it LIVE and save the
+results to disk:
+
+```r
+params[["mode"]] <- "LIVE"      # does not consume a snapshot slot
+```
+
+A LIVE job can be promoted later if it turns out to be worth preserving:
+
+```r
+client$post(path = paste0("async/jobs/", job_id, "/snapshot"))
+```
+
+Free slots by deleting finished snapshots — either job by job, or a whole query
+(which deletes its jobs with it):
+
+```r
+client$delete(path = paste0("async/jobs/", job_id))       # one job
+client$delete(path = paste0("async/queries/", query_id))  # query + all its jobs
+```
+
+Retention differs: LIVE data is kept ~30 days, SNAPSHOT up to 1 year.
+
 ## Reproducibility: Sharing & Copying
 
 ```r

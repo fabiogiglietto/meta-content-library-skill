@@ -158,12 +158,12 @@ combined <- bind_rows(all_results) %>%
   distinct(id, .keep_all = TRUE)
 
 posts_with_meta <- posts %>%
-  left_join(accounts, by = c("producer_id" = "id"))   # both character, or the join silently misses
+  left_join(accounts, by = c("post_owner.id" = "id"))   # both character, or the join silently misses
 
 # Round-tripping through CSV: force character on read
 write_csv(posts, "posts.csv")
 posts <- read_csv("posts.csv", col_types = cols(.default = col_character()))
-# or per column: cols(id = col_character(), producer_id = col_character())
+# or per column: cols(id = col_character(), post_owner.id = col_character())
 
 # ✗ Never do this - re-introduces the double
 posts$id <- as.numeric(posts$id)
@@ -277,7 +277,7 @@ top_posts <- posts %>%
   ) %>%
   arrange(desc(engagement_score)) %>%
   head(100) %>%
-  select(id, producer_name, engagement_score, creation_time)
+  select(id, post_owner.name, engagement_score, creation_time)
 
 # Note: Cannot export actual post text
 ```
@@ -350,13 +350,13 @@ hashtag_counts <- posts %>%
 ```r
 # Which accounts frequently post about same topics?
 account_topics <- posts %>%
-  select(producer_id, producer_name) %>%
+  select(post_owner.id, post_owner.name) %>%
   distinct()
 
 # Cross-posting analysis
 crossposts <- posts %>%
-  filter(!is.na(shared_from_id)) %>%
-  count(producer_id, shared_from_id, sort = TRUE)
+  filter(!is.na(shared_post_id)) %>%
+  count(post_owner.id, shared_post_id, sort = TRUE)
 ```
 
 ### Interaction Networks
@@ -365,14 +365,19 @@ crossposts <- posts %>%
 # Build reply/mention network from comments
 comments <- client$search_fb_comments(
   post_ids = posts$id[1:100],
-  fields = c("id", "author_id", "parent_id", "creation_time")
+  fields = c("id", "owner.id", "parent_id", "creation_time")
 )
 
 # Create edge list
 edges <- comments %>%
   filter(!is.na(parent_id)) %>%
-  select(from = author_id, to = parent_id)
+  select(from = owner.id, to = parent_id)
 ```
+
+A post-keyed comments pull returns **top-level comments only**, whose `parent_id`
+is empty — so the filter above is empty until you fetch the replies in a second
+pull keyed on comment IDs. See `references/field_reference.md` § "Replies Require
+a Second Pull".
 
 ## Comparative Analysis
 
@@ -390,7 +395,7 @@ compare_topics <- function(client, topic_a, topic_b, start_date, end_date) {
   group_by(topic) %>%
   summarise(
     n_posts = n(),
-    n_accounts = n_distinct(producer_id),
+    n_accounts = n_distinct(post_owner.id),
     total_engagement = sum(statistics$reactions + statistics$shares, na.rm = TRUE),
     avg_engagement = mean(statistics$reactions + statistics$shares, na.rm = TRUE),
     .groups = "drop"
@@ -438,7 +443,7 @@ exportable_summary <- posts %>%
   group_by(date) %>%
   summarise(
     n_posts = n(),
-    n_unique_accounts = n_distinct(producer_id),
+    n_unique_accounts = n_distinct(post_owner.id),
     total_reactions = sum(statistics$reactions, na.rm = TRUE),
     total_shares = sum(statistics$shares, na.rm = TRUE),
     avg_reactions = mean(statistics$reactions, na.rm = TRUE),
