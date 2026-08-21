@@ -38,9 +38,9 @@ all_results <- list()
 for (job_id in job_ids) {
   job <- client$get_async_job(job_id = job_id)
 
-  while (job$get_status() == "IN_PROGRESS") {
-    Sys.sleep(10)
-  }
+  mcl_wait_for_job(job)   # SKILL.md § "Waiting for a Job"; never compare status
+                          # case-sensitively, and never treat an unknown status
+                          # as "done"
 
   job$write_data_to_file(directory = "results", filename = paste0(job_id, ".json"))
   result <- mcl_fromJSON(file.path("results", paste0(job_id, ".json")))

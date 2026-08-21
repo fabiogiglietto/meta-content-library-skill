@@ -1,6 +1,6 @@
 # MCL API R Skill for Claude
 
-> **Version:** 1.9.0 — see [CHANGELOG.md](CHANGELOG.md)
+> **Version:** 1.9.1 — see [CHANGELOG.md](CHANGELOG.md)
 
 A Claude skill for working with the Meta Content Library (MCL) API v6.0 using R.
 
@@ -79,6 +79,7 @@ monitoring.
 | `references/common_errors.md` | Full error catalog and debugging patterns |
 | `references/utilities.md` | Quota checking, package installation, job retrieval |
 | `docs/TESTING_PROCEDURE.md` | Manual verification procedure for the code examples |
+| `docs/OPEN_QUESTION_ENUM_CASING.md` | Open question: job status / `mode` enum casing, and how to settle it |
 
 ## Requirements
 

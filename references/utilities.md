@@ -88,8 +88,9 @@ job_id <- "2025-11-30-xxx-xxx"  # Your job ID
 # Get job object
 job <- client$get_async_job(job_id = job_id)
 
-# Check status
-status <- job$get_status()
+# Check status. mcl_job_status() upper-cases and trims; comparing the raw
+# return value is unsafe — see SKILL.md § "Waiting for a Job".
+status <- mcl_job_status(job)
 cat("Status:", status, "\n")
 
 if (status == "COMPLETE") {
