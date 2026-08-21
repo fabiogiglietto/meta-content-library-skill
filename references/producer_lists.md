@@ -62,8 +62,9 @@ Notes:
 - Accounts that expose only a display name and no username can't be represented
   as a URL and can't be imported this way.
 - Producers are public Pages, groups, events, or profiles; profiles must be
-  public and verified or meet follower thresholds (100+ view-only / 25,000+
-  downloadable).
+  public and either verified — including paid Meta Verified — or have 100+
+  followers under v6.0. Lists built against the old 25,000 threshold are not
+  wrong, just narrower than they need to be.
 - After creating a list in the UI you can generate an API ID to use it via
   `lists/producers/{list_id}` (see "Share producer lists between the UI and API").
 
