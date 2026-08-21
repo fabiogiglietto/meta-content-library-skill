@@ -1,14 +1,14 @@
 # MCL API R Skill for Claude
 
-> **Version:** 1.8.0 — see [CHANGELOG.md](CHANGELOG.md)
+> **Version:** 1.9.0 — see [CHANGELOG.md](CHANGELOG.md)
 
 A Claude skill for working with the Meta Content Library (MCL) API v6.0 using R.
 
 ## Overview
 
-This skill helps researchers query Facebook and Instagram public content using R
-via reticulate in Meta's Secure Research Environment (SRE) or the SOMAR Virtual
-Data Enclave (VDE).
+This skill helps researchers query Facebook, Instagram and WhatsApp public
+content using R via reticulate in Meta's Secure Research Environment (SRE) or the
+SOMAR Virtual Data Enclave (VDE).
 
 Everything the skill teaches is in **[SKILL.md](SKILL.md)** and the
 `references/` files it links. This README is just the front door.
@@ -21,6 +21,8 @@ Everything the skill teaches is in **[SKILL.md](SKILL.md)** and the
   precision loss above 2^53, no per-batch type drift
 - **Producer lists** — UI CSV import, endpoint paths, response shape, batching,
   and cross-platform account matching
+- **Newer surfaces** — Facebook, Instagram and WhatsApp channels and their
+  messages/updates, Marketplace listings, fundraisers and donations
 - **Safe response handling** for NULL and empty responses
 - **Large dataset chunking** for queries over the ~100,000-result cap
 - **Quota monitoring**, collections, and job management
@@ -73,6 +75,7 @@ monitoring.
 | `references/collections.md` | Query organization, SNAPSHOT vs LIVE, the 100-snapshot cap |
 | `references/field_reference.md` | Available fields by entity type, reshare resolution, data scope |
 | `references/common_patterns.md` | Analysis patterns for collected results |
+| `references/surfaces.md` | Channels (FB/IG/WhatsApp), Marketplace, fundraisers, donations |
 | `references/common_errors.md` | Full error catalog and debugging patterns |
 | `references/utilities.md` | Quota checking, package installation, job retrieval |
 | `docs/TESTING_PROCEDURE.md` | Manual verification procedure for the code examples |

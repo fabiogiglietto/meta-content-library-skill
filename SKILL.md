@@ -1,13 +1,13 @@
 ---
 name: mcl-api-r
-description: Meta Content Library (MCL) API v6.0 helper for R users on Meta Research Platforms. Use when researchers need to query Facebook or Instagram public content using R via reticulate in the Meta Secure Research Environment (SRE) or SOMAR Virtual Data Enclave (VDE). Covers async queries, collections, jobs, rate limits, SNAPSHOT mode, producer lists, loading IDs as character, and proper integer handling.
-version: 1.8.0
-updated: 2026-08-18
+description: Meta Content Library (MCL) API v6.0 helper for R users on Meta Research Platforms. Use when researchers need to query Facebook, Instagram or WhatsApp public content using R via reticulate in the Meta Secure Research Environment (SRE) or SOMAR Virtual Data Enclave (VDE). Covers async queries, collections, jobs, rate limits, SNAPSHOT mode, producer lists, channels, Marketplace, fundraisers, loading IDs as character, and proper integer handling.
+version: 1.9.0
+updated: 2026-08-21
 ---
 
 # Meta Content Library API v6.0 for R
 
-> **Skill Version:** 1.8.0 | **Updated:** 2026-08-18 | [Changelog](CHANGELOG.md)
+> **Skill Version:** 1.9.0 | **Updated:** 2026-08-21 | [Changelog](CHANGELOG.md)
 
 ## Environment
 
@@ -131,19 +131,35 @@ write(toJSON(spec, pretty = TRUE), "openapi_spec.json")
 
 ```
 Facebook:  /facebook/{posts|pages|groups|events|profiles|comments}/{preview|job|estimate}
-Instagram: /instagram/{posts|accounts|channels|comments}/{preview|job|estimate}
+           /facebook/{channels|fundraisers|marketplace-listings}/preview
+Instagram: /instagram/{posts|accounts|comments}/{preview|job|estimate}
+           /instagram/{channels|fundraisers}/preview
+WhatsApp:  /whatsapp/channels/preview
 Utility:   /budgets, /async/jobs, /async/queries, /async/collections
 Producer:  /lists/producers, /lists/producers/{list_id}
 ```
+
+**The `{resource}/{preview|job}` pattern does not extend to every surface.**
+Async message jobs hyphenate the resource and hang off the platform root —
+`facebook/channel-messages/job`, `instagram/channel-messages/job`,
+`whatsapp/channel-updates/job` — while the sync read hangs off the parent
+channel node. `estimate` is documented only for the posts/comments/accounts
+family, not for channels, Marketplace, fundraisers or donations. Parameters and
+fields for all of these: `references/surfaces.md`.
 
 Producer lists are **created in the Content Library UI**, not via the API, and
 read with `lists/producers/{list_id}` — not `producer-lists/{id}`, which 404s.
 See `references/producer_lists.md` for the CSV import format, the response
 shape, and batching.
 
-- **preview** (GET): Sync, max 1000 results - exploration only
+- **preview** (GET): Sync, max 1000 results total - exploration only
 - **job** (POST): Async, up to ~100,000 results - use for research
 - **estimate** (GET): Check result count before querying
+
+Two different caps hide behind "1000": a sync search pages through **1000
+results in total**, and each page is capped by `limit`, whose maximum was cut
+from 500 to **100** on 2025-07-15. Channel message and update previews are
+tighter still — `limit` is 0-50, default 10.
 
 ## Nested Endpoints
 
@@ -155,6 +171,9 @@ Some resources require parent IDs in the URL path, not as query parameters:
 | Instagram comment replies | `/instagram/comments/{comment_id}/replies/preview` | Get replies to a comment |
 | Instagram channel messages | `/instagram/channels/{channel_id}/messages/preview` | Get channel messages |
 | Instagram channel comments | `/instagram/channels/{channel_id}/comments/preview` | Get channel comments |
+| Facebook channel messages | `/facebook/channels/{channel_id}/messages/preview` | Get channel messages |
+| WhatsApp channel updates | `/whatsapp/channels/{channel_id}/updates/preview` | Get channel updates |
+| Facebook donations | `/facebook/fundraisers/{fundraiser_id}/donations/preview` | Get a fundraiser's donations |
 
 ```r
 # ✓ Correct - post_id in URL path
@@ -362,7 +381,7 @@ wrong response fields — see `references/common_errors.md`.
 | Estimated response size too large (subcode 3790057) | Query would return more than ~100,000 results | Split by date window, and/or query fewer `surface_ids` |
 | Exceeded async snapshots limit (subcode 3790172) | More than 100 concurrent SNAPSHOT jobs | Use `mode = "LIVE"` when reproducibility isn't needed; delete finished snapshots |
 | Budget exceeded | Quota depleted | Wait for 7-day rolling reset |
-| Producer-list post query estimates ~0 results | List is mostly ordinary profiles, whose posts aren't in the queryable dataset | Verified or 25,000+ follower profiles only — see `references/field_reference.md` § "Data Scope" |
+| Producer-list post query estimates ~0 results | List is mostly ordinary profiles, whose posts aren't in the queryable dataset | Verified or 100+ follower profiles only — see `references/field_reference.md` § "Data Scope" |
 
 ## References
 
@@ -374,5 +393,6 @@ wrong response fields — see `references/common_errors.md`.
 - `references/common_errors.md` - Troubleshooting and error solutions
 - `references/field_reference.md` - Available fields by entity type, reshare resolution, data scope
 - `references/common_patterns.md` - Reusable code patterns
+- `references/surfaces.md` - Channels (FB/IG/WhatsApp), Marketplace, fundraisers, donations
 
 Version history: [CHANGELOG.md](CHANGELOG.md)

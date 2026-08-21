@@ -1455,6 +1455,216 @@ mcl_fromJSON(resp2$text)$data[, c("id", "name")]
 
 ---
 
+## Test Suite 11: New Surfaces (references/surfaces.md)
+
+Everything in `references/surfaces.md` is transcribed from Meta's guides and has
+**never been run**. This suite is what turns it into verified behavior. All five
+tests are sync `preview` calls, so they cost no async budget — run them first
+when quota is tight, and record the actual field names you see, not just
+pass/fail.
+
+### Test 11.1: Facebook Channel Search
+
+**Location:** references/surfaces.md § "Facebook Channels"
+
+**Code:**
+```r
+resp <- client$get(
+  path   = "facebook/channels/preview",
+  params = list("q" = "news", "member_count_min" = 1000L, "limit" = 10L)
+)
+result <- mcl_fromJSON(resp$text)
+
+if (!is.null(result$data) && is.data.frame(result$data) && nrow(result$data) > 0) {
+  cat("Channels:", nrow(result$data), "\n")
+  print(names(result$data))                       # compare against the documented field list
+  print(result$data[, c("id", "name", "member_count")])
+  cat("id is character:", is.character(result$data$id), "\n")
+} else {
+  cat("No channels returned\n")
+}
+```
+
+**Expected Outcome:**
+- Rows returned with `id`, `name`, `description`, `creation_time`,
+  `is_admin_verified`, `member_count`, `admin.id`, `admin.type`,
+  `admin.username`, `admin.name`
+- `member_count_min` accepted (no "Invalid parameter")
+- `id` is character
+
+**Validation Checklist:**
+- [ ] Endpoint path correct (not a 404)
+- [ ] `member_count_min` / `member_count_max` accepted
+- [ ] Field names match `surfaces.md`; record any that differ
+- [ ] `q` alone works, and `admin_ids` alone works
+
+**Screenshot Required:** Yes - CRITICAL (first test of an untested surface)
+
+---
+
+### Test 11.2: Facebook Channel Messages (Sync and Async Paths)
+
+**Location:** references/surfaces.md § "Channel Messages and Updates"
+
+**Prerequisites:** a `channel_id` from Test 11.1
+
+**Code:**
+```r
+channel_id <- "PASTE_ID_FROM_TEST_11_1"   # quoted!
+
+# Sync: hangs off the channel node
+sync_resp <- client$get(
+  path   = paste0("facebook/channels/", channel_id, "/messages/preview"),
+  params = list("limit" = 50L)
+)
+print(names(mcl_fromJSON(sync_resp$text)$data))
+
+# Async: hyphenated resource at the platform root
+async_resp <- client$post(
+  path   = "facebook/channel-messages/job",
+  params = list(
+    "channel_ids" = as.list(channel_id),
+    "mode"        = "LIVE",
+    "name"        = "TEST 11.2 channel messages",
+    "description" = "Skill test - delete after"
+  )
+)
+print(mcl_fromJSON(async_resp$text))
+```
+
+**Expected Outcome:**
+- Both paths resolve; `facebook/channels/job` would 404
+- `limit = 50L` accepted; `limit = 100L` rejected or silently capped — record which
+- Async response returns `id` and `query_id`
+
+**Validation Checklist:**
+- [ ] Sync nested path works
+- [ ] Async hyphenated path works
+- [ ] `limit` ceiling confirmed (documented as 0-50)
+- [ ] `mode` accepted as `"LIVE"` uppercase — try lowercase `"live"` and record
+- [ ] Record the literal string `job$get_status()` returns (`COMPLETE` or
+      `complete`) — SKILL.md's monitor loop compares against `"COMPLETE"` and would
+      spin forever if the 2025-11-10 lowercasing reached job status
+- [ ] Job deleted after the test
+
+**Screenshot Required:** Yes - CRITICAL (validates the hyphenated async path)
+
+---
+
+### Test 11.3: WhatsApp Channels and Updates
+
+**Location:** references/surfaces.md § "WhatsApp Channels"
+
+**Code:**
+```r
+resp <- client$get(
+  path   = "whatsapp/channels/preview",
+  params = list("q" = "news", "follower_count_min" = 10000L, "limit" = 50L)
+)
+chan <- mcl_fromJSON(resp$text)$data
+print(names(chan))
+cat("is_verified present:", "is_verified" %in% names(chan), "\n")
+
+updates <- client$get(
+  path   = paste0("whatsapp/channels/", chan$id[1], "/updates/preview"),
+  params = list("limit" = 50L)
+)
+print(names(mcl_fromJSON(updates$text)$data))
+```
+
+**Expected Outcome:**
+- Channel fields: `id`, `name`, `description`, `creation_time`, `categories`,
+  `is_verified`, `follower_count`
+- The *filter* is `is_channel_verified` while the *field* is `is_verified` —
+  confirm this asymmetry is real
+- Updates limited to the last 30 days
+
+**Validation Checklist:**
+- [ ] `whatsapp/channels/preview` resolves
+- [ ] `is_channel_verified` accepted as a filter
+- [ ] Nested `/updates/preview` works
+- [ ] 30-day window confirmed against `creation_time` range
+
+**Screenshot Required:** Yes - CRITICAL (newest surface, added 2026-04-30)
+
+---
+
+### Test 11.4: Marketplace Listings and the Price Filter Constraint
+
+**Location:** references/surfaces.md § "Facebook Marketplace Listings"
+
+**Code:**
+```r
+# Should work: price bounds with a single country
+ok <- client$get(
+  path   = "facebook/marketplace-listings/preview",
+  params = list("q" = "bicycle", "listing_countries" = as.list("IT"),
+                "price_min" = 50L, "price_max" = 500L, "limit" = 10L)
+)
+print(mcl_fromJSON(ok$text)$data)
+
+# Should fail: price bounds across multiple countries
+bad <- tryCatch(
+  client$get(
+    path   = "facebook/marketplace-listings/preview",
+    params = list("q" = "bicycle", "listing_countries" = as.list(c("IT", "FR")),
+                  "price_min" = 50L, "limit" = 10L)
+  ),
+  error = function(e) e
+)
+print(bad)
+```
+
+**Expected Outcome:**
+- Single-country call returns listings with `listing_details.*` flat columns
+- Multi-country call with a price bound is rejected
+
+**Validation Checklist:**
+- [ ] `facebook/marketplace-listings/preview` resolves (not `facebook/marketplace/preview`)
+- [ ] `listing_details.price.amount` / `.currency` present
+- [ ] Price + multi-country constraint confirmed
+
+**Screenshot Required:** Yes
+
+---
+
+### Test 11.5: Fundraisers and Donations
+
+**Location:** references/surfaces.md § "Fundraisers and Donations"
+
+**Code:**
+```r
+fr <- mcl_fromJSON(client$get(
+  path   = "facebook/fundraisers/preview",
+  params = list("q" = "children", "limit" = 10L)
+)$text)$data
+print(names(fr))
+
+don <- mcl_fromJSON(client$get(
+  path = paste0("facebook/fundraisers/", fr$id[1], "/donations/preview")
+)$text)$data
+print(names(don))
+cat("rows:", nrow(don), "vs donor_count:", fr$statistics.donor_count[1], "\n")
+```
+
+**Expected Outcome:**
+- Fundraiser fields include `fundraiser_type`, `goal_amount`, `amount_raised`,
+  `currency`, `statistics.donor_count`
+- Donation rows carry `owner.type` (with `private` for anonymous donors) and are
+  **fewer** than `statistics.donor_count` — only public donations are returned
+- `instagram/fundraisers/preview` also resolves, with
+  `most_to_least_donations` rather than Facebook's `most_to_least_donors`
+
+**Validation Checklist:**
+- [ ] Both fundraiser endpoints resolve
+- [ ] Nested donations path resolves
+- [ ] Donor-count discrepancy confirmed (documents why the two must not be reconciled)
+- [ ] Sort enum difference between platforms confirmed
+
+**Screenshot Required:** Yes
+
+---
+
 ## Testing Summary and Reporting
 
 ### After Completing All Tests
@@ -1544,8 +1754,8 @@ If a test fails:
 
 ## Test Completion Checklist
 
-- [ ] All 34 tests attempted
-- [ ] Critical tests (11) passed
+- [ ] All 39 tests attempted
+- [ ] Critical tests (14) passed
 - [ ] Screenshots captured and organized
 - [ ] Errors documented
 - [ ] Environment info recorded
@@ -1558,4 +1768,4 @@ If a test fails:
 
 **End of Testing Procedure**
 
-Version: 1.2 | Last Updated: 2026-08-18
+Version: 1.3 | Last Updated: 2026-08-21
