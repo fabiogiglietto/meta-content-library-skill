@@ -382,8 +382,8 @@ cat("Query ID:", query_id, "\n")
 job_id <- "YOUR_JOB_ID_FROM_TEST_3.2"  # Replace with actual job ID
 
 job <- client$get_async_job(job_id = job_id)
-status <- job$get_status()
-cat("Status:", status, "\n")
+status <- job$get_status()   # deliberately RAW - do not upper-case it here
+cat("[", status, "]\n")      # brackets reveal stray whitespace
 flush.console()
 
 # Check status a few times
@@ -393,6 +393,12 @@ for (i in 1:3) {
     flush.console()
 }
 ```
+
+**Record the exact casing.** This is the one test that prints the raw status
+string rather than routing it through `mcl_job_status()`, so it is where the
+open question in `docs/OPEN_QUESTION_ENUM_CASING.md` gets settled. Transcribe
+what you see verbatim — `COMPLETE` and `complete` are different answers, and
+normalizing it here throws away the observation.
 
 **Expected Outcome:**
 - Status transitions from IN_PROGRESS to COMPLETE
