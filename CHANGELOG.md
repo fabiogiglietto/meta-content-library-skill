@@ -4,6 +4,37 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v1.9.1 (2026-08-21)
+
+Patch release. No documented API behavior changed; this removes a silent-failure
+class from the skill's own code and files the question behind it.
+
+**Fixed: no status comparison is case-sensitive any more.** The sweep found six,
+failing in two directions. `SKILL.md`'s Async Query Template, `chunking.md` and
+the example script used `while (status != "COMPLETE")`, which spins forever
+against a lowercase `complete`. `common_patterns.md` used
+`while (status == "IN_PROGRESS")`, which is worse — against `in_progress` it
+exits on the first check and reads a half-written result as final. `utilities.md`
+gated on `status == "COMPLETE"` and would misreport. All now route through
+`mcl_wait_for_job()` (SKILL.md § "Waiting for a Job"), which upper-cases and
+trims before comparing, enforces a wall-clock timeout, raises on `FAILED`, and
+treats an unrecognized status as "keep waiting" rather than as success. This is
+correct under either casing, so it did not need the question below answered.
+
+**Added: `docs/OPEN_QUESTION_ENUM_CASING.md`** — the casing question itself is
+still open, now as documentation rather than as a live hazard. The file records
+which public pages were checked and came back empty (there is no public
+async-jobs page at all, and neither `get-api-code` nor `api-search-id` prints a
+`mode` value), a Claude for Chrome prompt for sweeping what the check missed, and
+a zero-budget in-SRE diagnostic that reads the OpenAPI enum and an
+already-finished job rather than submitting anything.
+
+**Corrected in the v1.9.0 entry below:** it claimed a fix to
+`top_italian_politicians_week.R`, but that file is listed in `.gitignore` and has
+never been tracked, so the fix was not in the release and the file does not exist
+in this repository. The paragraph has been removed rather than left describing a
+change no reader can see.
+
 ## v1.9.0 (2026-08-21)
 
 Synced with the Meta Content Library changelog through 2026-04-30.
@@ -55,26 +86,6 @@ update previews.
 zero-async-budget tests) so the new surfaces can be promoted from documented to
 verified in one SRE session. It also asks the tester to record whether `mode`
 accepts a lowercase value and where the `limit` ceiling actually falls.
-
-**Fixed: no status comparison is case-sensitive any more.** The sweep found six,
-failing in two directions. `SKILL.md`'s Async Query Template, `chunking.md` and
-the example script used `while (status != "COMPLETE")`, which spins forever
-against a lowercase `complete`. `common_patterns.md` used
-`while (status == "IN_PROGRESS")`, which is worse — against `in_progress` it
-exits on the first check and reads a half-written result as final. `utilities.md`
-gated on `status == "COMPLETE"` and would misreport. All now route through
-`mcl_wait_for_job()` (SKILL.md § "Waiting for a Job"), which upper-cases and
-trims before comparing, enforces a wall-clock timeout, raises on `FAILED`, and
-treats an unrecognized status as "keep waiting" rather than as success. This is
-correct under either casing, so it did not need the question below answered.
-
-**Added: `docs/OPEN_QUESTION_ENUM_CASING.md`** — the casing question itself is
-still open, now as documentation rather than as a live hazard. The file records
-which public pages were checked and came back empty (there is no public
-async-jobs page at all, and neither `get-api-code` nor `api-search-id` prints a
-`mode` value), a Claude for Chrome prompt for sweeping what the check missed, and
-a zero-budget in-SRE diagnostic that reads the OpenAPI enum and an
-already-finished job rather than submitting anything.
 
 Not changed: `mode = "SNAPSHOT"` / `"LIVE"` stay uppercase. The 2025-11-10
 "enums are now lowercase" note is real but demonstrably applies to value enums

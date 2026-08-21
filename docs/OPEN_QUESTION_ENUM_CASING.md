@@ -88,13 +88,24 @@ authenticated session.
 ### Read this before running it
 
 The SRE runs in **Amazon WorkSpaces Secure Browser**, which streams a remote
-browser as pixels into a canvas. That means there is very likely no DOM inside the
-session for an extension to work against, and the clipboard into it is often
-disabled as well. Expect Claude for Chrome to fall back to screenshots plus
-keystrokes it cannot verify. That is why the diagnostic below is **short enough
-to type by hand** rather than a block you paste — I have not verified the
-extension's behaviour against a live WorkSpaces session, so the prompt is
-written to find out rather than to assume.
+browser as pixels into a canvas. **No browser extension can read the DOM inside that session, and this is a
+guarantee of the product rather than a limitation of any particular extension
+version.** AWS documents it plainly: "Web content is streamed to the user's web
+browser, while the actual browser and web content is isolated in AWS", and the
+service "pixel streams web content to the browser, preventing data from residing
+on the local device or in the web browser"
+([AWS](https://aws.amazon.com/workspaces-family/secure-browser/faqs/)). Only
+encrypted pixels cross to your machine. A DOM-based tool — Claude for Chrome,
+Playwright, a userscript, anything driving CDP — sees the streaming client's own
+`<canvas>`, never JupyterLab's cells. Preventing exactly that is the point of the
+product, so this will not change with a newer extension.
+
+What remains architecturally possible is screenshots and keystrokes, since that
+is how a human uses the session at all. Whether a given extension sends
+keystrokes into the stream *reliably enough to trust unverified* is the open
+part, and it is why the diagnostic below is **short enough to type by hand**
+rather than a block you paste, and why the prompt makes Claude declare its mode
+before it touches anything.
 
 Two further points before you run it:
 
@@ -117,13 +128,15 @@ can work around is not something this file asserts.
 > R diagnostic and reading the output back to me exactly.
 >
 > Context you need: the SRE renders inside Amazon WorkSpaces Secure Browser,
-> which streams a remote browser as pixels into a canvas. There is very likely
-> no readable DOM inside the session, and the clipboard into it may be disabled.
+> which pixel-streams a remote browser into a canvas. You will **not** be able
+> to read the DOM of anything inside the session — that is by design, not a bug
+> to work around, so do not spend turns trying. The clipboard into the session
+> may also be disabled.
 >
-> **First, establish what you can actually do — do not assume either way.** Take
-> a screenshot. Tell me whether you can (a) see page structure inside the
-> session or only an image, and (b) send keystrokes to it. Then pick a mode and
-> tell me which one you are in:
+> **Establish one thing before you touch anything: can you send keystrokes into
+> the stream and confirm from a screenshot that they landed?** Try it in the
+> notebook's first cell with a throwaway line like `1 + 1`. Then declare which
+> mode you are in:
 >
 > - **Drive mode** — you can type and confirm what landed. Type each line, take
 >   a screenshot after each one, and compare what you see against what you sent.
