@@ -44,7 +44,8 @@ client$set_default_version(client$LATEST_VERSION)
 
 # ID-safe parsing helper - required by every test below.
 # Paste the definitions of MCL_ID_PATTERN, mcl_fix_ids() and mcl_fromJSON()
-# from SKILL.md § "ID Handling (Always Load IDs as Character)".
+# from SKILL.md § "ID Handling (Always Load IDs as Character)", and
+# mcl_job_status() / mcl_wait_for_job() from SKILL.md § "Waiting for a Job".
 # SKILL.md is the single canonical copy; do not maintain a second one here.
 ```
 
@@ -53,6 +54,8 @@ client$set_default_version(client$LATEST_VERSION)
 - Client object created successfully
 - Version set to LATEST_VERSION
 - `mcl_fromJSON` and `mcl_fix_ids` defined (used in place of `fromJSON` throughout)
+- `mcl_job_status` and `mcl_wait_for_job` defined (used in place of every raw
+  `get_status()` comparison throughout)
 
 **Screenshot Required:** Yes - showing successful library loading
 
@@ -158,7 +161,7 @@ client$set_default_version(client$LATEST_VERSION)
 job_id <- "YOUR_ACTUAL_JOB_ID"  # Replace with real job ID
 
 job <- client$get_async_job(job_id = job_id)
-status <- job$get_status()
+status <- mcl_job_status(job)   # upper-cases and trims; never compare the raw value
 cat("Status:", status, "\n")
 
 if (status == "COMPLETE") {
@@ -379,8 +382,8 @@ cat("Query ID:", query_id, "\n")
 job_id <- "YOUR_JOB_ID_FROM_TEST_3.2"  # Replace with actual job ID
 
 job <- client$get_async_job(job_id = job_id)
-status <- job$get_status()
-cat("Status:", status, "\n")
+status <- job$get_status()   # deliberately RAW - do not upper-case it here
+cat("[", status, "]\n")      # brackets reveal stray whitespace
 flush.console()
 
 # Check status a few times
@@ -390,6 +393,12 @@ for (i in 1:3) {
     flush.console()
 }
 ```
+
+**Record the exact casing.** This is the one test that prints the raw status
+string rather than routing it through `mcl_job_status()`, so it is where the
+open question in `docs/OPEN_QUESTION_ENUM_CASING.md` gets settled. Transcribe
+what you see verbatim — `COMPLETE` and `complete` are different answers, and
+normalizing it here throws away the observation.
 
 **Expected Outcome:**
 - Status transitions from IN_PROGRESS to COMPLETE
@@ -416,12 +425,9 @@ job_id <- "YOUR_COMPLETED_JOB_ID"  # Replace with actual job ID
 
 job <- client$get_async_job(job_id = job_id)
 
-# Wait for completion if still in progress
-while(job$get_status() != "COMPLETE") {
-    Sys.sleep(5)
-    cat("Waiting... Status:", job$get_status(), "\n")
-    flush.console()
-}
+# Wait for completion if still in progress.
+# A bare != "COMPLETE" loop spins forever against a lowercase status.
+mcl_wait_for_job(job)
 
 # Save results
 job$write_data_to_file(directory = "results", filename = "climate_test.json")
@@ -732,13 +738,11 @@ response <- client$post(path = endpoint, params = params)
 job_id <- mcl_fromJSON(response$text)$id
 cat("Job submitted:", job_id, "\n")
 
-# Wait for completion
+# Wait for completion.
+# A bare == "IN_PROGRESS" loop exits on the first check against a lowercase
+# status and reads a half-written result as final.
 job <- client$get_async_job(job_id = job_id)
-while (job$get_status() == "IN_PROGRESS") {
-  Sys.sleep(10)
-  cat("Waiting...\n")
-  flush.console()
-}
+mcl_wait_for_job(job, poll = 10)
 
 # Save results
 job$write_data_to_file(directory = "results", filename = paste0(job_id, ".json"))
@@ -1543,8 +1547,9 @@ print(mcl_fromJSON(async_resp$text))
 - [ ] `limit` ceiling confirmed (documented as 0-50)
 - [ ] `mode` accepted as `"LIVE"` uppercase — try lowercase `"live"` and record
 - [ ] Record the literal string `job$get_status()` returns (`COMPLETE` or
-      `complete`) — SKILL.md's monitor loop compares against `"COMPLETE"` and would
-      spin forever if the 2025-11-10 lowercasing reached job status
+      `complete`). `mcl_wait_for_job()` is case-insensitive so nothing breaks
+      either way, but the observed value settles the open question in
+      `docs/OPEN_QUESTION_ENUM_CASING.md` — bring the result back there
 - [ ] Job deleted after the test
 
 **Screenshot Required:** Yes - CRITICAL (validates the hyphenated async path)
