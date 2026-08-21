@@ -1,7 +1,7 @@
 # MCL API R Skill - Code Testing Procedure
 
-> **Version:** 1.2
-> **Last Updated:** 2026-08-18
+> **Version:** 1.4
+> **Last Updated:** 2026-08-21
 > **Purpose:** Comprehensive testing procedure for all code examples in the MCL API R Skill repository
 
 ## Overview
@@ -246,6 +246,58 @@ print(jobs_data$jobs[, c("id", "status", "mode", "query_id")])
 - [ ] All columns present
 
 **Screenshot Required:** Yes
+
+---
+
+### Test 1.6: Download a Hugging Face Model
+
+**Location:** utilities.md § "Download Machine Learning Models"
+
+**Purpose:** Settle whether `fbri.package_managers.huggingface` imports from the
+R-side reticulate Python. utilities.md marks the R form **[inferred]**; this test
+is what moves it to **[verified]** or replaces it with the Python-cell fallback.
+
+Pick the smallest approved model (`nllb-200-distilled-600M` or
+`all-MiniLM-L6-v2`) — mBART-50 is several GB. Costs no MCL query budget.
+
+**Code (R):**
+```r
+library(reticulate)
+
+hf <- import("fbri.package_managers.huggingface")
+hf$hf_download_repo(repo = "sentence-transformers/all-MiniLM-L6-v2")
+
+model_path <- file.path(path.expand("~"), "huggingface",
+                        "sentence-transformers/all-MiniLM-L6-v2", "main")
+list.files(model_path)
+```
+
+**If the import fails**, run the documented Python form in a Python cell and note
+which error R gave:
+
+```python
+from fbri.package_managers.huggingface import hf_download_repo
+hf_download_repo(repo="sentence-transformers/all-MiniLM-L6-v2")
+```
+
+**Expected Outcome:**
+- Download completes without a network error
+- `list.files()` shows config/tokenizer/weight files
+- The path is `~/huggingface/<ORG>/<NAME>/main` — org prefix **kept**
+
+**Validation Checklist:**
+- [ ] `import("fbri.package_managers.huggingface")` succeeds from R — **record
+      yes/no; this is the point of the test**
+- [ ] Download completes
+- [ ] Files land under `~/huggingface/<ORG>/<NAME>/main`, org prefix included
+- [ ] If R import failed: the Python-cell form succeeded, and the R error is
+      recorded
+
+**Record the result in utilities.md:** replace the **[inferred]** tag with
+**[verified <date>]**, or, if only the Python cell worked, say so and keep the
+fallback as the primary path.
+
+**Screenshot Required:** Yes - showing the import result and `list.files()` output
 
 ---
 
@@ -1759,7 +1811,7 @@ If a test fails:
 
 ## Test Completion Checklist
 
-- [ ] All 39 tests attempted
+- [ ] All 40 tests attempted
 - [ ] Critical tests (14) passed
 - [ ] Screenshots captured and organized
 - [ ] Errors documented
@@ -1773,4 +1825,4 @@ If a test fails:
 
 **End of Testing Procedure**
 
-Version: 1.3 | Last Updated: 2026-08-21
+Version: 1.4 | Last Updated: 2026-08-21

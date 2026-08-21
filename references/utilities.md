@@ -74,6 +74,97 @@ cran$InstallPackages(c("ggplot2", "dplyr", "tidyr"), dependencies = TRUE)
 
 **Note**: Standard `install.packages()` does not work in the SRE.
 
+## Download Machine Learning Models
+
+Two package managers sit side by side in the SRE, and they are not
+interchangeable:
+
+| You want | Use |
+|----------|-----|
+| An R package from CRAN | `fbrir` → `CRAN$new()$InstallPackages()` (above) |
+| A pre-trained model from Hugging Face | `fbri.package_managers.huggingface` (below) |
+
+**The rule the rest of this section follows from: the SRE has no internet
+access.** `from_pretrained("facebook/mbart-large-50-many-to-many-mmt")` cannot
+reach huggingface.co and will fail. You download an **approved** model first
+through the `fbri` helper, then load it from its local path.
+
+> **[documented]** — the Python signatures, paths and restrictions below are
+> transcribed from
+> [Machine Learning Models](https://developers.facebook.com/docs/researcher-platform/features/ml-models)
+> (fetched 2026-08-21). The reticulate wrapper is **[inferred]** and untested —
+> see the fallback below if the import fails.
+
+### Downloading (Python, as documented)
+
+```python
+# Whole repository
+from fbri.package_managers.huggingface import hf_download_repo
+hf_download_repo(repo="facebook/mbart-large-50-many-to-many-mmt", revision="main", output_dir=None)
+
+# A single file — NOTE the argument order: filename first, then repo
+from fbri.package_managers.huggingface import hf_download_file
+repo = "facebook/mbart-large-50-many-to-many-mmt"
+filename = ".gitattributes"
+hf_download_file(filename, repo, revision="main", output_dir=None)
+```
+
+Downloads land in `~/huggingface/<REPO>/<REVISION>` — where `<REPO>` keeps its
+**org prefix**, so the default revision of the model above is at
+`/home/jovyan/huggingface/facebook/mbart-large-50-many-to-many-mmt/main`.
+Dropping the `facebook/` gives a path that does not exist. `output_dir`
+overrides the location.
+
+### Downloading from R
+
+**[inferred]** — `fbri` is a different package from `metacontentlibraryapi`, and
+whether it imports from the R-side reticulate Python is unverified:
+
+```r
+library(reticulate)
+
+hf <- import("fbri.package_managers.huggingface")
+hf$hf_download_repo(repo = "facebook/mbart-large-50-many-to-many-mmt")
+
+model_path <- file.path(path.expand("~"), "huggingface",
+                        "facebook/mbart-large-50-many-to-many-mmt", "main")
+list.files(model_path)
+```
+
+If that import fails, nothing is lost: run the download in a **Python cell**
+using the documented form, then use `model_path` from R. The files are on disk
+either way.
+
+Inference itself is easiest left in Python. The documented mBART example
+(`MBartForConditionalGeneration.from_pretrained(model_path)`, then
+`tokenizer.lang_code_to_id["de_DE"]`) relies on `**kwargs` unpacking and Python
+item access, which reticulate expresses as `do.call()` and `py_get_item()` —
+more translation than it is worth for a one-off. Call it from a Python cell and
+bring the results back into R as a data.frame.
+
+### Approved models
+
+Only models on Meta's approved list can be downloaded. As fetched 2026-08-21 the
+list covers three families:
+
+| Use | Models |
+|-----|--------|
+| Translation | Facebook NLLB-200 (`nllb-200-3.3B`, `nllb-200-distilled-600M`), Facebook mBART-50 and mBART many-to-many, Google T5 and T5-small |
+| Embeddings | UKP Lab Sentence-BERT (`all-MiniLM-L6-v2`), Sentence-Transformers (`paraphrase-multilingual-MiniLM-L12-v2`) |
+| Classification / NLU | Google BERT base (uncased), DistilBERT (`distilbert-base-uncased-finetuned-sst-2-english`), XLM-RoBERTa large, DeBERTaV3 and mDeBERTa v3 multilingual |
+
+Check the [page](https://developers.facebook.com/docs/researcher-platform/features/ml-models)
+for the current list rather than trusting this table — it grows.
+
+### Restrictions
+
+- **Approved list only.** No internet access means an unlisted model cannot be
+  fetched at all, by any route.
+- **Text models with an open-source license only** qualify for approval.
+- **Unlisted models require a support ticket** justifying the use case.
+- **Use a GPU machine** for inference — runtimes are substantially faster than
+  on CPU.
+
 ## Retrieve Completed Job Data
 
 ```r
