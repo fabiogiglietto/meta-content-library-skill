@@ -1,7 +1,61 @@
 # Open question: did the 2025-11-10 lowercasing reach job status?
 
-**Status:** unresolved as of 2026-08-21. Delete this file once answered, and fold
-the answer into `SKILL.md` and `CHANGELOG.md`.
+**Status: half answered, 2026-08-21.** `mode` is settled — **UPPERCASE**,
+verified against the OpenAPI spec inside the SRE. Job **status is still open**,
+but it is no longer a documentation question: the spec does not declare it, so
+only a live job can answer, which makes it a **Stage 3 item** rather than a recon
+one. Do not delete this file until that is recorded.
+
+---
+
+## ANSWERED: `mode` takes `"SNAPSHOT"` / `"LIVE"`, uppercase
+
+**[verified 2026-08-21]** Observed in a live SRE session by calling
+`client$openapi_spec()` and searching the serialised spec (512,717 characters):
+
+```
+"mode": {"type": "string", "enum": ["LIVE", "SNAPSHOT"],
+         "description": "Execution mode of async job, i.e. live mode or snapshot mode"}
+```
+
+Five occurrences, **every one inside an `enum` list** — the authoritative form
+this file asked for. The 2025-11-10 "enums are now lowercase" note did **not**
+reach `mode`.
+
+**Action required: none.** Every example in `mcl-api-r` already passes
+`"SNAPSHOT"`. The `grep -rn '"SNAPSHOT"\|"LIVE"'` sweep this file contemplated is
+not needed. What *is* worth doing is promoting this from inference to verified in
+`CHANGELOG.md`.
+
+### The trap this exposed, which is worth keeping
+
+`mode`'s own `description` says "live mode or snapshot mode" — lowercase — while
+its `enum` says `["LIVE", "SNAPSHOT"]`. **Prose casing in this spec is the
+opposite of enum casing.** Any inference about `status` drawn from its
+description ("in progress, completed, failed, etc.") is therefore worthless.
+
+## STILL OPEN: what `status` returns
+
+**[verified 2026-08-21]** The spec declares no vocabulary for it:
+
+```
+"status": {"type": "string",
+           "description": "Execution status of the async job, i.e. in progress, completed, failed, etc."}
+```
+
+No `enum`. Of the 12 enums in the whole spec, none is a status vocabulary — the
+only close match is an unrelated product-availability list.
+
+**[verified 2026-08-21]** `GET async/jobs` returned **zero rows** in the
+workspace used for the recon, so `get_status()` could not be observed. Steps 2
+and 3 of the diagnostic below are unchanged and still cost nothing — they just
+need an environment that has actually run a job.
+
+**Where this now belongs:** the first real run of the `mcl-agent` loop submits a
+job. Record the literal `get_status()` string then, per
+`mcl-agent/references/feedback_protocol.md`. Note that a lowercase `completed`
+(past participle) is at least as likely as `complete`, and neither this file's
+original regexes nor `mcl_wait_for_job()`'s comparisons should assume the stem.
 
 **The hazard this described is already fixed.** v1.9.0 replaced every
 status comparison in the skill with `mcl_wait_for_job()` (SKILL.md § "Waiting for
@@ -23,8 +77,9 @@ possible failures were both silent:
   and reads a half-written result as final. This was in `common_patterns.md`,
   and it is the worse of the two: wrong data rather than a hang.
 
-Still open: whether `mode` must be `"SNAPSHOT"` or `"snapshot"`, and what
-`get_status()` literally returns.
+~~Still open: whether `mode` must be `"SNAPSHOT"` or `"snapshot"`, and what
+`get_status()` literally returns.~~ **Superseded 2026-08-21** — see the top of
+this file. `mode` is `"SNAPSHOT"`; `get_status()` is still unobserved.
 
 ## What has already been ruled out (don't redo this)
 
@@ -48,8 +103,12 @@ expect it to come back negative.
 
 ## Prompt A — Claude for Chrome, documentation sweep
 
-Low cost, low expected yield. Run it before Prompt B only because it needs no
-authenticated session.
+**Do not run this. Superseded 2026-08-21.** It was written to hunt the public web
+for the OpenAPI spec, on the theory that "the spec is where the enum is actually
+declared, so this is the highest-value target." That theory was right and the
+target was reachable — just not on the public web. `client$openapi_spec()` returns
+it from inside the SRE in one call, which is how `mode` was settled. Kept below
+only as a record of what was tried.
 
 > Search Meta's Content Library documentation for the literal values the API
 > uses for asynchronous job **status** and for the **`mode`** parameter.
