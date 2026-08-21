@@ -4,6 +4,37 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v1.10.0 (2026-08-21)
+
+**Added: how to download machine learning models in the SRE**
+(`references/utilities.md` § "Download Machine Learning Models"). The SRE has no
+internet access, so `from_pretrained("facebook/mbart-...")` cannot reach
+huggingface.co — an approved model must be downloaded first through
+`fbri.package_managers.huggingface` (`hf_download_repo` for a whole repo,
+`hf_download_file` for one file, filename before repo) and then loaded from
+`~/huggingface/<REPO>/<REVISION>`, where `<REPO>` keeps its org prefix. The
+section records the approved-model families as fetched 2026-08-21, the
+restrictions (text models with open-source licenses only; unlisted models need a
+support ticket), and the GPU-machine note.
+
+This sits next to "Install R Packages" because the two are easy to confuse:
+`fbrir`/`CRAN$new()` installs R packages from Meta's CRAN mirror,
+`fbri.package_managers.huggingface` downloads models — different package, different
+manager.
+
+Sourcing follows `docs/SRE_AUTOMATION_SURFACE.md`'s tags. The Python signatures,
+paths and restrictions are **[documented]** from
+[Machine Learning Models](https://developers.facebook.com/docs/researcher-platform/features/ml-models).
+The reticulate wrapper is **[inferred]** and marked untested — `fbri` is a
+different package from `metacontentlibraryapi`, so whether it imports from the
+R-side reticulate Python is unverified; the section gives a Python-cell fallback
+that works either way. `docs/TESTING_PROCEDURE.md` Test 1.6 settles it.
+Inference is deliberately left in Python rather than translated to `do.call()`
+and `py_get_item()`.
+
+**Also:** `SKILL.md` § Environment gains a "No internet access" bullet — the fact
+both package managers follow from.
+
 ## v1.9.1 (2026-08-21)
 
 Patch release. No documented API behavior changed; this removes a silent-failure
