@@ -1543,8 +1543,9 @@ print(mcl_fromJSON(async_resp$text))
 - [ ] `limit` ceiling confirmed (documented as 0-50)
 - [ ] `mode` accepted as `"LIVE"` uppercase — try lowercase `"live"` and record
 - [ ] Record the literal string `job$get_status()` returns (`COMPLETE` or
-      `complete`) — SKILL.md's monitor loop compares against `"COMPLETE"` and would
-      spin forever if the 2025-11-10 lowercasing reached job status
+      `complete`). `mcl_wait_for_job()` is case-insensitive so nothing breaks
+      either way, but the observed value settles the open question in
+      `docs/OPEN_QUESTION_ENUM_CASING.md` — bring the result back there
 - [ ] Job deleted after the test
 
 **Screenshot Required:** Yes - CRITICAL (validates the hyphenated async path)
