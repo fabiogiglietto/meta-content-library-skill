@@ -272,6 +272,11 @@ model_path <- file.path(path.expand("~"), "huggingface",
 list.files(model_path)
 ```
 
+The org prefix above is **not** read verbatim off the Meta page (which names UKP
+Lab as the owner). If the call fails as *not approved* or as a bad path rather
+than as an import error, retry with `facebook/nllb-200-distilled-600M` — an org
+the page states — before recording the import as broken.
+
 **If the import fails**, run the documented Python form in a Python cell and note
 which error R gave:
 

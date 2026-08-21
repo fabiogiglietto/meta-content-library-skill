@@ -4,7 +4,9 @@
 > "ID Handling (Always Load IDs as Character)". It keeps every ID field a
 > character string — plain `fromJSON()` turns IDs into doubles.
 
-Verified working code for common utility tasks.
+Verified working code for common utility tasks — except where a section
+carries its own sourcing tag ([documented] / [inferred]), which means it was
+transcribed rather than run.
 
 ## Check Quota Status
 
@@ -85,7 +87,7 @@ interchangeable:
 | A pre-trained model from Hugging Face | `fbri.package_managers.huggingface` (below) |
 
 **The rule the rest of this section follows from: the SRE has no internet
-access.** `from_pretrained("facebook/mbart-large-50-many-to-many-mmt")` cannot
+access** (SKILL.md § Environment). `from_pretrained("facebook/mbart-large-50-many-to-many-mmt")` cannot
 reach huggingface.co and will fail. You download an **approved** model first
 through the `fbri` helper, then load it from its local path.
 
@@ -153,8 +155,14 @@ list covers three families:
 | Embeddings | UKP Lab Sentence-BERT (`all-MiniLM-L6-v2`), Sentence-Transformers (`paraphrase-multilingual-MiniLM-L12-v2`) |
 | Classification / NLU | Google BERT base (uncased), DistilBERT (`distilbert-base-uncased-finetuned-sst-2-english`), XLM-RoBERTa large, DeBERTaV3 and mDeBERTa v3 multilingual |
 
-Check the [page](https://developers.facebook.com/docs/researcher-platform/features/ml-models)
-for the current list rather than trusting this table — it grows.
+The page names **owners**, not full Hugging Face repo ids — only
+`facebook/mbart-large-50-many-to-many-mmt` appears verbatim, and the parenthesised
+names above are the page's, without their org prefix. Since the prefix is part of
+the repo id and of the download path, read it off the
+[page](https://developers.facebook.com/docs/researcher-platform/features/ml-models)
+before downloading; guessing it fails as an approval or path error, not as a
+missing model. Check the same page for the current list rather than trusting this
+table — it grows.
 
 ### Restrictions
 
