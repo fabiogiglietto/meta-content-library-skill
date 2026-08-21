@@ -9,14 +9,17 @@ maintaining their own copies.
 Patch release. No documented API behavior changed; this removes a silent-failure
 class from the skill's own code and files the question behind it.
 
-**Fixed: no status comparison is case-sensitive any more.** The sweep found six,
+**Fixed: no status comparison is case-sensitive any more.** The sweep found nine,
 failing in two directions. `SKILL.md`'s Async Query Template, `chunking.md` and
 the example script used `while (status != "COMPLETE")`, which spins forever
 against a lowercase `complete`. `common_patterns.md` used
 `while (status == "IN_PROGRESS")`, which is worse — against `in_progress` it
 exits on the first check and reads a half-written result as final. `utilities.md`
-gated on `status == "COMPLETE"` and would misreport. All now route through
-`mcl_wait_for_job()` (SKILL.md § "Waiting for a Job"), which upper-cases and
+gated on `status == "COMPLETE"` and would misreport. `docs/TESTING_PROCEDURE.md`
+held one of each plus a raw `get_status()` comparison — the worst place for them,
+since a tester would have run the broken pattern while verifying the fix. All now
+route through `mcl_wait_for_job()` (SKILL.md § "Waiting for a Job"), which
+upper-cases and
 trims before comparing, enforces a wall-clock timeout, raises on `FAILED`, and
 treats an unrecognized status as "keep waiting" rather than as success. This is
 correct under either casing, so it did not need the question below answered.
