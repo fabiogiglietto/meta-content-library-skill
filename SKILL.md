@@ -35,7 +35,7 @@ Collection (folder for organization)
 ```
 
 - **Query**: Created once, executed multiple times. Has `query_id`.
-- **Job**: Single execution of a query. Has `id`, status (IN_PROGRESS/COMPLETE/FAILED), mode (LIVE/SNAPSHOT).
+- **Job**: Single execution of a query. Has `id`, a status (IN_PROGRESS / COMPLETE / FAILED as of v1.7.0 testing), and a mode (LIVE/SNAPSHOT). **Never compare a status case-sensitively** — see [Waiting for a Job](#waiting-for-a-job).
 - **Collection**: Folder to organize related queries.
 
 ## Setup
@@ -262,6 +262,42 @@ results <- fromJSON(resp$text, flatten = TRUE)$data
 if (nrow(results) > 0) { ... }  # Error: missing value where TRUE/FALSE needed
 ```
 
+## Waiting for a Job
+
+Never poll with a bare `while (job$get_status() != "COMPLETE")`. The 2025-11-10
+REST-ful pass lowercased enum values, and it is unconfirmed whether job status
+was included. Under a bare comparison the two possible outcomes are both silent:
+
+- `while (status != "COMPLETE")` against `"complete"` — **spins forever**, no error
+- `while (status == "IN_PROGRESS")` against `"in_progress"` — **exits immediately**
+  and reads a half-written result as if it were final
+
+Use this helper instead. It is correct under either casing, it cannot spin
+forever, and it treats an unrecognized status as "keep waiting" rather than as
+success:
+
+```r
+mcl_job_status <- function(job) toupper(trimws(job$get_status()))
+
+mcl_wait_for_job <- function(job, poll = 5, timeout = 3600) {
+  deadline <- Sys.time() + timeout
+  repeat {
+    st <- mcl_job_status(job)
+    if (st == "COMPLETE") return(st)
+    if (st == "FAILED")   stop("Job failed (status: ", st, ")")
+    if (Sys.time() > deadline)
+      stop("Job did not finish within ", timeout, "s (last status: ", st, ")")
+    cat("Status:", st, "\n"); flush.console()
+    Sys.sleep(poll)
+  }
+}
+```
+
+Every wait in this skill goes through `mcl_wait_for_job()`. If you compare a
+status yourself, compare `mcl_job_status(job)`, never the raw return value.
+
+Resolving the casing question for good: `docs/OPEN_QUESTION_ENUM_CASING.md`.
+
 ## Async Query Template
 
 ```r
@@ -290,12 +326,9 @@ job_data <- mcl_fromJSON(response$text)
 job_id <- job_data$id          # character
 query_id <- job_data$query_id  # character
 
-# 3. Monitor status
+# 3. Monitor status (see "Waiting for a Job" for mcl_wait_for_job)
 job <- client$get_async_job(job_id = job_id)
-while(job$get_status() != "COMPLETE") {
-    Sys.sleep(5)
-    cat("Status:", job$get_status(), "\n"); flush.console()
-}
+mcl_wait_for_job(job)
 
 # 4. Save results, then load with IDs as character
 job$write_data_to_file(directory = "results", filename = "climate_2024.json")

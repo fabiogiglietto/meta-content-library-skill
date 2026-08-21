@@ -112,11 +112,10 @@ combine_chunk_results <- function(job_ids, output_dir = "results") {
     
     job <- client$get_async_job(job_id = job_id)
     
-    # Wait for completion
-    while (job$get_status() != "COMPLETE") {
-      cat("  Status:", job$get_status(), "- waiting...\n"); flush.console()
-      Sys.sleep(10)
-    }
+    # Wait for completion — mcl_wait_for_job() is defined in SKILL.md
+    # § "Waiting for a Job". A bare != "COMPLETE" loop spins forever if the
+    # status comes back lowercase.
+    mcl_wait_for_job(job, poll = 10)
     
     # Save to file
     filename <- paste0("chunk_", i, "_", job_id, ".json")

@@ -79,6 +79,7 @@ monitoring.
 | `references/common_errors.md` | Full error catalog and debugging patterns |
 | `references/utilities.md` | Quota checking, package installation, job retrieval |
 | `docs/TESTING_PROCEDURE.md` | Manual verification procedure for the code examples |
+| `docs/OPEN_QUESTION_ENUM_CASING.md` | Open question: job status / `mode` enum casing, and how to settle it |
 
 ## Requirements
 
