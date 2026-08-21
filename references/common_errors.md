@@ -89,7 +89,7 @@ if (!is.null(results)) {
 |-------|-------|----------|
 | "Estimated response size too large" (subcode 3790057) | A single query would return more than ~100,000 results | Split by date window and/or query fewer `surface_ids` — see `references/chunking.md` |
 | "Exceeded async snapshots limit" (subcode 3790172) | More than 100 concurrent SNAPSHOT jobs | Run `mode = "LIVE"` where reproducibility isn't needed, and delete finished snapshots — see `references/collections.md` § "The 100-Snapshot Cap" |
-| A producer-list post query estimates ~0 results | The list is mostly ordinary profiles, whose posts aren't in the queryable dataset | Only verified or 25,000+ follower profiles qualify — see `references/field_reference.md` § "Data Scope" |
+| A producer-list post query estimates ~0 results | The list is mostly ordinary profiles, whose posts aren't in the queryable dataset | Only public profiles that are verified or have 100+ followers qualify (v6.0; it was 1,000 in v5.0 and 25,000 before that) — see `references/field_reference.md` § "Data Scope" |
 | "Invalid Keyword Search" (subcode 3790184) | The query used a double-quoted phrase | Drop the double quotes; use single-word tokens joined with `OR` — see `references/query_params.md` § "Query Syntax (`q`)" |
 
 ## General Errors

@@ -4,6 +4,75 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v1.9.0 (2026-08-21)
+
+Synced with the Meta Content Library changelog through 2026-04-30.
+
+**Fixed: the follower threshold was three versions stale.** Four files said a
+Facebook profile's posts are queryable only if it is verified or has **25,000+**
+followers. That number predates v5.0. It went to 1,000 in v5.0 (2024-11-11) and
+to **100** in v6.0 (2025-11-10), and the same 100-follower rule governs which
+Instagram personal accounts are included. The stale figure was load-bearing:
+`common_errors.md` used it to explain why a producer-list post query estimates
+~0 results, which sent researchers looking for a fault in lists that were fine.
+`field_reference.md` § "Data Scope" now carries the version history, and notes
+that the 25,000 floor still documented for the ICPSR/CASD *downloadable* dataset
+is a different product from the API. "Verified" now also covers paid Meta
+Verified subscriptions.
+
+**Added: `references/surfaces.md`** — the surfaces that arrived after the
+endpoint list was last written: Facebook channels and channel messages
+(2026-03-12), WhatsApp channels and channel updates (2026-04-30), Instagram
+channels and channel messages, Marketplace listings, Facebook and Instagram
+fundraisers, and Facebook donations. Parameters, filters, sort enums and node
+fields for each. Flagged as documented-but-untested, in the style already used
+for the Threads table — it is transcribed from Meta's guides and Data
+dictionary, not confirmed against a live response.
+
+**Fixed: the endpoint grammar no longer holds for every surface.** SKILL.md's
+`/{resource}/{preview|job|estimate}` line would lead you to guess
+`facebook/channels/job` and `facebook/marketplace/preview`; both 404. Async
+message jobs hyphenate the resource at the platform root
+(`facebook/channel-messages/job`, `whatsapp/channel-updates/job`) while the sync
+read hangs off the parent channel node, and no `estimate` endpoint is documented
+for any of the new surfaces.
+
+**Added: the Facebook post filter set** to `query_params.md`, which had only
+ever documented `q` / `since` / `until` / `limit` / `lang` / `country` and the ID
+params. Notably `sort` now defaults to `most_to_least_views` rather than
+newest-first, so an old query silently returns a different sample; `media_types`
+is deprecated in favour of `content_types` (v1.8.0 dropped `media_type` as
+unverifiable - this is its documented replacement, with a source); and
+`search_scope = "post_text_and_image_text"` is how you reach text-in-images
+search. Enum *values* are lowercase after the 2025-11-10 REST-ful pass.
+
+**Clarified: two different caps were conflated as "1000".** A sync search pages
+through 1000 results *in total*; the per-page `limit` maximum was separately cut
+from 500 to 100 on 2025-07-15, and is 0-50 (default 10) for channel message and
+update previews.
+
+**Fixed: `top_italian_politicians_week.R` contradicted the skill it demonstrates.**
+It built `surface_ids` / `account_ids` with `paste(ids, collapse = ",")` — the
+comma-joined scalar SKILL.md documents as rejected with "Invalid parameter" —
+in both the estimate and the job call. Its result table also read
+`producer_name` / `producer_type`, which are Instagram fields, so the Facebook
+branch would have failed at `group_by()` on a column that does not exist; it now
+picks `post_owner.*` or `producer_*` by what is present. Added an explicit
+`sort = "newest_to_oldest"` (the default silently became `most_to_least_views`
+in v5.0, which changes which posts survive truncation in a "this week" query)
+and a 250-ID guard.
+
+**Added: Test Suite 11** to `docs/TESTING_PROCEDURE.md` (five sync-only,
+zero-async-budget tests) so the new surfaces can be promoted from documented to
+verified in one SRE session. It also asks the tester to record whether `mode`
+accepts a lowercase value and where the `limit` ceiling actually falls.
+
+Not changed: `mode = "SNAPSHOT"` / `"LIVE"` stay uppercase. The 2025-11-10
+"enums are now lowercase" note is real but demonstrably applies to value enums
+like `sort` and `content_types`; the uppercase modes are what this skill has
+tested, and rewriting dozens of samples on a documentation inference is exactly
+the trade v1.8.0 refused.
+
 ## v1.8.0 (2026-08-18)
 
 **Removed: examples using a client API that does not exist.** Three files

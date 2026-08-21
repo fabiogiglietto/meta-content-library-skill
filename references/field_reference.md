@@ -26,6 +26,10 @@
 9. [Threads Posts](#threads-posts)
 10. [Data Scope: Whose Posts Are Queryable](#data-scope-whose-posts-are-queryable)
 
+Channels (Facebook, Instagram, WhatsApp), Marketplace listings, fundraisers and
+donations are newer surfaces and live in `references/surfaces.md`, which owns
+both their parameters and their fields.
+
 ## Facebook Posts
 
 ### Core Fields
@@ -304,17 +308,28 @@ Engagement fields on Instagram comments (like and reply counts) are unconfirmed
 ## Data Scope: Whose Posts Are Queryable
 
 **Post availability depends on producer type.** For Facebook **profiles**, posts
-enter the queryable dataset only if the profile is verified or has enough
-followers — 25,000+ for the downloadable/API subset, 100+ for view-only. An
-ordinary profile returns ~0 posts even though it can be added to a producer list
-and appears in `facebook/profiles/preview`.
+enter the queryable dataset only if the profile is public and either verified or
+above a follower threshold. **In v6.0 that threshold is 100 followers.** An
+ordinary private or tiny profile returns ~0 posts even though it can be added to
+a producer list and appears in `facebook/profiles/preview`.
 
 | Producer type | Posts queryable? |
 |---------------|------------------|
 | Page | Yes |
 | Group (public, indexed) | Yes |
-| Profile — verified, or 25,000+ followers | Yes |
-| Profile — ordinary | No (returns ~0 posts) |
+| Profile — public and verified, or 100+ followers | Yes |
+| Profile — private, or under the threshold | No (returns ~0 posts) |
+
+The threshold has moved twice and older write-ups are stale: it was 25,000
+before v5.0, 1,000 in v5.0 (2024-11-11), and 100 from v6.0 (2025-11-10). The
+same 100-follower rule governs which Instagram **personal** accounts are
+included; creator and business accounts have no follower requirement. "Verified"
+now also covers **paid Meta Verified subscriptions**, not just legacy badges, so
+a small account can qualify by subscription alone.
+
+Separately, the *downloadable* dataset offered through ICPSR / CASD still
+documents a 25,000-follower floor. That is a different product from the API —
+don't apply its number when reasoning about why an API query came back empty.
 
 Symptom: a producer-list post query estimates ~0 results despite the list having
 many members — the members are mostly ordinary profiles. Check the mix before
@@ -331,7 +346,7 @@ comments and posts on other surfaces are not part of that producer's posts.
 2. **Image text (OCR)**: Only available for content from last ~180 days
 3. **Location data**: Excluded for some countries due to legal requirements
 4. **Historical data**: Some fields added in API updates may not be backfilled
-5. **Threads data**: Available since Feb 2025, only for 1K+ follower accounts
+5. **Threads data**: Available since Feb 2025; subject to the same verified-or-100-followers rule as of v6.0
 
 ## Requesting Fields
 
