@@ -17,6 +17,55 @@
 | `surface_ids` | list | Facebook only: filter to specific page / group / profile IDs — **character strings only**, always `as.list()` |
 | `account_ids` | list | Instagram only: filter to specific account IDs — same rules |
 
+## Post Filters (Facebook Posts)
+
+> Documented, not tested — transcribed from the Facebook posts guide
+> (fetched 2026-08-21). Confirm anything surprising with `client$openapi_spec()`.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `search_scope` | enum | `post_text_only` (default) or `post_text_and_image_text` — the text-in-images search added in v5.0. OCR covers roughly the last 180 days |
+| `content_types` | list | `albums`, `photos`, `videos` (includes reels), `links`, `stories`, `reshare`, `status`. **Replaces `media_types`**, deprecated in v5.0 |
+| `sort` | enum | `most_to_least_views` (the v5.0 default), `newest_to_oldest`, `oldest_to_newest`. Versions before 5.0 defaulted to newest-first — a query that used to return recent posts now returns the most-viewed ones |
+| `is_surface_verified` | boolean | Restrict to posts whose Page or profile is verified |
+| `is_branded_content` | boolean | Include or exclude branded-content posts |
+| `link` | string | Filter on a URL in the post. Only usable **together with** `q` |
+| `surface_types` | list | `page`, `profile`, `group`, `event` |
+| `surface_countries` | list | ISO 3166-1 alpha-2, uppercase |
+| `views_bucket_start` / `views_bucket_end` | integer | View-count bounds |
+| `post_ids` | list | Specific posts, max 250 |
+| `fields` | list | Field selection |
+
+`profile_ids`, `page_ids`, `group_ids` and `event_ids` were deprecated in v4.0
+in favour of `surface_ids`; `admin_countries` and `owner_types` became
+`surface_countries` and `surface_types`. Code written against the older names
+predates two deprecations and will not run.
+
+### The Four Spellings of "verified"
+
+Same concept, a different parameter name on every surface. Getting it wrong
+returns "Invalid parameter", not a silently ignored filter:
+
+| Endpoint | Filter parameter |
+|----------|------------------|
+| `facebook/posts` | `is_surface_verified` |
+| `facebook/profiles`, `instagram/accounts` | `is_verified` |
+| `facebook/channels`, `instagram/channels` | `is_admin_verified` |
+| `whatsapp/channels` | `is_channel_verified` |
+
+Since 2025-11-10, "verified" includes **paid Meta Verified subscriptions**, not
+just legacy badges — so these filters now admit accounts that a pre-2025 study
+design would have treated as unverified.
+
+Note also that `media_type` (singular) is a *response field* on Instagram posts;
+`media_types` (plural) was the deprecated *filter*. They are not the same thing,
+and only the filter was replaced.
+
+Enum **values** are lowercase (`most_to_least_views`, not
+`MOST_TO_LEAST_VIEWS`) — the 2025-11-10 REST-ful pass lowercased them. The
+`mode` values `"SNAPSHOT"` / `"LIVE"` are the tested spellings and stay
+uppercase.
+
 ## Async-Only Parameters
 
 | Parameter | Type | Description |
@@ -101,6 +150,12 @@ response <- client$post(path = paste0(platform, "/posts/job"), params = params)
 `references/producer_lists.md` owns this topic: list creation, response shape,
 batching, cross-platform matching, and the `account_ids` vs `post_ids`
 distinction.
+
+## Other Surfaces
+
+Channels (Facebook, Instagram, WhatsApp), Marketplace listings, fundraisers and
+donations take a different parameter set — member/follower thresholds, category
+filters, price bounds. See `references/surfaces.md`.
 
 ## Comments Queries
 
