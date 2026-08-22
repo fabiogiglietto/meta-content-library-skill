@@ -468,24 +468,24 @@ section (added to the `CHANGELOG.md` release checklist).
 
 ### Merge-time checklist for this branch
 
-The routine and the branch are coupled to each other in ways that break
-**silently** — a check that stops reporting is indistinguishable from a quiet
-month. Work through all four before deleting the branch:
+**Completed 2026-08-22 at merge.** Kept as a record of what the coupling was.
+The routine and the branch were coupled in ways that break **silently** — a check
+that stops reporting is indistinguishable from a quiet month.
 
-- [ ] **Re-point the routine at `main`.** Its prompt names
+- [x] **Re-point the routine at `main`.** Its prompt names
       `docs/sre-ml-models` and checks it out by name; deleting the branch after
       merge breaks the check with no error anyone sees.
-- [ ] **Update the routine's CHANGELOG target.** The prompt tells the agent to
+- [x] **Update the routine's CHANGELOG target.** The prompt tells the agent to
       add its bullet under the heading ``## Unreleased — branch
       `docs/sre-ml-models` `` — and that heading is *renamed to a version number*
       at merge, by design. After merge the agent looks for a heading that no
       longer exists.
-- [ ] **Assign the version number and bump all three stamps** — `SKILL.md`
+- [x] **Assign the version number and bump all three stamps** — **v1.11.0, done 2026-08-22.** — `SKILL.md`
       frontmatter, the `> **Skill Version:**` line, `README.md`. They currently
       read **1.10.0** because this branch deliberately left its number
       unassigned; release-checklist item 1 cannot be satisfied until someone
       picks it.
-- [ ] **Check the number against `docs/stage3-first-run`**, which already claims
+- [x] **Check the number against `docs/stage3-first-run`** — it must renumber to v1.12.0., which already claims
       **v1.11.0**. Whichever merges second takes the next number. It fetches
 the page, diffs against the snapshot, and reports only when something changed —
 a quiet month produces a date bump and nothing else. The snapshot file is what
