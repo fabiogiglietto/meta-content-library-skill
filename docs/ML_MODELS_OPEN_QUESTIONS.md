@@ -32,7 +32,7 @@ time.
 | 5 | What does `output_dir` replace — the whole path, or the parent? | **[verified 2026-08-22] the WHOLE path.** When set, the `huggingface/<repo>/<revision>` nesting is skipped entirely and files land at `os.path.join(output_dir, filename)` | **Collision hazard:** two models sharing one `output_dir` overwrite each other's like-named files (`config.json`…) | **A done** |
 | 6 | What do the helpers **return**? | **[verified 2026-08-22] `None`, both — the docstrings are WRONG.** Full source now read: neither function has a `return` statement, while both docstrings promise "str: The path" | Do not assign the return value — build the path yourself | **A done** |
 | 7 | How does an **unapproved** model fail, and is that error distinguishable from a typo'd repo id? | **[verified 2026-08-22] NO — they are IDENTICAL.** Both `gpt2` (real, unapproved) and a nonexistent repo return `HTTPError: 400 Client Error: Bad Request`. No 403, no 404, no message naming approval | A 400 means *either* wrong id *or* unapproved. The reader must disambiguate by hand against the list | **B done** |
-| 8 | The **canonical repo ids** of approved models | **[verified 2026-08-22] two guesses confirmed** by listing: `facebook/nllb-200-distilled-600M` (9 files) and `sentence-transformers/all-MiniLM-L6-v2` (30 files) both resolve. The remaining ten are still unprobed | `hf_list_files` resolves any id for free — no need to guess again | **B partly done** |
+| 8 | The **canonical repo ids** of approved models | **[verified 2026-08-22] 12 of 13 resolved** by listing; only #11 DeBERTaV3 resists. **The org prefix is mandatory** — every bare legacy alias (`t5-small`, `bert-base-uncased`, `xlm-roberta-large`, …) returns 400 because the proxy does not follow Hugging Face's rename redirects | Meta's page prints the bare names, so copying its own text produces a 400 | **B done bar #11** |
 | 9 | Is the approved list available **programmatically**? | **[verified 2026-08-22] no list function** — but the module exports an **undocumented third function, `hf_list_files(repo, revision)`**, plus the constant `HF_ENDPOINT` | `hf_list_files` probes a repo without downloading it; `HF_ENDPOINT` is where gating must live | **A done** |
 | 10 | Are any models **pre-downloaded** in the image? | **[verified 2026-08-22] NO** — `~/huggingface` does not exist on a fresh server. Home is `/home/jovyan`, as documented | First step really is download | **A done** |
 | 11 | Does `revision` accept a **commit SHA / branch** other than `main`, and is it validated? | [open] | Pinning a revision is the difference between a reproducible pipeline and a moving one | E |
@@ -235,6 +235,36 @@ ambiguity is exactly what `TESTING_PROCEDURE.md` Test 1.6 was written to worry
 about; it is now confirmed real rather than hypothetical, and the fix is
 procedural: **check the id against `ml_models_approved.md` first, then treat a
 400 as "not approved".**
+
+### Phase B2, run 2026-08-22 — repo ids resolved, 12 of 13
+
+Sixteen probes, nothing downloaded. Every bare legacy alias failed and every
+org-qualified form succeeded:
+
+```
+#1  OK  12  facebook/nllb-200-3.3B
+#3  ERR 400 t5-base            | OK  11  google-t5/t5-base
+#4  ERR 400 t5-small           | OK  20  google-t5/t5-small
+#5  ERR 400 bert-base-uncased  | OK  16  google-bert/bert-base-uncased
+#6  OK   9  facebook/mbart-large-50
+#9  ERR 400 distilbert-base-uncased-finetuned-sst-2-english
+    OK  17  distilbert/distilbert-base-uncased-finetuned-sst-2-english
+#10 ERR 400 xlm-roberta-large  | OK  17  FacebookAI/xlm-roberta-large
+#11 ERR 400 microsoft/deberta-v3-base   ERR 400 microsoft/deberta-v3-large
+#12 OK   9  microsoft/mdeberta-v3-base
+#13 OK  28  sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+```
+
+**The proxy does not follow Hugging Face's legacy-name redirects.** That is the
+practical headline: the bare names are what Meta's own page prints in its
+parentheticals and what every tutorial uses, and they all 400 — indistinguishably
+from "not approved".
+
+**#11 is a genuine open question, not a guessing failure.** `microsoft/mdeberta-v3-base`
+lists fine while `microsoft/deberta-v3-base` and `-large` do not, so the org is
+right and the gate is per-model. Either an unguessed variant is the approved one,
+or the page lists something the allow-list lacks. Since a 400 cannot separate
+those, **probing cannot settle it** — this one needs a support ticket.
 
 ### Automation note — how this was read
 

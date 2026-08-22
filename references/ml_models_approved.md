@@ -24,35 +24,63 @@ part of the download path.
 
 | # | As listed by Meta | Full repo id |
 |---|-------------------|--------------|
-| 1 | Facebook No Language Left Behind (nllb-200-3.3B) | not given verbatim |
+| 1 | Facebook No Language Left Behind (nllb-200-3.3B) | `facebook/nllb-200-3.3B` ✔ 12 files |
 | 2 | Facebook No Language Left Behind (nllb-200-distilled-600M) | `facebook/nllb-200-distilled-600M` — **[verified by listing 2026-08-22]** |
-| 3 | Google Text-to-Text Transfer Transformer (T5) | not given verbatim |
-| 4 | Google Text-to-Text Transfer Transformer (T5-small) | not given verbatim |
-| 5 | Google BERT Base Model (Uncased) | not given verbatim |
-| 6 | Facebook mBART-50 | not given verbatim |
+| 3 | Google Text-to-Text Transfer Transformer (T5) | `google-t5/t5-base` ✔ 11 files — **not** `t5-base` |
+| 4 | Google Text-to-Text Transfer Transformer (T5-small) | `google-t5/t5-small` ✔ 20 files — **not** `t5-small` |
+| 5 | Google BERT Base Model (Uncased) | `google-bert/bert-base-uncased` ✔ 16 files — **not** `bert-base-uncased` |
+| 6 | Facebook mBART-50 | `facebook/mbart-large-50` ✔ 9 files |
 | 7 | Facebook mBART Many-to-Many Multilingual Machine Translation | `facebook/mbart-large-50-many-to-many-mmt` ✓ |
 | 8 | UKP Lab Sentence-BERT (all-MiniLM-L6-v2) | `sentence-transformers/all-MiniLM-L6-v2` — **[verified by listing 2026-08-22]** (note: NOT `ukp-lab/…`) |
-| 9 | Hugging Face DistilBERT (distilbert-base-uncased-finetuned-sst-2-english) | not given verbatim |
-| 10 | Hugging Face XLM-RoBERTa (large-sized model) | not given verbatim |
-| 11 | Hugging Face DeBERTaV3: Improving DeBERTa using ELECTRA-Style Pre-Training with Gradient-Disentangled Embedding Sharing | not given verbatim |
-| 12 | Hugging Face mDeBERTa v3 multilingual | not given verbatim |
-| 13 | Hugging Face Sentence-Transformers (paraphrase-multilingual-MiniLM-L12-v2) | not given verbatim |
+| 9 | Hugging Face DistilBERT (distilbert-base-uncased-finetuned-sst-2-english) | `distilbert/distilbert-base-uncased-finetuned-sst-2-english` ✔ 17 files — **not** the bare name Meta prints |
+| 10 | Hugging Face XLM-RoBERTa (large-sized model) | `FacebookAI/xlm-roberta-large` ✔ 17 files — **not** `xlm-roberta-large` |
+| 11 | Hugging Face DeBERTaV3: Improving DeBERTa using ELECTRA-Style Pre-Training with Gradient-Disentangled Embedding Sharing | **UNRESOLVED** — `microsoft/deberta-v3-base` and `-large` both 400 |
+| 12 | Hugging Face mDeBERTa v3 multilingual | `microsoft/mdeberta-v3-base` ✔ 9 files |
+| 13 | Hugging Face Sentence-Transformers (paraphrase-multilingual-MiniLM-L12-v2) | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` ✔ 28 files |
 
 **Count at last fetch: 13.**
 
-Only #7 appears as a complete repo id on the page itself, in its download and
-translation examples. #2 and #8 were **resolved by probing**, not by reading —
-`hf_list_files(repo, "main")` returns a file list for a valid, approved id and
-raises otherwise, at zero cost and with nothing downloaded. See
-`references/utilities.md` § "Download Machine Learning Models".
+✔ = **[verified by listing 2026-08-22]** — `hf_list_files(repo, "main")` returned
+that many files. Only #7 appears as a complete repo id on Meta's page itself; the
+other eleven were resolved by probing, at zero cost with nothing downloaded.
 
-Note that #8's owner is listed as "UKP Lab" but its repo lives under
-`sentence-transformers/`. **Owner names on the page are not org prefixes** — that
-is the whole reason this column exists.
+### The org prefix is mandatory, and Meta's page does not give it
 
-**The remaining ten ids are still unresolved.** Probing them is cheap and would
-finish this column; nobody should have to guess an org prefix, because a wrong
-guess and an unapproved model return the *same* `400 Bad Request`.
+**[verified 2026-08-22]** Every bare legacy alias tested returned
+`400 Client Error`, while its org-qualified form listed fine:
+
+| Fails (400) | Works |
+|-------------|-------|
+| `t5-base` | `google-t5/t5-base` |
+| `t5-small` | `google-t5/t5-small` |
+| `bert-base-uncased` | `google-bert/bert-base-uncased` |
+| `distilbert-base-uncased-finetuned-sst-2-english` | `distilbert/distilbert-base-uncased-finetuned-sst-2-english` |
+| `xlm-roberta-large` | `FacebookAI/xlm-roberta-large` |
+
+Hugging Face redirects these legacy names to their canonical org-qualified
+repos; **Meta's proxy does not follow that redirect.** The bare name is a 400 —
+the same 400 that means "not approved".
+
+This is a trap, because the bare names are exactly what the page prints in its
+parentheticals (#9 is listed as
+"(distilbert-base-uncased-finetuned-sst-2-english)") and exactly what every
+tutorial uses. A researcher copying the page's own text gets a 400 with no clue
+why. Use the middle column of the table above.
+
+Note too that #8's owner is listed as "UKP Lab" while its repo lives under
+`sentence-transformers/`. **Owner names on the page are not org prefixes.**
+
+### #11 DeBERTaV3 is unresolved, and that is a real question
+
+`microsoft/deberta-v3-base` and `microsoft/deberta-v3-large` both return 400 —
+yet `microsoft/mdeberta-v3-base` (#12) lists fine. Same org, so this is **not** a
+prefix problem: the gate is per-model, and the DeBERTaV3 variants we tried are
+not behind it.
+
+So either a variant we have not guessed is the approved one (`-small`,
+`-xsmall`), or the page lists a model the allow-list does not carry. Because a
+400 cannot distinguish "wrong id" from "not approved", **probing alone cannot
+settle this** — it is worth a support ticket.
 
 ### Correction 2026-08-22 — not drift at Meta, a bad transcription here
 

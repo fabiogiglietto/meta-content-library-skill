@@ -230,13 +230,23 @@ out in this order:
 
 3. Only then suspect the revision.
 
-**Confirmed repo ids so far** (verified by listing, 2026-08-22):
+### Always use the org-qualified repo id
 
-| Model | Repo id | Files |
-|-------|---------|-------|
-| mBART many-to-many | `facebook/mbart-large-50-many-to-many-mmt` | 12 |
-| NLLB-200 distilled | `facebook/nllb-200-distilled-600M` | 9 |
-| Sentence-BERT MiniLM | `sentence-transformers/all-MiniLM-L6-v2` | 30 |
+**[verified 2026-08-22] — this is the mistake most likely to cost you an hour.**
+Bare legacy model names return `400`, the same error as an unapproved model.
+Hugging Face redirects them to their canonical org-qualified repos; **Meta's
+proxy does not follow that redirect.**
+
+| Meta's page prints | You must use |
+|--------------------|--------------|
+| `t5-base` / `t5-small` | `google-t5/t5-base` / `google-t5/t5-small` |
+| `bert-base-uncased` | `google-bert/bert-base-uncased` |
+| `distilbert-base-uncased-finetuned-sst-2-english` | `distilbert/distilbert-base-uncased-finetuned-sst-2-english` |
+| `xlm-roberta-large` | `FacebookAI/xlm-roberta-large` |
+| `all-MiniLM-L6-v2` (owner given as "UKP Lab") | `sentence-transformers/all-MiniLM-L6-v2` |
+
+The full table of twelve verified ids is `references/ml_models_approved.md`.
+When in doubt, `hf_list_files()` settles it in one free call.
 
 ### Downloading from R
 
