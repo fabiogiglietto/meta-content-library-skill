@@ -197,13 +197,46 @@ by it on the first megabyte. If a download dies with `ZeroDivisionError` after
 printing nothing, that is what happened — the bytes were being written, so clean
 up as above and consider fetching the files individually with `hf_download_file`.
 
-**How approval is enforced.** Every request is
-`{HF_ENDPOINT}/{repo}/resolve/{revision}/{filename}`, and the module holds **no
-allow-list at all** — no model names, no local check. So the approved-model list
-is enforced **server-side at `HF_ENDPOINT`**, Meta's proxy, and an unapproved
-model surfaces as an HTTP error from `response.raise_for_status()` rather than a
-tidy "not approved" message. Expect a raw HTTP status, and read it as an
-approval signal.
+**How approval is enforced — and why the error will not help you.**
+**[verified 2026-08-22]** `HF_ENDPOINT` is a Meta-operated reverse proxy in front
+of Hugging Face:
+
+```
+https://prod-fortapis-graph-api.fb-researchtool.com/public/external-proxy/https://huggingface.co
+```
+
+The module holds **no allow-list at all**, so approval is enforced entirely at
+that proxy. It is a different host from the MCL API, which is why none of this
+touches your query budget.
+
+> **A refused model and a mistyped one look exactly the same.** Both return
+> `requests.exceptions.HTTPError: 400 Client Error: Bad Request`. `gpt2` — a
+> real, public model that is simply not on Meta's list — and a repo id that does
+> not exist anywhere give the **identical** status and message. There is no 403,
+> no 404, and nothing naming approval.
+
+So when you hit a 400, the error cannot tell you which mistake you made. Work it
+out in this order:
+
+1. **Check the id against `references/ml_models_approved.md`.** If the model is
+   not on Meta's list, a 400 is the expected answer and the route forward is a
+   support ticket with a use-case justification.
+2. **If it is on the list, suspect the org prefix** — Meta names owners, not repo
+   ids. Resolve it with `hf_list_files()`, which costs nothing:
+
+   ```r
+   hf$hf_list_files("sentence-transformers/all-MiniLM-L6-v2", "main")   # 30 files
+   ```
+
+3. Only then suspect the revision.
+
+**Confirmed repo ids so far** (verified by listing, 2026-08-22):
+
+| Model | Repo id | Files |
+|-------|---------|-------|
+| mBART many-to-many | `facebook/mbart-large-50-many-to-many-mmt` | 12 |
+| NLLB-200 distilled | `facebook/nllb-200-distilled-600M` | 9 |
+| Sentence-BERT MiniLM | `sentence-transformers/all-MiniLM-L6-v2` | 30 |
 
 ### Downloading from R
 

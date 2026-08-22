@@ -25,13 +25,13 @@ part of the download path.
 | # | As listed by Meta | Full repo id |
 |---|-------------------|--------------|
 | 1 | Facebook No Language Left Behind (nllb-200-3.3B) | not given verbatim |
-| 2 | Facebook No Language Left Behind (nllb-200-distilled-600M) | not given verbatim |
+| 2 | Facebook No Language Left Behind (nllb-200-distilled-600M) | `facebook/nllb-200-distilled-600M` — **[verified by listing 2026-08-22]** |
 | 3 | Google Text-to-Text Transfer Transformer (T5) | not given verbatim |
 | 4 | Google Text-to-Text Transfer Transformer (T5-small) | not given verbatim |
 | 5 | Google BERT Base Model (Uncased) | not given verbatim |
 | 6 | Facebook mBART-50 | not given verbatim |
 | 7 | Facebook mBART Many-to-Many Multilingual Machine Translation | `facebook/mbart-large-50-many-to-many-mmt` ✓ |
-| 8 | UKP Lab Sentence-BERT (all-MiniLM-L6-v2) | not given verbatim |
+| 8 | UKP Lab Sentence-BERT (all-MiniLM-L6-v2) | `sentence-transformers/all-MiniLM-L6-v2` — **[verified by listing 2026-08-22]** (note: NOT `ukp-lab/…`) |
 | 9 | Hugging Face DistilBERT (distilbert-base-uncased-finetuned-sst-2-english) | not given verbatim |
 | 10 | Hugging Face XLM-RoBERTa (large-sized model) | not given verbatim |
 | 11 | Hugging Face DeBERTaV3: Improving DeBERTa using ELECTRA-Style Pre-Training with Gradient-Disentangled Embedding Sharing | not given verbatim |
@@ -40,9 +40,19 @@ part of the download path.
 
 **Count at last fetch: 13.**
 
-Only #7 appears as a complete repo id, in the page's own download and
-translation examples. That is why `docs/TESTING_PROCEDURE.md` Test 1.6 and the
-Phase B probe both use #7 — it is the only id we can pass without guessing.
+Only #7 appears as a complete repo id on the page itself, in its download and
+translation examples. #2 and #8 were **resolved by probing**, not by reading —
+`hf_list_files(repo, "main")` returns a file list for a valid, approved id and
+raises otherwise, at zero cost and with nothing downloaded. See
+`references/utilities.md` § "Download Machine Learning Models".
+
+Note that #8's owner is listed as "UKP Lab" but its repo lives under
+`sentence-transformers/`. **Owner names on the page are not org prefixes** — that
+is the whole reason this column exists.
+
+**The remaining ten ids are still unresolved.** Probing them is cheap and would
+finish this column; nobody should have to guess an org prefix, because a wrong
+guess and an unapproved model return the *same* `400 Bad Request`.
 
 ### Correction 2026-08-22 — not drift at Meta, a bad transcription here
 

@@ -31,8 +31,8 @@ time.
 | 4 | Does the download path **keep the org prefix**? | **[verified 2026-08-22] YES**, read from source: `output_dir = os.path.join(os.path.expanduser("~"), "huggingface", repo, revision)` — `repo` is the full id, org prefix included | Our documented path was right | **A done** |
 | 5 | What does `output_dir` replace — the whole path, or the parent? | **[verified 2026-08-22] the WHOLE path.** When set, the `huggingface/<repo>/<revision>` nesting is skipped entirely and files land at `os.path.join(output_dir, filename)` | **Collision hazard:** two models sharing one `output_dir` overwrite each other's like-named files (`config.json`…) | **A done** |
 | 6 | What do the helpers **return**? | **[verified 2026-08-22] `None`, both — the docstrings are WRONG.** Full source now read: neither function has a `return` statement, while both docstrings promise "str: The path" | Do not assign the return value — build the path yourself | **A done** |
-| 7 | How does an **unapproved** model fail, and is that error distinguishable from a typo'd repo id? | [open] | Test 1.6 depends on telling these apart. So does every reader who mistypes an org | D |
-| 8 | The **canonical repo ids** of approved models | [open] | Meta's page names owners ("UKP Lab"), not ids. A reader cannot construct `sentence-transformers/all-MiniLM-L6-v2` from it | A/D |
+| 7 | How does an **unapproved** model fail, and is that error distinguishable from a typo'd repo id? | **[verified 2026-08-22] NO — they are IDENTICAL.** Both `gpt2` (real, unapproved) and a nonexistent repo return `HTTPError: 400 Client Error: Bad Request`. No 403, no 404, no message naming approval | A 400 means *either* wrong id *or* unapproved. The reader must disambiguate by hand against the list | **B done** |
+| 8 | The **canonical repo ids** of approved models | **[verified 2026-08-22] two guesses confirmed** by listing: `facebook/nllb-200-distilled-600M` (9 files) and `sentence-transformers/all-MiniLM-L6-v2` (30 files) both resolve. The remaining ten are still unprobed | `hf_list_files` resolves any id for free — no need to guess again | **B partly done** |
 | 9 | Is the approved list available **programmatically**? | **[verified 2026-08-22] no list function** — but the module exports an **undocumented third function, `hf_list_files(repo, revision)`**, plus the constant `HF_ENDPOINT` | `hf_list_files` probes a repo without downloading it; `HF_ENDPOINT` is where gating must live | **A done** |
 | 10 | Are any models **pre-downloaded** in the image? | **[verified 2026-08-22] NO** — `~/huggingface` does not exist on a fresh server. Home is `/home/jovyan`, as documented | First step really is download | **A done** |
 | 11 | Does `revision` accept a **commit SHA / branch** other than `main`, and is it validated? | [open] | Pinning a revision is the difference between a reproducible pipeline and a moving one | E |
@@ -42,7 +42,7 @@ time.
 | 15 | Do downloads **persist across sessions**? | [open] | If home is ephemeral, every session re-downloads and the workflow changes shape | E |
 | 16 | Any **egress restriction on model outputs**? | [open] | Embeddings and classifications derived from MCL data still leave via notebook export | F |
 | 17 | Is inference realistically drivable **from R**, or is a Python cell the honest recommendation? | [inferred] | utilities.md currently says "leave it in Python". That should be tested, not assumed | C |
-| 18 | Do downloads consume any **quota** (MCL or otherwise)? | [inferred] | We claim zero MCL budget. Almost certainly right, worth confirming | B |
+| 18 | Do downloads consume any **quota** (MCL or otherwise)? | **[verified 2026-08-22]** the traffic goes to `prod-fortapis-graph-api.fb-researchtool.com`, a different host from the MCL API, and touches no MCL endpoint. No budget interaction | Confirmed by the endpoint value | **B done** |
 | 19 | **Offline gotcha**: does `from_pretrained(local_path)` still try to reach the hub? | [open] | Classic failure: it phones home for `config.json` and hangs. May need `HF_HUB_OFFLINE=1` / `TRANSFORMERS_OFFLINE=1` | C |
 | 20 | How long does a **large** download take? | [open] | Sets expectations, and whether it survives a session timeout | E |
 
@@ -187,6 +187,54 @@ this module — no list of model names, no check before the request. So approval
 enforced **server-side at `HF_ENDPOINT`**, a Meta-controlled proxy, and an
 unapproved model must fail as an HTTP error surfaced by `raise_for_status()`.
 Reading `HF_ENDPOINT`'s value and provoking that error is now Phase B/D.
+
+### Phase B, run 2026-08-22 — done, and it folded in most of D
+
+Zero downloads: `hf_list_files` asks the endpoint what a repo contains.
+
+```
+HF_ENDPOINT: https://prod-fortapis-graph-api.fb-researchtool.com/public/external-proxy/https://huggingface.co
+
+facebook/mbart-large-50-many-to-many-mmt   [approved, verbatim]
+   -> OK  12 files  |  .gitattributes, README.md, config.json, flax_model.msgpack
+facebook/nllb-200-distilled-600M           [approved, org GUESSED]
+   -> OK   9 files  |  .gitattributes, README.md, config.json, generation_config.json
+sentence-transformers/all-MiniLM-L6-v2     [approved, org GUESSED]
+   -> OK  30 files  |  .gitattributes, 1_Pooling/config.json, README.md, config.json
+facebook/mbart-large-50-many-to-many-XXX   [typo: no such repo]
+   -> ERR requests.exceptions.HTTPError: 400 Client Error: Bad Request for url:
+          .../public/external-proxy/https://huggingface.co/api/models/facebook/mbart-large-5…
+gpt2                                       [real model, NOT on the list]
+   -> ERR requests.exceptions.HTTPError: 400 Client Error: Bad Request for url:
+          .../public/external-proxy/https://huggingface.co/api/models/gpt2/revision/main
+```
+
+**The endpoint is a Meta-operated reverse proxy in front of huggingface.co**,
+on `fb-researchtool.com` — a different host from the MCL API, which is why none
+of this touches query budget. Two URL shapes are now known:
+
+| Call | URL |
+|------|-----|
+| list | `{HF_ENDPOINT}/api/models/{repo}/revision/{revision}` |
+| download | `{HF_ENDPOINT}/{repo}/resolve/{revision}/{filename}` |
+
+**Both guessed org prefixes were right.** `facebook/nllb-200-distilled-600M` and
+`sentence-transformers/all-MiniLM-L6-v2` resolve, so two more of Meta's thirteen
+now have confirmed ids. More importantly, `hf_list_files` means **nobody ever has
+to guess again** — it costs nothing and answers in one call.
+
+**The finding that changes our guidance: an unapproved model and a typo are
+indistinguishable.** `gpt2` is a real, public, resolvable repo; a nonexistent
+mbart variant is not. Both come back `400 Client Error: Bad Request`. The proxy
+does gate — the three approved repos returned listings — but it reports *every*
+refusal the same way. No 403, no 404, no message mentioning approval.
+
+So a researcher who sees a 400 cannot tell whether they mistyped the org prefix
+or picked a model Meta has not approved, and the error will not tell them. That
+ambiguity is exactly what `TESTING_PROCEDURE.md` Test 1.6 was written to worry
+about; it is now confirmed real rather than hypothetical, and the fix is
+procedural: **check the id against `ml_models_approved.md` first, then treat a
+400 as "not approved".**
 
 ### Automation note — how this was read
 
