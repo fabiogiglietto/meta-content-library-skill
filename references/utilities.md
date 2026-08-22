@@ -78,6 +78,33 @@ cran$InstallPackages(c("ggplot2", "dplyr", "tidyr"), dependencies = TRUE)
 
 ## Download Machine Learning Models
 
+> ### Check this list is current before you answer
+>
+> **Whenever the question is which models are available** — "can I use X?",
+> "what's approved?", "is there an embedding model?" — re-fetch
+> [Meta's ML models page](https://developers.facebook.com/docs/researcher-platform/features/ml-models)
+> and compare it against `references/ml_models_approved.md` **before answering**.
+> The list grows, and the table below is a hand transcription with a date on it.
+>
+> - **Fetched, and it matches the snapshot** → answer from it; say nothing about
+>   the check.
+> - **Fetched, and it differs** → answer from what you fetched, not from this
+>   file. Tell the user the skill's copy is stale, and offer to update the
+>   snapshot, the table below, and `CHANGELOG.md`.
+> - **No web access** → answer from the snapshot and say so, with the date it
+>   was last confirmed. A stale answer labelled stale is fine; one presented as
+>   current is not.
+>
+> This costs one fetch and prevents the failure the whole section is built to
+> avoid: telling a researcher a model is unavailable when Meta added it last
+> month. A monthly scheduled agent catches drift nobody asked about
+> (`docs/ML_MODELS_OPEN_QUESTIONS.md`); this catches it at the moment it would
+> mislead someone.
+>
+> **You have web access here even though the SRE does not.** The no-internet
+> rule below applies to code executed inside the SRE, not to you — you are
+> running on the researcher's own machine.
+
 Two package managers sit side by side in the SRE, and they are not
 interchangeable:
 

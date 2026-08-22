@@ -14,12 +14,20 @@ updated: 2026-08-21
 - **Platform**: Amazon WorkSpaces Secure Browser with JupyterLab
 - **Language**: R with Python client via reticulate
 - **Export**: Entire notebook only (no copy/paste)
-- **No internet access**: R packages come from a custom CRAN mirror and
-  pre-trained ML models from an approved Hugging Face list — see
-  `references/utilities.md`
+- **No internet access** *(inside the SRE — not for you; see below)*: R packages
+  come from a custom CRAN mirror and pre-trained ML models from an approved
+  Hugging Face list — see `references/utilities.md`
 - **Server type**: CPU or **GPU**, chosen when the notebook server starts and
   switchable mid-session without losing work — see `references/utilities.md` §
   "CPU or GPU Server"
+
+**Answering questions about available ML models?** Re-fetch
+[Meta's list](https://developers.facebook.com/docs/researcher-platform/features/ml-models)
+first and compare it against `references/ml_models_approved.md` — it grows, and
+the skill's copy is a dated transcription. The no-internet constraint above binds
+the code you write for the SRE, **not you**: you run on the researcher's machine.
+Procedure and fallback: `references/utilities.md` § "Download Machine Learning
+Models".
 
 ## Critical Requirements
 
