@@ -27,18 +27,18 @@ time.
 |---|----------|-----|----------------|-------|
 | 1 | Does `fbri.package_managers.huggingface` import from **R-side reticulate**? | **[verified 2026-08-22] YES** — `fbri`, `fbri.package_managers` and `fbri.package_managers.huggingface` all report OK | The whole R section rested on it. Now the supported path, not a guess | **A done** |
 | 2 | Is reticulate's Python the **same interpreter** as the notebook's Python kernel? | **[verified 2026-08-22]** reticulate binds `/opt/conda/bin/python3`, Python **3.11** — the shared conda env. Cell A2 still worth running to confirm `sys.executable` matches exactly | Explains *why* Q1 resolves; no `use_python()` needed | **A mostly done** |
-| 3 | Real **signatures and defaults** of the two helpers | [documented] | We assert `hf_download_file(filename, repo, ...)` — filename first. Reversed is a silent wrong-arg | A |
-| 4 | Does the download path **keep the org prefix**? | [inferred] | We tell readers `~/huggingface/facebook/mbart-.../main`. One doc example is the only evidence | A/B |
-| 5 | What does `output_dir` replace — the whole path, or the parent? | [open] | Anyone redirecting downloads to scratch space needs this | B |
-| 6 | What do the helpers **return**? | [open] | If they return the path, every example should use it instead of rebuilding the path by hand | B |
+| 3 | Real **signatures and defaults** of the two helpers | **[verified 2026-08-22] as documented.** `hf_download_repo(repo: str, revision: str = 'main', output_dir: Optional[str] = None) -> None`; `hf_download_file(filename: str, repo: str, revision: str = 'main', output_dir: Optional[str] = None) -> None` | Filename-before-repo confirmed from source | **A done** |
+| 4 | Does the download path **keep the org prefix**? | **[verified 2026-08-22] YES**, read from source: `output_dir = os.path.join(os.path.expanduser("~"), "huggingface", repo, revision)` — `repo` is the full id, org prefix included | Our documented path was right | **A done** |
+| 5 | What does `output_dir` replace — the whole path, or the parent? | **[verified 2026-08-22] the WHOLE path.** When set, the `huggingface/<repo>/<revision>` nesting is skipped entirely and files land at `os.path.join(output_dir, filename)` | **Collision hazard:** two models sharing one `output_dir` overwrite each other's like-named files (`config.json`…) | **A done** |
+| 6 | What do the helpers **return**? | **[verified 2026-08-22] the docstrings are WRONG.** Both are annotated `-> None` while their docstrings promise "str: The path". `hf_download_repo` has no `return` at all. `hf_download_file`'s tail is unread | Do not assign the return value — build the path yourself | **A all but confirmed** |
 | 7 | How does an **unapproved** model fail, and is that error distinguishable from a typo'd repo id? | [open] | Test 1.6 depends on telling these apart. So does every reader who mistypes an org | D |
 | 8 | The **canonical repo ids** of approved models | [open] | Meta's page names owners ("UKP Lab"), not ids. A reader cannot construct `sentence-transformers/all-MiniLM-L6-v2` from it | A/D |
-| 9 | Is the approved list available **programmatically**? | [open] | Would replace our hand-copied table with something that cannot go stale | A |
-| 10 | Are any models **pre-downloaded** in the image? | [open] | Changes the first step from "download" to "check first" | A |
+| 9 | Is the approved list available **programmatically**? | **[verified 2026-08-22] no list function** — but the module exports an **undocumented third function, `hf_list_files(repo, revision)`**, plus the constant `HF_ENDPOINT` | `hf_list_files` probes a repo without downloading it; `HF_ENDPOINT` is where gating must live | **A done** |
+| 10 | Are any models **pre-downloaded** in the image? | **[verified 2026-08-22] NO** — `~/huggingface` does not exist on a fresh server. Home is `/home/jovyan`, as documented | First step really is download | **A done** |
 | 11 | Does `revision` accept a **commit SHA / branch** other than `main`, and is it validated? | [open] | Pinning a revision is the difference between a reproducible pipeline and a moving one | E |
-| 12 | Is a **GPU** actually available, and how is a GPU machine selected? | **[documented 2026-08-22]** — yes: CPU/GPU chosen at server start, switchable via File > Hub Control Panel without losing work. Now in `utilities.md` § "CPU or GPU Server". **Still open:** GPU model, memory, disk, session time limit, whether access is uniform across institutions | Answered the how; specs remain | A/E |
+| 12 | Is a **GPU** actually available, and how is a GPU machine selected? | **[verified 2026-08-22] GPU is real**: `torch 2.4.0+cu118`, `torch$cuda$is_available()` **TRUE** on the tested server. Selection procedure **[documented]** in `utilities.md` § "CPU or GPU Server". **Still open:** GPU model, VRAM, session time limit | Confirmed end to end | **A done** |
 | 13 | Which ML libraries are preinstalled, at what **versions**? | **[verified 2026-08-22]** `transformers` OK, `torch` OK, **`sentence_transformers` NOT AVAILABLE**. Versions still unread (section 4 not yet seen) | The missing one bites: Meta lists two Sentence-Transformers models that the usual `SentenceTransformer()` call cannot load | **A partly done** |
-| 14 | **Disk quota** — will `nllb-200-3.3B` (~17 GB) even fit? | **[verified 2026-08-22]** home shows **8.51 / 31.20 GB** used → **~22.7 GB free**; RAM **64 GB**. It fits, but leaves ~5 GB headroom | Tight enough that two large models will not coexist | **A done** |
+| 14 | **Disk quota** — will `nllb-200-3.3B` (~17 GB) even fit? | **[verified 2026-08-22]** `/home/jovyan` on `/dev/nvme2n1`: **32G total, 8.6G used, 23G available (28%)**; RAM 64 GB | Fits with ~6 GB spare — two large models will not coexist | **A done** |
 | 15 | Do downloads **persist across sessions**? | [open] | If home is ephemeral, every session re-downloads and the workflow changes shape | E |
 | 16 | Any **egress restriction on model outputs**? | [open] | Embeddings and classifications derived from MCL data still leave via notebook export | F |
 | 17 | Is inference realistically drivable **from R**, or is a Python cell the honest recommendation? | [inferred] | utilities.md currently says "leave it in Python". That should be tested, not assumed | C |
@@ -80,6 +80,76 @@ Also observed on the session chrome: R **4.5.3**; kernels offered are Python 3
 thirteen approved models are Sentence-Transformers models, and the library that
 normally loads them is absent — so the obvious `SentenceTransformer(path)` call
 fails on a model Meta approves. `utilities.md` now says so.
+
+### Phase A, completed 2026-08-22 — sections 3-6
+
+```
+== 3. the huggingface helper ==
+  module file       /opt/conda/lib/python3.11/site-packages/fbri/package_managers/huggingface.py
+  hf_download_repo  (repo: str, revision: str = 'main', output_dir: Optional[str] = None) -> None
+  hf_download_file  (filename: str, repo: str, revision: str = 'main', output_dir: Optional[str] = None) -> None
+  exports           HF_ENDPOINT, Optional, Sequence, hf_download_file, hf_download_repo,
+                    hf_list_files, os, requests
+
+== 4. hardware ==
+  torch version     2.4.0+cu118
+  cuda available    TRUE
+
+== 5. filesystem ==
+  home                   /home/jovyan
+  ~/huggingface exists   FALSE
+  free space             /dev/nvme2n1  32G  8.6G  23G  28%  /home/jovyan
+```
+
+The source dump, which is what made the rest of the table collapse:
+
+```python
+def hf_download_repo(repo, revision="main", output_dir=None) -> None:
+    files = hf_list_files(repo, revision)
+    for file in files:
+        hf_download_file(file, repo, revision, output_dir)
+
+def hf_download_file(filename, repo, revision="main", output_dir=None) -> None:
+    URL = f"{HF_ENDPOINT}/{repo}/resolve/{revision}/{filename}"
+    if output_dir is None:
+        output_dir = os.path.join(
+            os.path.expanduser("~"), "huggingface", repo, revision
+        )
+    filepath = os.path.join(output_dir, filename)
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    print(f"Downloading '{repo}/{filename}' to '{output_dir}'...")
+    response = requests.get(URL, allow_redirects=True, stream=True)
+    response.raise_for_status()
+    ...                      # tail not yet read
+```
+
+**Four things fall out of those twelve lines.**
+
+1. **The documented path is right, and now for a stated reason.** `repo` goes
+   into the path whole, org prefix included. `~/huggingface/<repo>/<revision>`.
+2. **`output_dir` replaces the entire path**, not the parent — the
+   `huggingface/<repo>/<revision>` nesting is skipped when you pass it. Two
+   models pointed at one `output_dir` will overwrite each other's `config.json`.
+   Give each model its own directory.
+3. **The docstrings are wrong about the return value.** Both functions are
+   annotated `-> None` while both docstrings promise `str: The path to the
+   downloaded …`. `hf_download_repo` has no `return` statement at all, so it is
+   `None` for certain. `hf_download_file`'s tail is still unread, so whether it
+   returns `filepath` despite the annotation is the one loose end. **Build the
+   path yourself either way** — that is what `utilities.md` already tells
+   readers to do.
+4. **There is a third, undocumented function: `hf_list_files(repo, revision)`.**
+   Meta's page never mentions it. `hf_download_repo` is a thin loop over it, so
+   it probes a repo — and therefore the approval gate — **without downloading
+   anything**. That makes it a better Phase B probe than fetching
+   `.gitattributes`.
+
+**Where the approval gate must live:** every request goes to
+`{HF_ENDPOINT}/{repo}/resolve/{revision}/{filename}`. There is no allow-list in
+this module — no list of model names, no check before the request. So approval is
+enforced **server-side at `HF_ENDPOINT`**, a Meta-controlled proxy, and an
+unapproved model must fail as an HTTP error surfaced by `raise_for_status()`.
+Reading `HF_ENDPOINT`'s value and provoking that error is now Phase B/D.
 
 ### Automation note — how this was read
 
