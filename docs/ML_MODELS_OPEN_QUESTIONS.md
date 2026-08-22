@@ -373,22 +373,10 @@ MiniLM is ~1.9 GB, not 931 MB.
 
 ### Automation note — how this was read
 
-**[verified 2026-08-22]** `SRE_AUTOMATION_SURFACE.md` § 1 established that the
-accessibility tree is empty, so `read_page` yields nothing from inside the
-session. **Screenshots do work**: the AppStream pixel stream renders into a
-capturable surface, and notebook output is legible in a screenshot. Clicking the
-streamed browser's tab strip also works.
-
-**Scrolling does not.** Every `scroll` sent to the stream (three attempts, two
-coordinates) bounced the streamed browser to a different tab instead of moving
-the notebook. So the practical channel is: Claude can *see* any pane the human
-puts on screen, and can click, but the human drives scrolling. That is enough to
-run the rest of the testing plan without transcription.
-
-## Phases
-
-Each phase is one paste into the SRE and one result back. Ordered so the
-cheapest evidence lands first and each phase's design depends on the last.
+Read off the live session by **screenshot**, not transcription. That finding
+belongs to `SRE_AUTOMATION_SURFACE.md` § "But a screenshot reads it fine", which
+now owns it: screenshots and clicks work, `read_page` and scroll do not, so the
+human scrolls and Claude reads.
 
 ### Phase A — recon, zero downloads
 **Settles 1, 2, 3, 9, 10, 12, 13, 14; likely 4.**

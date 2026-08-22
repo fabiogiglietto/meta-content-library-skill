@@ -57,9 +57,13 @@ remove the guesswork.
 error.** Both give `400 Client Error: Bad Request`, with nothing indicating
 approval status — for example `gpt2` (a real, public model that is simply not on
 the list) and a repository ID that does not exist anywhere produce the same
-response. A distinct status or message for "not on the approved list" would make
-this diagnosable; at present a researcher cannot tell whether they mistyped the
-organization prefix or chose an unapproved model.
+response. A researcher cannot tell whether they mistyped the organization prefix
+or chose an unapproved model.
+
+Notably, the endpoint **already makes this distinction for revisions**: a
+nonexistent revision returns `404`, cleanly separable from the repository-level
+`400`. A distinct status or message for "not on the approved list" would bring
+repository errors up to the same standard.
 
 **3. Two small issues in `fbri/package_managers/huggingface.py`:**
 
