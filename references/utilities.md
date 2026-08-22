@@ -382,20 +382,22 @@ Only models on Meta's approved list can be downloaded. As fetched 2026-08-22 the
 list covers three families (still 13 models; entry #11's on-page name grew a
 subtitle since the 2026-08-21 fetch — see `references/ml_models_approved.md`):
 
-| Use | Models |
-|-----|--------|
-| Translation | Facebook NLLB-200 (`nllb-200-3.3B`, `nllb-200-distilled-600M`), Facebook mBART-50 and mBART many-to-many, Google T5 and T5-small |
-| Embeddings | UKP Lab Sentence-BERT (`all-MiniLM-L6-v2`), Sentence-Transformers (`paraphrase-multilingual-MiniLM-L12-v2`) |
-| Classification / NLU | Google BERT base (uncased), DistilBERT (`distilbert-base-uncased-finetuned-sst-2-english`), XLM-RoBERTa large, DeBERTaV3 and mDeBERTa v3 multilingual |
+**Repo ids below are the ones that work**, not the names Meta prints — 12 of 13
+were resolved by probing on 2026-08-22 (see § "Always use the org-qualified repo
+id" above for why the difference matters):
 
-The page names **owners**, not full Hugging Face repo ids — only
-`facebook/mbart-large-50-many-to-many-mmt` appears verbatim, and the parenthesised
-names above are the page's, without their org prefix. Since the prefix is part of
-the repo id and of the download path, read it off the
+| Use | Repo id |
+|-----|---------|
+| Translation | `facebook/nllb-200-3.3B`, `facebook/nllb-200-distilled-600M`, `facebook/mbart-large-50`, `facebook/mbart-large-50-many-to-many-mmt`, `google-t5/t5-base`, `google-t5/t5-small` |
+| Embeddings | `sentence-transformers/all-MiniLM-L6-v2`, `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` |
+| Classification / NLU | `google-bert/bert-base-uncased`, `distilbert/distilbert-base-uncased-finetuned-sst-2-english`, `FacebookAI/xlm-roberta-large`, `microsoft/mdeberta-v3-base` |
+| **Unresolved** | **DeBERTaV3** — listed by Meta, but `microsoft/deberta-v3-base` and `-large` both 400. See `references/ml_models_approved.md` |
+
+`references/ml_models_approved.md` holds the verbatim list as Meta prints it,
+alongside these ids. The list grows — check the
 [page](https://developers.facebook.com/docs/researcher-platform/features/ml-models)
-before downloading; guessing it fails as an approval or path error, not as a
-missing model. Check the same page for the current list rather than trusting this
-table — it grows.
+rather than trusting this table, and resolve any new entry's id with
+`hf_list_files()` rather than guessing its org prefix.
 
 ### Restrictions
 
