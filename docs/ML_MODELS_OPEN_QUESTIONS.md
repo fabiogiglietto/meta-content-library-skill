@@ -111,6 +111,16 @@ fetch date, so it is stale the moment Meta edits the page, and nothing tells us.
 fetched, with the date. That file is the diff target: a re-fetch that differs
 from it is the signal.
 
+**Two mechanisms, deliberately** — they fail in different directions:
+
+| | Fires when | Catches | Misses |
+|---|---|---|---|
+| **At use** — instruction in `utilities.md` and `SKILL.md` | someone asks what models are available | drift at the exact moment it would mislead a researcher | drift nobody happens to ask about; anything when Claude has no web access |
+| **Monthly** — scheduled agent | 1st of the month, unattended | drift nobody asked about; keeps the snapshot honest | up to a month of lag |
+
+Neither alone is enough: the at-use check only runs if someone asks, and the
+monthly check only runs monthly.
+
 **Re-check cadence.** Monthly, plus once before any release that touches the ML
 section (added to the `CHANGELOG.md` release checklist).
 
