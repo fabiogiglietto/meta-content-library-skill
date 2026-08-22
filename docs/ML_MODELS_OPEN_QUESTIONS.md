@@ -121,7 +121,19 @@ section (added to the `CHANGELOG.md` release checklist).
 4. If changed: update the snapshot, update the `utilities.md` table, note the
    arrival in `CHANGELOG.md` the way `surfaces.md` notes new surfaces.
 
-**Mechanism: a monthly scheduled cloud agent** (decided 2026-08-22). It fetches
+**Mechanism: a monthly scheduled cloud agent** — live since 2026-08-22.
+
+| | |
+|---|---|
+| Routine | `trig_015jzBacsSw43Np7E23p3obe` — [console](https://claude.ai/code/routines/trig_015jzBacsSw43Np7E23p3obe) |
+| Schedule | `0 7 1 * *` — 1st of the month, 07:00 UTC / 09:00 Europe/Rome |
+| Target | this branch, `docs/sre-ml-models` |
+| On change | opens a PR against this branch updating the snapshot, the `utilities.md` table and `CHANGELOG.md` |
+| On no change | writes nothing; the run log is the record |
+
+**Re-point it at `main` when this branch merges** — it reads
+`references/ml_models_approved.md` from `docs/sre-ml-models` by name, so deleting
+that branch post-merge breaks the check silently. This row is the reminder. It fetches
 the page, diffs against the snapshot, and reports only when something changed —
 a quiet month produces a date bump and nothing else. The snapshot file is what
 makes the diff possible; without it the agent can only say "here is the list",
