@@ -41,10 +41,10 @@ time.
 | 14 | **Disk quota** — will `nllb-200-3.3B` (~17 GB) even fit? | **[verified 2026-08-22]** `/home/jovyan` on `/dev/nvme2n1`: **32G total, 8.6G used, 23G available (28%)**; RAM 64 GB | Fits with ~6 GB spare — two large models will not coexist | **A done** |
 | 15 | Do downloads **persist across sessions**? | [open] | If home is ephemeral, every session re-downloads and the workflow changes shape | E |
 | 16 | Any **egress restriction on model outputs**? | [open] | Embeddings and classifications derived from MCL data still leave via notebook export | F |
-| 17 | Is inference realistically drivable **from R**, or is a Python cell the honest recommendation? | [inferred] | utilities.md currently says "leave it in Python". That should be tested, not assumed | C |
+| 17 | Is inference realistically drivable **from R**, or is a Python cell the honest recommendation? | **[verified 2026-08-22] R works fine.** Tokenizer + model loaded and a mean-pooled embedding produced entirely from R via reticulate: `torch.Size([1, 384])` in 0.5 s | Our "leave it in Python" advice was too pessimistic and has been corrected | **C done** |
 | 18 | Do downloads consume any **quota** (MCL or otherwise)? | **[verified 2026-08-22]** the traffic goes to `prod-fortapis-graph-api.fb-researchtool.com`, a different host from the MCL API, and touches no MCL endpoint. No budget interaction | Confirmed by the endpoint value | **B done** |
-| 19 | **Offline gotcha**: does `from_pretrained(local_path)` still try to reach the hub? | [open] | Classic failure: it phones home for `config.json` and hangs. May need `HF_HUB_OFFLINE=1` / `TRANSFORMERS_OFFLINE=1` | C |
-| 20 | How long does a **large** download take? | [open] | Sets expectations, and whether it survives a session timeout | E |
+| 19 | **Offline gotcha**: does `from_pretrained(local_path)` still try to reach the hub? | **[verified 2026-08-22] NO.** Tokenizer and model each loaded from the local path in **0.1 s**, no hang, no error, with no offline environment variables set | `TRANSFORMERS_OFFLINE` / `HF_HUB_OFFLINE` are not needed | **C done** |
+| 20 | How long does a **large** download take? | **[measured 2026-08-22]** 931 MB in **57 s** ≈ **16 MB/s**. Extrapolating, `nllb-200-3.3B` (~17 GB of repo) is roughly **18 minutes** | Extrapolated, not observed — still worth confirming in Phase E | **partly done** |
 
 ---
 
@@ -265,6 +265,64 @@ lists fine while `microsoft/deberta-v3-base` and `-large` do not, so the org is
 right and the gate is per-model. Either an unguessed variant is the approved one,
 or the page lists something the allow-list lacks. Since a 400 cannot separate
 those, **probing cannot settle it** — this one needs a support ticket.
+
+### Phase C, run 2026-08-22 — everything worked, and one recommendation was wrong
+
+```
+free MB before: 23224
+[ 57.0s] download
+free MB after:  22293   (used ~931 MB)
+path exists: TRUE
+files on disk: 30
+  1_Pooling/config.json  config_sentence_transformers.json  config.json
+  data_config.json  model.safetensors  modules.json
+  onnx/model_O1.onnx  onnx/model_O2.onnx  …
+[  0.1s] load tokenizer   BertTokenizerFast(name_or_path='/home/jovyan/huggingface/
+                          sentence-transformers/all-MiniLM-L6-v2/main', vocab_size=30522, …)
+[  0.1s] load model       BertModel(… hidden 384, 6 x BertLayer …)
+[  0.5s] forward pass
+embedding shape: torch.Size([1, 384])
+first 5 values : 0.0051, -0.1708, -0.6867, 0.087, 0.5776
+```
+
+**1. The path prediction holds end to end.** Files landed at
+`/home/jovyan/huggingface/sentence-transformers/all-MiniLM-L6-v2/main` — org
+prefix kept, exactly as the source said. Question 4 is now verified by download,
+not just by reading code.
+
+**2. `hf_download_repo` costs ~10× what you expect.** MiniLM's PyTorch weights
+are about 90 MB; the download took **931 MB**, because the loop pulls *every*
+file in the repo — `model.safetensors` **and** `onnx/model_O1.onnx`,
+`onnx/model_O2.onnx`, OpenVINO, TensorFlow and Rust variants. There is no
+filtering and no way to ask for one format. For a large model this is the
+difference between fitting on disk and not: 23 GB free would take roughly two
+NLLB-3.3B repos, not the four a naive weights-only estimate suggests. **Use
+`hf_download_file` for the handful of files you actually need.**
+
+**3. No offline gotcha.** `from_pretrained()` on a local path loaded in 0.1 s
+with no hub contact, no hang, and no `TRANSFORMERS_OFFLINE` / `HF_HUB_OFFLINE`
+set. Question 19 closed, and closed favourably.
+
+**4. R inference works, so our advice was wrong.** `utilities.md` told readers
+that inference "is easiest left in Python" because `**kwargs` unpacking and
+`lang_code_to_id[...]` would need `do.call()` and `py_get_item()`. Passing
+`input_ids` and `attention_mask` explicitly sidesteps the unpacking entirely,
+and mean pooling is ordinary reticulate arithmetic:
+
+```r
+m   <- enc$attention_mask$unsqueeze(-1L)$float()
+emb <- torch$sum(out$last_hidden_state * m, dim = 1L) /
+       torch$clamp(m$sum(dim = 1L), min = 1e-9)
+```
+
+That produced a real 384-dim embedding in half a second. **The recommendation
+has been corrected** — this was a claim written from inference and it did not
+survive contact with the environment.
+
+**5. The `sentence_transformers` workaround is validated.** MiniLM is a
+Sentence-Transformers model and the library is absent, but plain
+`AutoModel` + `AutoTokenizer` + manual mean pooling loads and runs it. The
+guidance in `utilities.md` is now tested rather than assumed.
 
 ### Automation note — how this was read
 
