@@ -29,6 +29,16 @@ behind it and phases the work to settle them, cheapest evidence first and zero
 MCL budget throughout. It also records that Meta's approved-model list grows
 with no drift detection on our side, and the re-check procedure for that.
 
+**Changed: Meta's approved-model list, entry #11's name** — the monthly drift
+check re-fetched the list on 2026-08-22, one day after the 2026-08-21
+snapshot. The count held at 13 and no model was added or removed, but entry
+#11's on-page name grew a subtitle: "Hugging Face DeBERTaV3" is now "Hugging
+Face DeBERTaV3: Improving DeBERTa using ELECTRA-Style Pre-Training with
+Gradient-Disentangled Embedding Sharing". `references/ml_models_approved.md`
+and `references/utilities.md` § "Download Machine Learning Models" are updated
+to match. Detected automatically; flagged for human confirmation before
+release.
+
 ## v1.10.0 (2026-08-21)
 
 **Added: how to download machine learning models in the SRE**
