@@ -142,8 +142,47 @@ hf_download_file(filename, repo, revision="main", output_dir=None)
 Downloads land in `~/huggingface/<REPO>/<REVISION>` — where `<REPO>` keeps its
 **org prefix**, so the default revision of the model above is at
 `/home/jovyan/huggingface/facebook/mbart-large-50-many-to-many-mmt/main`.
-Dropping the `facebook/` gives a path that does not exist. `output_dir`
-overrides the location.
+Dropping the `facebook/` gives a path that does not exist.
+
+**[verified 2026-08-22]** — read from the module's own source
+(`/opt/conda/lib/python3.11/site-packages/fbri/package_managers/huggingface.py`),
+not inferred:
+
+```python
+if output_dir is None:
+    output_dir = os.path.join(os.path.expanduser("~"), "huggingface", repo, revision)
+filepath = os.path.join(output_dir, filename)
+```
+
+Three consequences worth knowing before you rely on either function:
+
+- **`output_dir` replaces the whole path, not the parent.** Pass it and the
+  `huggingface/<repo>/<revision>` nesting disappears entirely — files land
+  directly in the directory you named. **Give every model its own `output_dir`**,
+  or two models will overwrite each other's `config.json`, `tokenizer.json` and
+  friends with no warning.
+- **Neither function returns the path**, whatever their docstrings say. Both are
+  annotated `-> None` while both docstrings promise `str: The path to the
+  downloaded …`. Trust the annotation: build the path yourself, as the R example
+  below does. Assigning the result gets you `NULL`.
+- **There is a third, undocumented function: `hf_list_files(repo, revision)`.**
+  Meta's page does not mention it, and `hf_download_repo` is just a loop over it.
+  Use it to check a repo id — and your access to it — **before** committing to a
+  multi-gigabyte download:
+
+  ```r
+  hf <- import("fbri.package_managers.huggingface")
+  files <- hf$hf_list_files("facebook/mbart-large-50-many-to-many-mmt", "main")
+  length(files); head(files)
+  ```
+
+**How approval is enforced.** Every request is
+`{HF_ENDPOINT}/{repo}/resolve/{revision}/{filename}`, and the module holds **no
+allow-list at all** — no model names, no local check. So the approved-model list
+is enforced **server-side at `HF_ENDPOINT`**, Meta's proxy, and an unapproved
+model surfaces as an HTTP error from `response.raise_for_status()` rather than a
+tidy "not approved" message. Expect a raw HTTP status, and read it as an
+approval signal.
 
 ### Downloading from R
 
