@@ -35,7 +35,7 @@ time.
 | 8 | The **canonical repo ids** of approved models | **[verified 2026-08-22] 12 of 13 resolved** by listing; only #11 DeBERTaV3 resists. **The org prefix is mandatory** — every bare legacy alias (`t5-small`, `bert-base-uncased`, `xlm-roberta-large`, …) returns 400 because the proxy does not follow Hugging Face's rename redirects | Meta's page prints the bare names, so copying its own text produces a 400 | **B done bar #11** |
 | 9 | Is the approved list available **programmatically**? | **[verified 2026-08-22] no list function** — but the module exports an **undocumented third function, `hf_list_files(repo, revision)`**, plus the constant `HF_ENDPOINT` | `hf_list_files` probes a repo without downloading it; `HF_ENDPOINT` is where gating must live | **A done** |
 | 10 | Are any models **pre-downloaded** in the image? | **[verified 2026-08-22] NO** — `~/huggingface` does not exist on a fresh server. Home is `/home/jovyan`, as documented | First step really is download | **A done** |
-| 11 | Does `revision` accept a **commit SHA / branch** other than `main`, and is it validated? | [open] | Pinning a revision is the difference between a reproducible pipeline and a moving one | E |
+| 11 | Does `revision` accept a **commit SHA / branch** other than `main`, and is it validated? | **[verified 2026-08-22] YES, fully.** Full 40-char SHA *and* 7-char short SHA both accepted; a pinned revision gets its **own directory** beside `main/`. An absent revision returns **404**, not 400 | Pinning is genuinely reproducible, and its failure mode is distinguishable | **D done** |
 | 12 | Is a **GPU** actually available, and how is a GPU machine selected? | **[verified 2026-08-22] GPU is real**: `torch 2.4.0+cu118`, `torch$cuda$is_available()` **TRUE** on the tested server. Selection procedure **[documented]** in `utilities.md` § "CPU or GPU Server". **Still open:** GPU model, VRAM, session time limit | Confirmed end to end | **A done** |
 | 13 | Which ML libraries are preinstalled, at what **versions**? | **[verified 2026-08-22]** `transformers` OK, `torch` OK, **`sentence_transformers` NOT AVAILABLE**. Versions still unread (section 4 not yet seen) | The missing one bites: Meta lists two Sentence-Transformers models that the usual `SentenceTransformer()` call cannot load | **A partly done** |
 | 14 | **Disk quota** — will `nllb-200-3.3B` (~17 GB) even fit? | **[verified 2026-08-22]** `/home/jovyan` on `/dev/nvme2n1`: **32G total, 8.6G used, 23G available (28%)**; RAM 64 GB | Fits with ~6 GB spare — two large models will not coexist | **A done** |
@@ -323,6 +323,53 @@ survive contact with the environment.
 Sentence-Transformers model and the library is absent, but plain
 `AutoModel` + `AutoTokenizer` + manual mean pooling loads and runs it. The
 guidance in `utilities.md` is now tested rather than assumed.
+
+### Phase D, run 2026-08-22 — revision pinning works, and 404 ≠ 400
+
+```
+status: 200
+sha for 'main': 1110a243fdf4706b3f48f1d95db1a4f5529b4d41
+keys available: _id, id, private, pipeline_tag, library_name, tags,
+                downloads, likes, modelId, author, sha, lastModified
+
+  OK   30 files  control              main
+  OK   30 files  full commit SHA      1110a243fdf4706b3f48f1d95db1a4f5529b4d41
+  OK   30 files  short SHA (7 chars)  1110a24
+  ERR 404        tag, probably absent      v1.0
+  ERR 404        definitely absent         nonexistent-branch-xyz
+
+pinned file exists: TRUE
+at: /home/jovyan/huggingface/sentence-transformers/all-MiniLM-L6-v2/
+    1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config.json
+sibling dirs now: 1110a243fdf4706b3f48f1d95db1a4f5529b4d41, main
+```
+
+**1. Pinning works, and it isolates.** Both the full 40-character SHA and the
+7-character short form resolve, and a pinned download lands in its **own
+directory** named for the revision, sitting beside `main/`. So a pinned pipeline
+cannot be silently changed by a later `main` download, and both can coexist. That
+makes `revision` a real reproducibility tool rather than a decorative argument.
+
+**2. A missing revision returns 404 — a *different* code from a missing or
+unapproved repo, which returns 400.** This is the first discrimination the
+proxy has given us, and it is worth propagating into the guidance:
+
+| Status | Means | Do |
+|--------|-------|----|
+| **400** | Repo-level: id wrong, **or** model not approved. Indistinguishable | Check the id against the approved list, then the org prefix |
+| **404** | **Repo is fine and approved** — only the revision does not exist | Fix the revision; the model itself is available to you |
+
+A 404 is therefore *good news* about the model: it confirms the repo resolved and
+passed the gate.
+
+**3. The proxy passes through full Hugging Face model metadata** — `sha`,
+`lastModified`, `tags`, `pipeline_tag`, `library_name`, `downloads`, `author`.
+So `requests$get(paste0(HF_ENDPOINT, "/api/models/", repo, "/revision/main"))`
+resolves a model's current commit without downloading anything, which is how a
+pinned pipeline should obtain the SHA it pins to in the first place.
+
+**Cost note:** a pinned copy is a *second* copy. `main` plus one pinned SHA of
+MiniLM is ~1.9 GB, not 931 MB.
 
 ### Automation note — how this was read
 
