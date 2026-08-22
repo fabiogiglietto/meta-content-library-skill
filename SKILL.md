@@ -13,7 +13,9 @@ updated: 2026-08-21
 
 - **Platform**: Amazon WorkSpaces Secure Browser with JupyterLab
 - **Language**: R with Python client via reticulate
-- **Export**: Entire notebook only (no copy/paste)
+- **Export**: notebook only, and **its outputs are stripped** — code, markdown and
+  **images** survive; cell outputs, stdout, stderr and HTML do not. Numbers do not
+  leave as numbers. See `references/utilities.md` § "Getting Results Out"
 - **No internet access** *(inside the SRE — not for you; see below)*: R packages
   come from a custom CRAN mirror and pre-trained ML models from an approved
   Hugging Face list — see `references/utilities.md`

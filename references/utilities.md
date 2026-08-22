@@ -445,6 +445,60 @@ When to bother: a GPU is worth the slower launch for **inference over many
 records** — embedding or classifying a full MCL result set. For a handful of
 strings, or for writing and debugging the query itself, CPU starts faster.
 
+## Getting Results Out
+
+> **[documented 2026-08-22]** from
+> [Export Jupyter notebooks](https://developers.facebook.com/docs/researcher-platform/features/notebook-export)
+> and [Upload files to an S3 bucket](https://developers.facebook.com/docs/researcher-platform/features/S3-bucket).
+> Not yet observed in a live session.
+
+**Plan for this before you compute anything.** The export path is narrower than
+"export the notebook" suggests, and discovering that after a long run is
+expensive.
+
+### Notebook export strips your outputs
+
+Exporting does not hand you your results. The exported file is **scrubbed**:
+
+| Kept | Removed |
+|------|---------|
+| Code | Cell outputs — stdout, stderr, HTML |
+| Markdown | Raw cell data |
+| **Images** | |
+
+So a data.frame printed in a cell, a `cat()` summary, a model's embeddings, a
+table of classifications — **none of it leaves**. The scrubbed notebook still
+runs, so a recipient with data access can reproduce your results, but the numbers
+themselves stay inside.
+
+**The consequence: anything you need to take away must be an image.** Render
+summary tables as figures, plot what you would otherwise print, and save charts
+into the notebook rather than to disk. A `ggplot` object displayed in a cell
+survives; the data.frame behind it does not.
+
+Procedure:
+
+1. Right-click the notebook name in the JupyterLab left navigation →
+   **Export Notebook**
+2. Check your **email** for a download link and click it
+3. The file appears in your downloads with **`-scrubbed`** appended to its name
+
+Two caveats: the number of exports **per time period is limited** (you get an
+error beyond it), and **not every environment offers the feature** — if the menu
+item is absent, export is not available to you.
+
+### The S3 bucket feature is not an exit
+
+`fbri.common.user_data_manager.UserDataManager` uploads `.csv`/`.tsv` files
+(5 GB per upload) into an S3 bucket — but that bucket is
+**Secure-Research-Environment-owned**, so the data stays inside the enclave. It
+is storage for further analysis and joins, not egress to your own AWS account or
+laptop.
+
+It also does not apply here: *"Uploading to an S3 bucket is supported for the Ad
+Targeting dataset and the URL Shares dataset. It is not supported for Meta
+Content Library."*
+
 ## Retrieve Completed Job Data
 
 ```r
