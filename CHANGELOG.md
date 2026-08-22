@@ -39,6 +39,12 @@ and `references/utilities.md` § "Download Machine Learning Models" are updated
 to match. Detected automatically; flagged for human confirmation before
 release.
 
+**Corrected 2026-08-22:** the drift check's first run reported entry #11 as a
+change *at Meta*. It was this repository's own transcription that was short —
+the 2026-08-21 snapshot was built from a summarising fetch that dropped the
+paper-title subtitle. The snapshot now carries the page's full wording and says
+so. Recording it as Meta drift would have put a false date on Meta's page.
+
 ## v1.10.0 (2026-08-21)
 
 **Added: how to download machine learning models in the SRE**

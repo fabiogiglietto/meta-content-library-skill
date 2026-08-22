@@ -44,15 +44,30 @@ Only #7 appears as a complete repo id, in the page's own download and
 translation examples. That is why `docs/TESTING_PROCEDURE.md` Test 1.6 and the
 Phase B probe both use #7 — it is the only id we can pass without guessing.
 
-### Change detected 2026-08-22
+### Correction 2026-08-22 — not drift at Meta, a bad transcription here
 
-The count held at 13 and no entry was added or removed. Entry #11's name on
-the page grew a subtitle: it read "Hugging Face DeBERTaV3" at the 2026-08-21
-fetch and reads "Hugging Face DeBERTaV3: Improving DeBERTa using ELECTRA-Style
-Pre-Training with Gradient-Disentangled Embedding Sharing" now — the paper
-title, appended after a colon. No other entry's wording changed. The license
-rule, the support-ticket process, and the GPU note are unchanged from the
-2026-08-21 fetch.
+The first drift check flagged entry #11 as changed and its commit message
+attributed the change to Meta. **That attribution is almost certainly wrong, and
+is corrected here.**
+
+The count held at 13, no entry was added or removed, and the license rule,
+support-ticket process and GPU note were unchanged. The only difference was
+entry #11's wording: this file recorded "Hugging Face DeBERTaV3", while the page
+reads "Hugging Face DeBERTaV3: Improving DeBERTa using ELECTRA-Style
+Pre-Training with Gradient-Disentangled Embedding Sharing" — the paper's title,
+appended after a colon.
+
+The likelier explanation by far is that the **2026-08-21 transcription
+abbreviated it**: that snapshot was built from a summarising page fetch, which
+shortens long titles as a matter of course, and Meta appending a paper subtitle
+to exactly one entry overnight is a far stranger event than a summary dropping
+one. Entry #11's name is now the page's, in full.
+
+**This is the check working, not failing.** A verbatim-record file that was not
+actually verbatim would have reported "changed!" every single month until a
+human looked at it. Better found on run one. The lesson is in this file's own
+header — *do not edit it to be prettier* — and it applies as much to writing the
+first snapshot as to maintaining it.
 
 ## Other constraints stated alongside the list
 
