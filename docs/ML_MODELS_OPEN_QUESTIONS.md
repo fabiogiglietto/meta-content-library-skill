@@ -25,8 +25,8 @@ time.
 
 | # | Question | Now | Why it matters | Phase |
 |---|----------|-----|----------------|-------|
-| 1 | Does `fbri.package_managers.huggingface` import from **R-side reticulate**? | [inferred] | The whole R section rests on it. If no, the Python-cell fallback becomes the primary path | A |
-| 2 | Is reticulate's Python the **same interpreter** as the notebook's Python kernel? | [open] | Decides whether a failed import means "unsupported" or "wrong env, fix with `use_python()`" | A |
+| 1 | Does `fbri.package_managers.huggingface` import from **R-side reticulate**? | **[verified 2026-08-22] YES** — `fbri`, `fbri.package_managers` and `fbri.package_managers.huggingface` all report OK | The whole R section rested on it. Now the supported path, not a guess | **A done** |
+| 2 | Is reticulate's Python the **same interpreter** as the notebook's Python kernel? | **[verified 2026-08-22]** reticulate binds `/opt/conda/bin/python3`, Python **3.11** — the shared conda env. Cell A2 still worth running to confirm `sys.executable` matches exactly | Explains *why* Q1 resolves; no `use_python()` needed | **A mostly done** |
 | 3 | Real **signatures and defaults** of the two helpers | [documented] | We assert `hf_download_file(filename, repo, ...)` — filename first. Reversed is a silent wrong-arg | A |
 | 4 | Does the download path **keep the org prefix**? | [inferred] | We tell readers `~/huggingface/facebook/mbart-.../main`. One doc example is the only evidence | A/B |
 | 5 | What does `output_dir` replace — the whole path, or the parent? | [open] | Anyone redirecting downloads to scratch space needs this | B |
@@ -37,8 +37,8 @@ time.
 | 10 | Are any models **pre-downloaded** in the image? | [open] | Changes the first step from "download" to "check first" | A |
 | 11 | Does `revision` accept a **commit SHA / branch** other than `main`, and is it validated? | [open] | Pinning a revision is the difference between a reproducible pipeline and a moving one | E |
 | 12 | Is a **GPU** actually available, and how is a GPU machine selected? | **[documented 2026-08-22]** — yes: CPU/GPU chosen at server start, switchable via File > Hub Control Panel without losing work. Now in `utilities.md` § "CPU or GPU Server". **Still open:** GPU model, memory, disk, session time limit, whether access is uniform across institutions | Answered the how; specs remain | A/E |
-| 13 | Which ML libraries are preinstalled, at what **versions**? | [open] | `from_pretrained` on a new model against an old `transformers` fails confusingly | A |
-| 14 | **Disk quota** — will `nllb-200-3.3B` (~17 GB) even fit? | [open] | Determines whether the large translation models are usable at all | A/E |
+| 13 | Which ML libraries are preinstalled, at what **versions**? | **[verified 2026-08-22]** `transformers` OK, `torch` OK, **`sentence_transformers` NOT AVAILABLE**. Versions still unread (section 4 not yet seen) | The missing one bites: Meta lists two Sentence-Transformers models that the usual `SentenceTransformer()` call cannot load | **A partly done** |
+| 14 | **Disk quota** — will `nllb-200-3.3B` (~17 GB) even fit? | **[verified 2026-08-22]** home shows **8.51 / 31.20 GB** used → **~22.7 GB free**; RAM **64 GB**. It fits, but leaves ~5 GB headroom | Tight enough that two large models will not coexist | **A done** |
 | 15 | Do downloads **persist across sessions**? | [open] | If home is ephemeral, every session re-downloads and the workflow changes shape | E |
 | 16 | Any **egress restriction on model outputs**? | [open] | Embeddings and classifications derived from MCL data still leave via notebook export | F |
 | 17 | Is inference realistically drivable **from R**, or is a Python cell the honest recommendation? | [inferred] | utilities.md currently says "leave it in Python". That should be tested, not assumed | C |
@@ -47,6 +47,53 @@ time.
 | 20 | How long does a **large** download take? | [open] | Sets expectations, and whether it survives a session timeout | E |
 
 ---
+
+## Results log
+
+### Phase A, run 2026-08-22 — partial
+
+Read off a live session by screenshot (see the automation note below). Sections
+1, 2 and 5 captured; **sections 3, 4 and 6 not yet read** — the signatures, the
+torch/CUDA lines and the `getsource()` dump are still outstanding, and section 6
+is the one that could settle questions 4, 5 and 9 at a stroke.
+
+```
+== 1. which python is reticulate using ==
+  python                 /opt/conda/bin/python3
+  version                3.11
+
+== 2. module availability ==
+  metacontentlibraryapi              OK
+  fbri                               OK
+  fbri.package_managers              OK
+  fbri.package_managers.huggingface  OK
+  transformers                       OK
+  torch                              OK
+  sentence_transformers              NOT AVAILABLE
+```
+
+Also observed on the session chrome: R **4.5.3**; kernels offered are Python 3
+(ipykernel), Julia 1.12, Pluto, R and Stata; status bar reads
+`Disk: 8.51 / 31.20 GB | Mem: 1.51 / 64.00 GB`.
+
+**The `sentence_transformers` gap is the actionable surprise.** Two of Meta's
+thirteen approved models are Sentence-Transformers models, and the library that
+normally loads them is absent — so the obvious `SentenceTransformer(path)` call
+fails on a model Meta approves. `utilities.md` now says so.
+
+### Automation note — how this was read
+
+**[verified 2026-08-22]** `SRE_AUTOMATION_SURFACE.md` § 1 established that the
+accessibility tree is empty, so `read_page` yields nothing from inside the
+session. **Screenshots do work**: the AppStream pixel stream renders into a
+capturable surface, and notebook output is legible in a screenshot. Clicking the
+streamed browser's tab strip also works.
+
+**Scrolling does not.** Every `scroll` sent to the stream (three attempts, two
+coordinates) bounced the streamed browser to a different tab instead of moving
+the notebook. So the practical channel is: Claude can *see* any pane the human
+puts on screen, and can click, but the human drives scrolling. That is enough to
+run the rest of the testing plan without transcription.
 
 ## Phases
 

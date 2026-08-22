@@ -121,8 +121,9 @@ through the `fbri` helper, then load it from its local path.
 > **[documented]** — the Python signatures, paths and restrictions below are
 > transcribed from
 > [Machine Learning Models](https://developers.facebook.com/docs/researcher-platform/features/ml-models)
-> (fetched 2026-08-21). The reticulate wrapper is **[inferred]** and untested —
-> see the fallback below if the import fails.
+> (fetched 2026-08-21). **The import works from R: [verified 2026-08-22]** in a
+> live SRE session — see "Downloading from R". The download *call* itself is
+> still untested.
 
 ### Downloading (Python, as documented)
 
@@ -146,8 +147,13 @@ overrides the location.
 
 ### Downloading from R
 
-**[inferred]** — `fbri` is a different package from `metacontentlibraryapi`, and
-whether it imports from the R-side reticulate Python is unverified:
+**[verified 2026-08-22]** — `fbri`, `fbri.package_managers` and
+`fbri.package_managers.huggingface` all import from R-side reticulate in a live
+SRE session. reticulate binds to `/opt/conda/bin/python3` (Python **3.11**), the
+same conda environment the notebook kernels use, which is why the import
+resolves. `import()` below is therefore the supported path, not a guess. The
+**download call** has not been run yet — that is Phase B in
+`docs/ML_MODELS_OPEN_QUESTIONS.md`:
 
 ```r
 library(reticulate)
@@ -160,9 +166,17 @@ model_path <- file.path(path.expand("~"), "huggingface",
 list.files(model_path)
 ```
 
-If that import fails, nothing is lost: run the download in a **Python cell**
-using the documented form, then use `model_path` from R. The files are on disk
-either way.
+The Python-cell fallback remains valid if anything goes wrong — run the download
+there and use `model_path` from R; the files are on disk either way.
+
+**One preinstalled-library gotcha, [verified 2026-08-22]:** `transformers` and
+`torch` are available, but **`sentence_transformers` is NOT**. Models Meta lists
+under Sentence-BERT / Sentence-Transformers (`all-MiniLM-L6-v2`,
+`paraphrase-multilingual-MiniLM-L12-v2`) therefore cannot be loaded with the
+`SentenceTransformer(...)` one-liner most tutorials use. Load them through
+`transformers` directly (`AutoModel` + `AutoTokenizer`, then mean-pool the token
+embeddings yourself), or install the package first — see "Install R Packages"
+above for the R side and Meta's pip page for the Python side.
 
 Inference itself is easiest left in Python. The documented mBART example
 (`MBartForConditionalGeneration.from_pretrained(model_path)`, then
