@@ -30,7 +30,7 @@ time.
 | 3 | Real **signatures and defaults** of the two helpers | **[verified 2026-08-22] as documented.** `hf_download_repo(repo: str, revision: str = 'main', output_dir: Optional[str] = None) -> None`; `hf_download_file(filename: str, repo: str, revision: str = 'main', output_dir: Optional[str] = None) -> None` | Filename-before-repo confirmed from source | **A done** |
 | 4 | Does the download path **keep the org prefix**? | **[verified 2026-08-22] YES**, read from source: `output_dir = os.path.join(os.path.expanduser("~"), "huggingface", repo, revision)` — `repo` is the full id, org prefix included | Our documented path was right | **A done** |
 | 5 | What does `output_dir` replace — the whole path, or the parent? | **[verified 2026-08-22] the WHOLE path.** When set, the `huggingface/<repo>/<revision>` nesting is skipped entirely and files land at `os.path.join(output_dir, filename)` | **Collision hazard:** two models sharing one `output_dir` overwrite each other's like-named files (`config.json`…) | **A done** |
-| 6 | What do the helpers **return**? | **[verified 2026-08-22] the docstrings are WRONG.** Both are annotated `-> None` while their docstrings promise "str: The path". `hf_download_repo` has no `return` at all. `hf_download_file`'s tail is unread | Do not assign the return value — build the path yourself | **A all but confirmed** |
+| 6 | What do the helpers **return**? | **[verified 2026-08-22] `None`, both — the docstrings are WRONG.** Full source now read: neither function has a `return` statement, while both docstrings promise "str: The path" | Do not assign the return value — build the path yourself | **A done** |
 | 7 | How does an **unapproved** model fail, and is that error distinguishable from a typo'd repo id? | [open] | Test 1.6 depends on telling these apart. So does every reader who mistypes an org | D |
 | 8 | The **canonical repo ids** of approved models | [open] | Meta's page names owners ("UKP Lab"), not ids. A reader cannot construct `sentence-transformers/all-MiniLM-L6-v2` from it | A/D |
 | 9 | Is the approved list available **programmatically**? | **[verified 2026-08-22] no list function** — but the module exports an **undocumented third function, `hf_list_files(repo, revision)`**, plus the constant `HF_ENDPOINT` | `hf_list_files` probes a repo without downloading it; `HF_ENDPOINT` is where gating must live | **A done** |
@@ -120,8 +120,24 @@ def hf_download_file(filename, repo, revision="main", output_dir=None) -> None:
     print(f"Downloading '{repo}/{filename}' to '{output_dir}'...")
     response = requests.get(URL, allow_redirects=True, stream=True)
     response.raise_for_status()
-    ...                      # tail not yet read
+
+    total_size = int(response.headers.get("content-length", 0))
+    downloaded_size = 0
+    with open(filepath, "wb") as f:
+        for chunk in response.iter_content(chunk_size=1024 * 1024):   # 1 MB
+            if chunk:
+                f.write(chunk)
+                downloaded_size += len(chunk)
+                print(
+                    f"Downloading '{repo}/{filename}' to '{output_dir}': "
+                    f"{downloaded_size / total_size * 100:.2f}%",
+                    end="\r",
+                )
+    print(f"\nDownload Finished to '{output_dir}'")
 ```
+
+That is the whole function — **no `return` statement**, confirming the `-> None`
+annotation over the docstring.
 
 **Four things fall out of those twelve lines.**
 
@@ -143,6 +159,27 @@ def hf_download_file(filename, repo, revision="main", output_dir=None) -> None:
    it probes a repo — and therefore the approval gate — **without downloading
    anything**. That makes it a better Phase B probe than fetching
    `.gitattributes`.
+
+**Two hazards visible in the tail**, both worth a reader's attention:
+
+- **Division by zero if the response has no `content-length`.**
+  `total_size = int(response.headers.get("content-length", 0))` defaults to
+  **0**, and the very first chunk then evaluates `downloaded_size / total_size`.
+  A response served chunked, or a proxy that strips the header, raises
+  `ZeroDivisionError` on the first megabyte. *Whether Meta's proxy always sends
+  `content-length` is unconfirmed* — this is read from source, not observed. But
+  it is a real branch, and it fires **after** the first write.
+- **A failed download leaves a partial file, and nothing cleans it up.** The
+  file is opened `"wb"` before the loop, so any mid-loop failure — the
+  `ZeroDivisionError` above, a dropped connection, a full disk — leaves a
+  truncated file sitting at the final path. There is no checksum, no `.tmp`
+  staging, no resume, and no size check afterwards. A later
+  `from_pretrained()` then fails on a corrupt weight file rather than on a
+  missing one, which is a much more confusing error.
+
+  **Practical consequence:** after any download that did not print
+  `Download Finished`, delete the target directory and start again. Do not trust
+  a file's mere existence.
 
 **Where the approval gate must live:** every request goes to
 `{HF_ENDPOINT}/{repo}/resolve/{revision}/{filename}`. There is no allow-list in
