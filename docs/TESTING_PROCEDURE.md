@@ -253,12 +253,24 @@ print(jobs_data$jobs[, c("id", "status", "mode", "query_id")])
 
 **Location:** utilities.md § "Download Machine Learning Models"
 
-**Purpose:** Settle whether `fbri.package_managers.huggingface` imports from the
-R-side reticulate Python. utilities.md marks the R form **[inferred]**; this test
-is what moves it to **[verified]** or replaces it with the Python-cell fallback.
+**Purpose:** Regression test for the download path. The question this test was
+written to settle — *does `fbri.package_managers.huggingface` import from R?* —
+was **answered YES on 2026-08-22** in a live session, along with the org prefix
+below. It stays as a test because it is the only end-to-end check that a
+download actually completes.
 
-Pick the smallest approved model (`nllb-200-distilled-600M` or
-`all-MiniLM-L6-v2`) — mBART-50 is several GB. Costs no MCL query budget.
+Pick the smallest approved model (`all-MiniLM-L6-v2`, ~90 MB) — mBART-50 is
+several GB. Costs no MCL query budget: the traffic goes to Meta's Hugging Face
+proxy, not the MCL API.
+
+**Before downloading anything, list the repo — it is free and catches a bad id:**
+
+```r
+library(reticulate)
+hf <- import("fbri.package_managers.huggingface")
+length(unlist(hf$hf_list_files("sentence-transformers/all-MiniLM-L6-v2", "main")))
+# expect 30 as of 2026-08-22
+```
 
 **Code (R):**
 ```r
@@ -272,10 +284,12 @@ model_path <- file.path(path.expand("~"), "huggingface",
 list.files(model_path)
 ```
 
-The org prefix above is **not** read verbatim off the Meta page (which names UKP
-Lab as the owner). If the call fails as *not approved* or as a bad path rather
-than as an import error, retry with `facebook/nllb-200-distilled-600M` — an org
-the page states — before recording the import as broken.
+**On a `400 Bad Request`:** it means either the repo id is wrong or the model is
+not approved — **[verified 2026-08-22]** those two failures are indistinguishable,
+returning the identical status and message. The org prefix used here is confirmed
+correct (Meta lists the owner as "UKP Lab", but the repo is under
+`sentence-transformers/`), so a 400 on this exact id means something changed and
+is worth reporting rather than working around.
 
 **If the import fails**, run the documented Python form in a Python cell and note
 which error R gave:
@@ -286,21 +300,25 @@ hf_download_repo(repo="sentence-transformers/all-MiniLM-L6-v2")
 ```
 
 **Expected Outcome:**
-- Download completes without a network error
+- Progress lines, then `Download Finished to '<dir>'` — **that last line is the
+  only evidence the file is complete**
 - `list.files()` shows config/tokenizer/weight files
 - The path is `~/huggingface/<ORG>/<NAME>/main` — org prefix **kept**
+  (verified from the module source: `os.path.join(expanduser("~"),
+  "huggingface", repo, revision)`)
 
 **Validation Checklist:**
-- [ ] `import("fbri.package_managers.huggingface")` succeeds from R — **record
-      yes/no; this is the point of the test**
-- [ ] Download completes
-- [ ] Files land under `~/huggingface/<ORG>/<NAME>/main`, org prefix included
-- [ ] If R import failed: the Python-cell form succeeded, and the R error is
-      recorded
+- [ ] `hf_list_files()` returns 30 files before any download
+- [ ] `import("fbri.package_managers.huggingface")` succeeds from R
+- [ ] `Download Finished` printed — if absent, `unlink()` the directory and retry
+      rather than trusting the files
+- [ ] Files land under `~/huggingface/sentence-transformers/all-MiniLM-L6-v2/main`
+- [ ] Nothing was assigned from the return value (both helpers return `NULL`)
 
-**Record the result in utilities.md:** replace the **[inferred]** tag with
-**[verified <date>]**, or, if only the Python cell worked, say so and keep the
-fallback as the primary path.
+**Note for whoever runs this:** `sentence_transformers` is **not installed**
+(verified 2026-08-22), so the downloaded model cannot be loaded with
+`SentenceTransformer(path)`. Use `transformers` (`AutoModel` + `AutoTokenizer`,
+then mean-pool) or install the package first.
 
 **Screenshot Required:** Yes - showing the import result and `list.files()` output
 
