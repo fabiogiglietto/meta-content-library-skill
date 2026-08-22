@@ -4,11 +4,11 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
-## Unreleased — branch `docs/sre-ml-models`
+## v1.11.0 (2026-08-22)
 
-Version number deliberately unassigned: `docs/stage3-first-run` already claims
-v1.11.0, so this branch takes its number at merge time rather than colliding.
-See `docs/ML_MODELS_OPEN_QUESTIONS.md` § "Merge-time checklist for this branch".
+**Note for `docs/stage3-first-run`:** that branch's CHANGELOG also claims
+v1.11.0. This one merged first and took the number, so stage3 must be renumbered
+to **v1.12.0** before it merges.
 
 ### Corrections to claims this skill was already making
 
