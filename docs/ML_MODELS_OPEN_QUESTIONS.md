@@ -121,8 +121,11 @@ section (added to the `CHANGELOG.md` release checklist).
 4. If changed: update the snapshot, update the `utilities.md` table, note the
    arrival in `CHANGELOG.md` the way `surfaces.md` notes new surfaces.
 
-Mechanism is a **[decision pending]** — a scheduled cloud agent, or a manual
-checklist item. Recorded here so it is not silently dropped.
+**Mechanism: a monthly scheduled cloud agent** (decided 2026-08-22). It fetches
+the page, diffs against the snapshot, and reports only when something changed —
+a quiet month produces a date bump and nothing else. The snapshot file is what
+makes the diff possible; without it the agent can only say "here is the list",
+which is not a signal.
 
 ---
 
