@@ -17,6 +17,9 @@ updated: 2026-08-21
 - **No internet access**: R packages come from a custom CRAN mirror and
   pre-trained ML models from an approved Hugging Face list — see
   `references/utilities.md`
+- **Server type**: CPU or **GPU**, chosen when the notebook server starts and
+  switchable mid-session without losing work — see `references/utilities.md` §
+  "CPU or GPU Server"
 
 ## Critical Requirements
 

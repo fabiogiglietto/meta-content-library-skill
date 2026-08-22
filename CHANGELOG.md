@@ -4,6 +4,31 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## Unreleased — branch `docs/sre-ml-models`
+
+Version number deliberately unassigned: `docs/stage3-first-run` already claims
+v1.11.0, so this branch takes its number at merge time rather than colliding.
+
+**Added: the SRE offers a GPU server, and how to get one**
+(`references/utilities.md` § "CPU or GPU Server"). The server type is a
+**start-time choice** — CPU or GPU, then **Start** — not a request made in
+advance, and it can be changed mid-project via **File** > **Hub Control Panel**
+> **Stop My Server** > **Start My Server** without losing work. A GPU server
+takes longer to launch; when running one, a dashboards icon appears in the left
+nav (NVDashboard). The option has existed since **June 2022** per Meta's
+platform changelog. `SKILL.md` § Environment gains a pointer bullet.
+
+**[documented 2026-08-22]** from
+[GPU server option](https://developers.facebook.com/docs/researcher-platform/features/GPU).
+The GPU model, memory, disk and any session time limit are **not** documented
+anywhere we can find.
+
+**Added: `docs/ML_MODELS_OPEN_QUESTIONS.md`** — the ML section of
+`utilities.md` is entirely transcribed, so this inventories the 20 questions
+behind it and phases the work to settle them, cheapest evidence first and zero
+MCL budget throughout. It also records that Meta's approved-model list grows
+with no drift detection on our side, and the re-check procedure for that.
+
 ## v1.10.0 (2026-08-21)
 
 **Added: how to download machine learning models in the SRE**

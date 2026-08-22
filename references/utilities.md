@@ -170,8 +170,47 @@ table — it grows.
   fetched at all, by any route.
 - **Text models with an open-source license only** qualify for approval.
 - **Unlisted models require a support ticket** justifying the use case.
-- **Use a GPU machine** for inference — runtimes are substantially faster than
-  on CPU.
+- **Use a GPU server** for inference — models are optimized for GPU and the
+  page says runtimes are faster. Choosing one is a server-start decision, not a
+  code one: see "CPU or GPU Server" below.
+
+## CPU or GPU Server
+
+**Yes — the SRE lets you run your notebook on a GPU server**, and you pick which
+at server start rather than requesting it in advance. The option has existed
+since **June 2022**.
+
+> **[documented]** — from
+> [GPU server option](https://developers.facebook.com/docs/researcher-platform/features/GPU)
+> and the [platform changelog](https://developers.facebook.com/docs/researcher-platform/changelog)
+> (fetched 2026-08-22). Not yet observed in a live session.
+
+**Choosing one.** When you log in to the Jupyter environment you are offered the
+server type: choose **CPU** or **GPU**, then click **Start**.
+
+**Switching mid-project**, without losing work:
+
+1. **File** > **Hub Control Panel** in JupyterLab's top navigation
+2. **Stop My Server**
+3. Once it has stopped, **Start My Server** appears — click it
+4. Choose CPU or GPU again
+
+Meta's page states switching server type does **not** lose work. Note that a
+**GPU server takes longer to launch** than a CPU one.
+
+**Confirming you got one.** On a GPU server a **dashboards icon** appears in the
+left navigation bar — it is absent on CPU servers — giving GPU dashboards
+powered by NVDashboard. From code, `torch$cuda$is_available()` (see the ML
+section above) is the programmatic check.
+
+**What is not documented**, and is worth knowing before planning a large job:
+the GPU model and specs, memory, disk, any time limit on a GPU session, and
+whether GPU access is uniform across institutions. `docs/ML_MODELS_OPEN_QUESTIONS.md`
+question 12 tracks these.
+
+When to bother: a GPU is worth the slower launch for **inference over many
+records** — embedding or classifying a full MCL result set. For a handful of
+strings, or for writing and debugging the query itself, CPU starts faster.
 
 ## Retrieve Completed Job Data
 
