@@ -12,10 +12,11 @@ to **v1.12.0** before it merges.
 
 ### Corrections to claims this skill was already making
 
-**`Export`: the exported notebook is scrubbed.** `SKILL.md` and `README.md` said
+**`Export`: the exported notebook is scrubbed — verified by exporting one.** `SKILL.md` and `README.md` said
 export was "entire notebook only", which reads as *you get the notebook, results
 included*. Meta's export page says otherwise: code, markdown and **images**
-survive; **cell outputs, stdout, stderr and HTML are removed**. Numbers do not
+survive; **cell outputs, stdout, stderr and HTML are removed** — each replaced
+by a literal `[NOTICE] N output(s) filtered out`. Numbers do not
 leave as numbers — anything you need to keep must be rendered as an image, and
 that is a decision to make before a long run, not after. New
 `references/utilities.md` § "Getting Results Out" owns this. The S3-bucket
