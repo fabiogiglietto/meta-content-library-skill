@@ -187,8 +187,9 @@ bring the results back into R as a data.frame.
 
 ### Approved models
 
-Only models on Meta's approved list can be downloaded. As fetched 2026-08-21 the
-list covers three families:
+Only models on Meta's approved list can be downloaded. As fetched 2026-08-22 the
+list covers three families (still 13 models; entry #11's on-page name grew a
+subtitle since the 2026-08-21 fetch — see `references/ml_models_approved.md`):
 
 | Use | Models |
 |-----|--------|
