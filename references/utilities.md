@@ -162,9 +162,9 @@ Three consequences worth knowing before you rely on either function:
   or two models will overwrite each other's `config.json`, `tokenizer.json` and
   friends with no warning.
 - **Neither function returns the path**, whatever their docstrings say. Both are
-  annotated `-> None` while both docstrings promise `str: The path to the
-  downloaded …`. Trust the annotation: build the path yourself, as the R example
-  below does. Assigning the result gets you `NULL`.
+  annotated `-> None`, neither has a `return` statement, and both docstrings
+  promise `str: The path to the downloaded …`. Build the path yourself, as the R
+  example below does. Assigning the result gets you `NULL`.
 - **There is a third, undocumented function: `hf_list_files(repo, revision)`.**
   Meta's page does not mention it, and `hf_download_repo` is just a loop over it.
   Use it to check a repo id — and your access to it — **before** committing to a
@@ -175,6 +175,27 @@ Three consequences worth knowing before you rely on either function:
   files <- hf$hf_list_files("facebook/mbart-large-50-many-to-many-mmt", "main")
   length(files); head(files)
   ```
+
+**Verify a download finished before you use it.** The helper streams to the
+final path with no staging file, no checksum and no resume, and nothing cleans
+up after a failure — so a dropped connection or an error mid-download leaves a
+**truncated file that looks present**. `from_pretrained()` then fails on a
+corrupt weight file, which is far more confusing than a missing one.
+
+The function prints `Download Finished to '<dir>'` on success. **If you did not
+see that line, delete the directory and download again** — do not treat a file's
+existence as evidence it is complete:
+
+```r
+model_dir <- file.path(path.expand("~"), "huggingface", REPO, "main")
+unlink(model_dir, recursive = TRUE)   # start clean after any failed attempt
+```
+
+There is also a **division-by-zero branch** in the progress printer: it reads
+`content-length` from the response, defaults it to `0` when absent, and divides
+by it on the first megabyte. If a download dies with `ZeroDivisionError` after
+printing nothing, that is what happened — the bytes were being written, so clean
+up as above and consider fetching the files individually with `hf_download_file`.
 
 **How approval is enforced.** Every request is
 `{HF_ENDPOINT}/{repo}/resolve/{revision}/{filename}`, and the module holds **no
