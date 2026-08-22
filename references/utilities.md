@@ -191,6 +191,24 @@ model_dir <- file.path(path.expand("~"), "huggingface", REPO, "main")
 unlink(model_dir, recursive = TRUE)   # start clean after any failed attempt
 ```
 
+**`hf_download_repo` downloads every file in the repo — budget ~10× the weights.**
+**[measured 2026-08-22]** `all-MiniLM-L6-v2`, whose PyTorch weights are about
+90 MB, consumed **931 MB** and 57 seconds: the loop pulls `model.safetensors`
+*and* `onnx/model_O1.onnx`, `onnx/model_O2.onnx`, OpenVINO, TensorFlow and Rust
+variants indiscriminately. There is no format filter.
+
+With ~23 GB of home directory available that matters. For anything large, list
+first and fetch only what you need:
+
+```r
+files <- unlist(hf$hf_list_files(REPO, "main"))
+want  <- files[grepl("^(config|tokenizer|vocab|special_tokens)|\\.safetensors$", files)]
+for (f in want) hf$hf_download_file(f, REPO, "main")
+```
+
+Throughput measured at roughly **16 MB/s**, so a 17 GB repository is on the order
+of 18 minutes.
+
 There is also a **division-by-zero branch** in the progress printer: it reads
 `content-length` from the response, defaults it to `0` when absent, and divides
 by it on the first megabyte. If a download dies with `ZeroDivisionError` after
@@ -281,12 +299,47 @@ under Sentence-BERT / Sentence-Transformers (`all-MiniLM-L6-v2`,
 embeddings yourself), or install the package first — see "Install R Packages"
 above for the R side and Meta's pip page for the Python side.
 
-Inference itself is easiest left in Python. The documented mBART example
-(`MBartForConditionalGeneration.from_pretrained(model_path)`, then
-`tokenizer.lang_code_to_id["de_DE"]`) relies on `**kwargs` unpacking and Python
-item access, which reticulate expresses as `do.call()` and `py_get_item()` —
-more translation than it is worth for a one-off. Call it from a Python cell and
-bring the results back into R as a data.frame.
+### Inference from R works — [verified 2026-08-22]
+
+An earlier version of this section said inference was "easiest left in Python".
+**That was wrong, and it is corrected here.** The `**kwargs` unpacking that made
+Meta's example look awkward is avoidable: pass the tensors by name. Loading and
+embedding took 0.7 s in total, entirely from R.
+
+```r
+library(reticulate)
+REPO  <- "sentence-transformers/all-MiniLM-L6-v2"
+MDIR  <- file.path(path.expand("~"), "huggingface", REPO, "main")
+
+tf_   <- import("transformers")
+torch <- import("torch")
+tok   <- tf_$AutoTokenizer$from_pretrained(MDIR)
+mod   <- tf_$AutoModel$from_pretrained(MDIR)
+
+texts <- list("Meta Content Library research", "a second document")
+enc   <- tok(texts, padding = TRUE, truncation = TRUE, return_tensors = "pt")
+out   <- mod(input_ids = enc$input_ids, attention_mask = enc$attention_mask)
+
+# mean-pool the token embeddings, masking padding — what SentenceTransformer
+# does internally, and what you must do yourself because it is not installed
+m   <- enc$attention_mask$unsqueeze(-1L)$float()
+emb <- torch$sum(out$last_hidden_state * m, dim = 1L) /
+       torch$clamp(m$sum(dim = 1L), min = 1e-9)
+
+embeddings <- as.matrix(emb$detach()$numpy())   # rows = texts, cols = 384
+dim(embeddings)
+```
+
+**No offline configuration is needed.** `from_pretrained()` on a local path does
+not contact the hub — it loaded in 0.1 s with no `TRANSFORMERS_OFFLINE` or
+`HF_HUB_OFFLINE` set. If a load ever *hangs*, that is the symptom to suspect, but
+it did not occur here.
+
+For **generation** models (mBART, NLLB, T5) the same approach applies, but
+`generate()` takes `forced_bos_token_id = tokenizer$lang_code_to_id["de_DE"]`,
+which needs `py_get_item(tok$lang_code_to_id, "de_DE")` in reticulate. A Python
+cell is genuinely simpler for that one argument; embedding and classification are
+not affected.
 
 ### Approved models
 
