@@ -78,6 +78,33 @@ This confirms by observation what `OPEN_QUESTION_ENUM_CASING.md` asserted from
 AWS documentation. It is a same-origin boundary *plus* a pixel stream, so it will
 not yield to a newer extension version.
 
+### But a screenshot reads it fine — [verified 2026-08-22]
+
+The empty accessibility tree is **not** the end of the story, and reading § 1
+alone would leave you thinking the session is opaque to automation. It is not.
+
+| Channel | Works? |
+|---|---|
+| `read_page` / `get_page_text` | **No** — returns only the streaming client's shell |
+| **Screenshot** | **Yes** — notebook output is legible, including code cells, printed results and the JupyterLab status bar |
+| **Click** | **Yes** — the streamed browser's tab strip responds to clicks at their on-screen coordinates |
+| **Scroll** | **No** — five `scroll` events across three coordinates and two tab configurations never moved the notebook |
+
+So the working division of labour is: **the human scrolls, Claude reads.** A
+whole session of `mcl-api-r` ML testing was run this way on 2026-08-22 — probe
+code pasted in by the human (`pasteAllowed` is Enabled), results read back by
+screenshot — with no transcription by hand.
+
+Two practical notes. The stream repaints as **`Resizing…`** for several seconds
+after a screenshot request, so a capture taken immediately after another action
+often catches the splash rather than the page; wait 4–6 seconds. And keystrokes
+land wherever the streamed browser's focus happens to be — a stray character
+appeared inside a code cell during this session, so **avoid `type` actions
+entirely** unless the human confirms what is focused.
+
+This does not soften § 1. There is no DOM, so nothing can be selected, queried or
+extracted structurally. What is available is what a person can see.
+
 **Do not spend turns** on `javascript_tool`, `get_page_text`, or `find` against
 session content. They will return the shell or nothing. The toolbar, by
 contrast, *is* real DOM and is clickable by `ref`.

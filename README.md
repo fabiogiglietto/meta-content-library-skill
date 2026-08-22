@@ -1,6 +1,6 @@
 # MCL API R Skill for Claude
 
-> **Version:** 1.9.1 — see [CHANGELOG.md](CHANGELOG.md)
+> **Version:** 1.11.0 — see [CHANGELOG.md](CHANGELOG.md)
 
 A Claude skill for working with the Meta Content Library (MCL) API v6.0 using R.
 
@@ -77,7 +77,7 @@ monitoring.
 | `references/common_patterns.md` | Analysis patterns for collected results |
 | `references/surfaces.md` | Channels (FB/IG/WhatsApp), Marketplace, fundraisers, donations |
 | `references/common_errors.md` | Full error catalog and debugging patterns |
-| `references/utilities.md` | Quota checking, package installation, job retrieval |
+| `references/utilities.md` | Quota checking, package and ML model installation, job retrieval |
 | `docs/TESTING_PROCEDURE.md` | Manual verification procedure for the code examples |
 | `docs/OPEN_QUESTION_ENUM_CASING.md` | Open question: job status / `mode` enum casing, and how to settle it |
 
@@ -87,7 +87,9 @@ monitoring.
 - R with the reticulate package
 - MCL API v6.0 access
 
-Export from the SRE is by entire notebook only — no copy/paste.
+Export from the SRE is by notebook only, and the exported notebook is
+**scrubbed**: code, markdown and images are kept, but cell outputs are removed.
+Anything you need to take away has to be rendered as an image.
 
 ## Contributing
 
