@@ -449,10 +449,10 @@ strings, or for writing and debugging the query itself, CPU starts faster.
 
 ## Getting Results Out
 
-> **[documented 2026-08-22]** from
+> **[verified 2026-08-22]** — a real notebook was exported from a live session
+> and the resulting file inspected. Sourced from
 > [Export Jupyter notebooks](https://developers.facebook.com/docs/researcher-platform/features/notebook-export)
 > and [Upload files to an S3 bucket](https://developers.facebook.com/docs/researcher-platform/features/S3-bucket).
-> Not yet observed in a live session.
 
 **Plan for this before you compute anything.** The export path is narrower than
 "export the notebook" suggests, and discovering that after a long run is
@@ -472,6 +472,25 @@ So a data.frame printed in a cell, a `cat()` summary, a model's embeddings, a
 table of classifications — **none of it leaves**. The scrubbed notebook still
 runs, so a recipient with data access can reproduce your results, but the numbers
 themselves stay inside.
+
+**What it looks like.** Exporting a five-cell notebook of probe output produced a
+file in which every cell's source was intact and every cell's output had been
+replaced by a single stream:
+
+```
+[NOTICE] 2 output(s) filtered out
+```
+
+The outputs are not merely dropped — they are substituted with a count, so the
+export tells you what it removed. Nothing of the original text survives: not
+`stdout`, not printed values, not the paths or numbers this session recorded.
+Verified against an export of the ML probe notebook whose results are in
+`docs/ML_MODELS_OPEN_QUESTIONS.md` — none of that output is present in the
+exported file.
+
+*Scope of the check:* that export contained only code cells, so **code survives
+and outputs do not** is directly observed. Markdown and image retention is
+Meta's documented behaviour, not yet something we have tested.
 
 **The consequence: anything you need to take away must be an image.** Render
 summary tables as figures, plot what you would otherwise print, and save charts
