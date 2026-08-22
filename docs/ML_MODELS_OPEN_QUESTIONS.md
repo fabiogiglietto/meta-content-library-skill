@@ -36,7 +36,7 @@ time.
 | 9 | Is the approved list available **programmatically**? | [open] | Would replace our hand-copied table with something that cannot go stale | A |
 | 10 | Are any models **pre-downloaded** in the image? | [open] | Changes the first step from "download" to "check first" | A |
 | 11 | Does `revision` accept a **commit SHA / branch** other than `main`, and is it validated? | [open] | Pinning a revision is the difference between a reproducible pipeline and a moving one | E |
-| 12 | Is a **GPU** actually available, and how is a GPU machine selected? | [documented] | The page says GPU is faster; it does not say how to get one | A/E |
+| 12 | Is a **GPU** actually available, and how is a GPU machine selected? | **[documented 2026-08-22]** — yes: CPU/GPU chosen at server start, switchable via File > Hub Control Panel without losing work. Now in `utilities.md` § "CPU or GPU Server". **Still open:** GPU model, memory, disk, session time limit, whether access is uniform across institutions | Answered the how; specs remain | A/E |
 | 13 | Which ML libraries are preinstalled, at what **versions**? | [open] | `from_pretrained` on a new model against an old `transformers` fails confusingly | A |
 | 14 | **Disk quota** — will `nllb-200-3.3B` (~17 GB) even fit? | [open] | Determines whether the large translation models are usable at all | A/E |
 | 15 | Do downloads **persist across sessions**? | [open] | If home is ephemeral, every session re-downloads and the workflow changes shape | E |
@@ -133,3 +133,20 @@ As each phase lands, write the answer **in the table above** with a
 `utilities.md` and drop the `[inferred]` banner there. `docs/TESTING_PROCEDURE.md`
 Test 1.6 is Phase A/B in test form; extend that suite as phases pass rather than
 letting this file become a second home for the same facts.
+
+---
+
+## Leads found while sourcing the GPU answer
+
+The Researcher Platform features index lists pages this skill has never read.
+Two bear directly on questions above; recorded so they are not lost:
+
+| Page | Bears on |
+|------|----------|
+| [Upload files to an S3 bucket](https://developers.facebook.com/docs/researcher-platform/features/S3-bucket) | Question 16 (egress). The skill currently tells readers export is "entire notebook only" — an S3 path would make that wrong |
+| [Install Python packages yourself](https://developers.facebook.com/docs/researcher-platform/pip) | `utilities.md` § "Install R Packages" documents only the R side; the Python side is what `fbri` lives in |
+| [Export Jupyter notebooks](https://developers.facebook.com/docs/researcher-platform/features/notebook-export) | Confirms or corrects the export claim in `SKILL.md` § Environment |
+| [Share R notebooks](https://developers.facebook.com/docs/researcher-platform/features/share-notebooks) | Unexamined |
+| [Compare SRE to RStudio](https://developers.facebook.com/docs/researcher-platform/features/r-studio) | Unexamined |
+
+Out of scope for the ML work, in scope for the skill.
