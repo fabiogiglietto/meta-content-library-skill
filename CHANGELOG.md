@@ -4,6 +4,116 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v1.11.0 (2026-08-22)
+
+**Note for `docs/stage3-first-run`:** that branch's CHANGELOG also claims
+v1.11.0. This one merged first and took the number, so stage3 must be renumbered
+to **v1.12.0** before it merges.
+
+### Corrections to claims this skill was already making
+
+**`Export`: the exported notebook is scrubbed.** `SKILL.md` and `README.md` said
+export was "entire notebook only", which reads as *you get the notebook, results
+included*. Meta's export page says otherwise: code, markdown and **images**
+survive; **cell outputs, stdout, stderr and HTML are removed**. Numbers do not
+leave as numbers — anything you need to keep must be rendered as an image, and
+that is a decision to make before a long run, not after. New
+`references/utilities.md` § "Getting Results Out" owns this. The S3-bucket
+feature is not an alternative: its bucket is Secure-Research-Environment-owned,
+and Meta states it is not supported for Meta Content Library.
+
+**Inference from R is fine.** An earlier commit on this branch told readers that
+inference was "easiest left in Python" because of `**kwargs` unpacking. Tested
+and false: passing `input_ids`/`attention_mask` by name avoids the unpacking, and
+mean pooling is ordinary reticulate arithmetic. A 384-dim embedding took 0.7 s
+end to end. The working recipe replaced the discouragement.
+
+**The first drift-check "change" was our own transcription.** Corrected in
+`references/ml_models_approved.md` rather than left asserting a false edit date
+on Meta's page.
+
+### Added
+
+**ML models in the SRE** — `references/utilities.md` § "Download Machine Learning
+Models", now largely **[verified]** in a live session rather than transcribed:
+
+- `fbri.package_managers.huggingface` imports from R-side reticulate; reticulate
+  binds `/opt/conda/bin/python3` (3.11), the same conda env as the kernels.
+- Downloads land at `~/huggingface/<repo>/<revision>`, org prefix kept — read
+  from the module's source, then confirmed by downloading.
+- **`output_dir` replaces the whole path**, so two models sharing one directory
+  overwrite each other's `config.json`.
+- **Both helpers return `None`** despite docstrings promising a path string.
+- **`hf_list_files(repo, revision)`** — undocumented by Meta; probes a repo, and
+  the approval gate, without downloading.
+- **`hf_download_repo` pulls every file**: MiniLM's ~90 MB of weights cost
+  **931 MB** because ONNX, OpenVINO, TensorFlow and Rust variants come too.
+  Throughput ~16 MB/s.
+- **The org prefix is mandatory.** Every bare legacy alias (`t5-small`,
+  `bert-base-uncased`, `xlm-roberta-large`, …) returns 400 — the proxy does not
+  follow Hugging Face's rename redirects, and those bare names are exactly what
+  Meta's page prints.
+- **400 vs 404**: 400 is repo-level and cannot distinguish "wrong id" from "not
+  approved"; **404 means the repo resolved and passed the gate**, only the
+  revision is wrong.
+- **Revision pinning works** — full and 7-char SHAs, each getting its own
+  directory beside `main/`. Pin by SHA for reproducible work.
+- **No offline configuration needed**: `from_pretrained()` on a local path makes
+  no hub call.
+- **`sentence_transformers` is not installed**, though two approved models are
+  Sentence-Transformers models; use `AutoModel` + manual mean pooling.
+
+**GPU servers** — `references/utilities.md` § "CPU or GPU Server". CPU or GPU is
+chosen when the notebook server starts and switchable mid-session via **File** >
+**Hub Control Panel** without losing work. Verified real: `torch 2.4.0+cu118`,
+CUDA available.
+
+**`references/ml_models_approved.md`** — the approved list as a diff target,
+with **12 of 13 repo ids resolved by probing**. #11 DeBERTaV3 resists:
+`microsoft/mdeberta-v3-base` lists while `microsoft/deberta-v3-base` and
+`-large` do not, so the org is right and the gate is per-model. A 400 cannot
+separate "wrong id" from "not approved", so probing cannot settle it —
+`docs/SUPPORT_TICKET_DRAFT.md` asks Meta.
+
+**`docs/ML_MODELS_OPEN_QUESTIONS.md`** — the 20-question inventory and its
+results log; 19 closed, all without spending MCL budget.
+
+**A monthly drift check** — routine `trig_015jzBacsSw43Np7E23p3obe` re-fetches
+Meta's model list, diffs it against the snapshot, and opens a PR only when
+something changed. Paired with an at-use freshness check in `SKILL.md`: before
+answering which models are available, re-fetch and compare.
+
+## v1.10.0 (2026-08-21)
+
+**Added: how to download machine learning models in the SRE**
+(`references/utilities.md` § "Download Machine Learning Models"). The SRE has no
+internet access, so `from_pretrained("facebook/mbart-...")` cannot reach
+huggingface.co — an approved model must be downloaded first through
+`fbri.package_managers.huggingface` (`hf_download_repo` for a whole repo,
+`hf_download_file` for one file, filename before repo) and then loaded from
+`~/huggingface/<REPO>/<REVISION>`, where `<REPO>` keeps its org prefix. The
+section records the approved-model families as fetched 2026-08-21, the
+restrictions (text models with open-source licenses only; unlisted models need a
+support ticket), and the GPU-machine note.
+
+This sits next to "Install R Packages" because the two are easy to confuse:
+`fbrir`/`CRAN$new()` installs R packages from Meta's CRAN mirror,
+`fbri.package_managers.huggingface` downloads models — different package, different
+manager.
+
+Sourcing follows `docs/SRE_AUTOMATION_SURFACE.md`'s tags. The Python signatures,
+paths and restrictions are **[documented]** from
+[Machine Learning Models](https://developers.facebook.com/docs/researcher-platform/features/ml-models).
+The reticulate wrapper is **[inferred]** and marked untested — `fbri` is a
+different package from `metacontentlibraryapi`, so whether it imports from the
+R-side reticulate Python is unverified; the section gives a Python-cell fallback
+that works either way. `docs/TESTING_PROCEDURE.md` Test 1.6 settles it.
+Inference is deliberately left in Python rather than translated to `do.call()`
+and `py_get_item()`.
+
+**Also:** `SKILL.md` § Environment gains a "No internet access" bullet — the fact
+both package managers follow from.
+
 ## v1.9.1 (2026-08-21)
 
 Patch release. No documented API behavior changed; this removes a silent-failure

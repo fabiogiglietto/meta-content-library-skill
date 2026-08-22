@@ -1,7 +1,7 @@
 # MCL API R Skill - Code Testing Procedure
 
-> **Version:** 1.2
-> **Last Updated:** 2026-08-18
+> **Version:** 1.4
+> **Last Updated:** 2026-08-21
 > **Purpose:** Comprehensive testing procedure for all code examples in the MCL API R Skill repository
 
 ## Overview
@@ -246,6 +246,81 @@ print(jobs_data$jobs[, c("id", "status", "mode", "query_id")])
 - [ ] All columns present
 
 **Screenshot Required:** Yes
+
+---
+
+### Test 1.6: Download a Hugging Face Model
+
+**Location:** utilities.md § "Download Machine Learning Models"
+
+**Purpose:** Regression test for the download path. The question this test was
+written to settle — *does `fbri.package_managers.huggingface` import from R?* —
+was **answered YES on 2026-08-22** in a live session, along with the org prefix
+below. It stays as a test because it is the only end-to-end check that a
+download actually completes.
+
+Pick the smallest approved model (`all-MiniLM-L6-v2`, ~90 MB) — mBART-50 is
+several GB. Costs no MCL query budget: the traffic goes to Meta's Hugging Face
+proxy, not the MCL API.
+
+**Before downloading anything, list the repo — it is free and catches a bad id:**
+
+```r
+library(reticulate)
+hf <- import("fbri.package_managers.huggingface")
+length(unlist(hf$hf_list_files("sentence-transformers/all-MiniLM-L6-v2", "main")))
+# expect 30 as of 2026-08-22
+```
+
+**Code (R):**
+```r
+library(reticulate)
+
+hf <- import("fbri.package_managers.huggingface")
+hf$hf_download_repo(repo = "sentence-transformers/all-MiniLM-L6-v2")
+
+model_path <- file.path(path.expand("~"), "huggingface",
+                        "sentence-transformers/all-MiniLM-L6-v2", "main")
+list.files(model_path)
+```
+
+**On a `400 Bad Request`:** it means either the repo id is wrong or the model is
+not approved — **[verified 2026-08-22]** those two failures are indistinguishable,
+returning the identical status and message. The org prefix used here is confirmed
+correct (Meta lists the owner as "UKP Lab", but the repo is under
+`sentence-transformers/`), so a 400 on this exact id means something changed and
+is worth reporting rather than working around.
+
+**If the import fails**, run the documented Python form in a Python cell and note
+which error R gave:
+
+```python
+from fbri.package_managers.huggingface import hf_download_repo
+hf_download_repo(repo="sentence-transformers/all-MiniLM-L6-v2")
+```
+
+**Expected Outcome:**
+- Progress lines, then `Download Finished to '<dir>'` — **that last line is the
+  only evidence the file is complete**
+- `list.files()` shows config/tokenizer/weight files
+- The path is `~/huggingface/<ORG>/<NAME>/main` — org prefix **kept**
+  (verified from the module source: `os.path.join(expanduser("~"),
+  "huggingface", repo, revision)`)
+
+**Validation Checklist:**
+- [ ] `hf_list_files()` returns 30 files before any download
+- [ ] `import("fbri.package_managers.huggingface")` succeeds from R
+- [ ] `Download Finished` printed — if absent, `unlink()` the directory and retry
+      rather than trusting the files
+- [ ] Files land under `~/huggingface/sentence-transformers/all-MiniLM-L6-v2/main`
+- [ ] Nothing was assigned from the return value (both helpers return `NULL`)
+
+**Note for whoever runs this:** `sentence_transformers` is **not installed**
+(verified 2026-08-22), so the downloaded model cannot be loaded with
+`SentenceTransformer(path)`. Use `transformers` (`AutoModel` + `AutoTokenizer`,
+then mean-pool) or install the package first.
+
+**Screenshot Required:** Yes - showing the import result and `list.files()` output
 
 ---
 
@@ -1759,7 +1834,7 @@ If a test fails:
 
 ## Test Completion Checklist
 
-- [ ] All 39 tests attempted
+- [ ] All 40 tests attempted
 - [ ] Critical tests (14) passed
 - [ ] Screenshots captured and organized
 - [ ] Errors documented
@@ -1773,4 +1848,4 @@ If a test fails:
 
 **End of Testing Procedure**
 
-Version: 1.3 | Last Updated: 2026-08-21
+Version: 1.4 | Last Updated: 2026-08-21

@@ -1,19 +1,35 @@
 ---
 name: mcl-api-r
 description: Meta Content Library (MCL) API v6.0 helper for R users on Meta Research Platforms. Use when researchers need to query Facebook, Instagram or WhatsApp public content using R via reticulate in the Meta Secure Research Environment (SRE) or SOMAR Virtual Data Enclave (VDE). Covers async queries, collections, jobs, rate limits, SNAPSHOT mode, producer lists, channels, Marketplace, fundraisers, loading IDs as character, and proper integer handling.
-version: 1.9.1
-updated: 2026-08-21
+version: 1.11.0
+updated: 2026-08-22
 ---
 
 # Meta Content Library API v6.0 for R
 
-> **Skill Version:** 1.9.1 | **Updated:** 2026-08-21 | [Changelog](CHANGELOG.md)
+> **Skill Version:** 1.11.0 | **Updated:** 2026-08-22 | [Changelog](CHANGELOG.md)
 
 ## Environment
 
 - **Platform**: Amazon WorkSpaces Secure Browser with JupyterLab
 - **Language**: R with Python client via reticulate
-- **Export**: Entire notebook only (no copy/paste)
+- **Export**: notebook only, and **its outputs are stripped** — code, markdown and
+  **images** survive; cell outputs, stdout, stderr and HTML do not. Numbers do not
+  leave as numbers. See `references/utilities.md` § "Getting Results Out"
+- **No internet access** *(inside the SRE — not for you; see below)*: R packages
+  come from a custom CRAN mirror and pre-trained ML models from an approved
+  Hugging Face list — see `references/utilities.md`
+- **Server type**: CPU or **GPU**, chosen when the notebook server starts and
+  switchable mid-session without losing work — see `references/utilities.md` §
+  "CPU or GPU Server"
+
+**Answering questions about available ML models?** Re-fetch
+[Meta's list](https://developers.facebook.com/docs/researcher-platform/features/ml-models)
+first and compare it against `references/ml_models_approved.md` — it grows, and
+the skill's copy is a dated transcription. The no-internet constraint above binds
+the code you write for the SRE, **not you**: you run on the researcher's machine.
+Procedure and fallback: `references/utilities.md` § "Download Machine Learning
+Models".
 
 ## Critical Requirements
 
@@ -422,7 +438,7 @@ wrong response fields — see `references/common_errors.md`.
 - `references/chunking.md` - Large dataset handling
 - `references/collections.md` - Organizing queries
 - `references/producer_lists.md` - Working with producer lists (endpoint paths, response structure, cross-platform matching)
-- `references/utilities.md` - Quota check, package install, job retrieval
+- `references/utilities.md` - Quota check, package install, ML model download, job retrieval
 - `references/common_errors.md` - Troubleshooting and error solutions
 - `references/field_reference.md` - Available fields by entity type, reshare resolution, data scope
 - `references/common_patterns.md` - Reusable code patterns
