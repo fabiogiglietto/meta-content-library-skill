@@ -6,7 +6,8 @@ silent drift. Do not edit it to be prettier — edit it only to match the page.
 
 - **Source:** https://developers.facebook.com/docs/researcher-platform/features/ml-models
 - **First fetched:** 2026-08-21
-- **Last confirmed unchanged:** 2026-08-22
+- **Last confirmed unchanged:** 2026-08-22 (superseded — see change below)
+- **Last change detected:** 2026-08-22
 - **Checked by:** monthly scheduled agent (see `docs/ML_MODELS_OPEN_QUESTIONS.md`
   § "Tracking Meta's model list for drift")
 
@@ -33,7 +34,7 @@ part of the download path.
 | 8 | UKP Lab Sentence-BERT (all-MiniLM-L6-v2) | not given verbatim |
 | 9 | Hugging Face DistilBERT (distilbert-base-uncased-finetuned-sst-2-english) | not given verbatim |
 | 10 | Hugging Face XLM-RoBERTa (large-sized model) | not given verbatim |
-| 11 | Hugging Face DeBERTaV3 | not given verbatim |
+| 11 | Hugging Face DeBERTaV3: Improving DeBERTa using ELECTRA-Style Pre-Training with Gradient-Disentangled Embedding Sharing | not given verbatim |
 | 12 | Hugging Face mDeBERTa v3 multilingual | not given verbatim |
 | 13 | Hugging Face Sentence-Transformers (paraphrase-multilingual-MiniLM-L12-v2) | not given verbatim |
 
@@ -42,6 +43,16 @@ part of the download path.
 Only #7 appears as a complete repo id, in the page's own download and
 translation examples. That is why `docs/TESTING_PROCEDURE.md` Test 1.6 and the
 Phase B probe both use #7 — it is the only id we can pass without guessing.
+
+### Change detected 2026-08-22
+
+The count held at 13 and no entry was added or removed. Entry #11's name on
+the page grew a subtitle: it read "Hugging Face DeBERTaV3" at the 2026-08-21
+fetch and reads "Hugging Face DeBERTaV3: Improving DeBERTa using ELECTRA-Style
+Pre-Training with Gradient-Disentangled Embedding Sharing" now — the paper
+title, appended after a colon. No other entry's wording changed. The license
+rule, the support-ticket process, and the GPU note are unchanged from the
+2026-08-21 fetch.
 
 ## Other constraints stated alongside the list
 
