@@ -233,7 +233,14 @@ touches your query budget.
 > not exist anywhere give the **identical** status and message. There is no 403,
 > no 404, and nothing naming approval.
 
-So when you hit a 400, the error cannot tell you which mistake you made. Work it
+**Read the status code first — 400 and 404 mean different things:**
+
+| Status | Meaning | Next step |
+|--------|---------|-----------|
+| **400** | Repo-level: the id is wrong **or** the model is not approved. These are *indistinguishable* | Check the id against `references/ml_models_approved.md`, then the org prefix |
+| **404** | The repo resolved **and passed the approval gate** — only the *revision* is wrong | Fix the revision. The model itself is available to you |
+
+A 404 is good news about the model. A 400 is the ambiguous one, and you work it
 out in this order:
 
 1. **Check the id against `references/ml_models_approved.md`.** If the model is
@@ -246,7 +253,35 @@ out in this order:
    hf$hf_list_files("sentence-transformers/all-MiniLM-L6-v2", "main")   # 30 files
    ```
 
-3. Only then suspect the revision.
+A revision mistake never reaches this ladder — it announces itself as a 404.
+
+### Pinning a revision for reproducible work
+
+**[verified 2026-08-22]** `revision` accepts a **full 40-character commit SHA and
+the 7-character short form**, and a pinned download gets its **own directory**
+beside `main/` — so a pinned pipeline cannot be quietly changed by a later `main`
+download, and both can coexist.
+
+Resolve the current commit without downloading anything, then pin to it:
+
+```r
+requests <- import("requests")
+info <- requests$get(paste0(hf$HF_ENDPOINT, "/api/models/", REPO, "/revision/main"))$json()
+SHA  <- info$sha        # e.g. "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
+
+hf$hf_download_repo(REPO, SHA)
+model_dir <- file.path(path.expand("~"), "huggingface", REPO, SHA)
+```
+
+That metadata call also returns `lastModified`, `tags`, `pipeline_tag`,
+`library_name`, `downloads` and `author` — the proxy passes Hugging Face's model
+info through intact.
+
+**Record the SHA in your analysis script**, not just the model name. `main` moves;
+a SHA does not, and it is what makes a re-run reproducible a year later.
+
+**Budget for two copies.** A pinned revision does not replace `main/` — it sits
+next to it. MiniLM at `main` plus one pinned SHA is ~1.9 GB, not 931 MB.
 
 ### Always use the org-qualified repo id
 
