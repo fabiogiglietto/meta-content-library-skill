@@ -8,42 +8,80 @@ maintaining their own copies.
 
 Version number deliberately unassigned: `docs/stage3-first-run` already claims
 v1.11.0, so this branch takes its number at merge time rather than colliding.
+See `docs/ML_MODELS_OPEN_QUESTIONS.md` § "Merge-time checklist for this branch".
 
-**Added: the SRE offers a GPU server, and how to get one**
-(`references/utilities.md` § "CPU or GPU Server"). The server type is a
-**start-time choice** — CPU or GPU, then **Start** — not a request made in
-advance, and it can be changed mid-project via **File** > **Hub Control Panel**
-> **Stop My Server** > **Start My Server** without losing work. A GPU server
-takes longer to launch; when running one, a dashboards icon appears in the left
-nav (NVDashboard). The option has existed since **June 2022** per Meta's
-platform changelog. `SKILL.md` § Environment gains a pointer bullet.
+### Corrections to claims this skill was already making
 
-**[documented 2026-08-22]** from
-[GPU server option](https://developers.facebook.com/docs/researcher-platform/features/GPU).
-The GPU model, memory, disk and any session time limit are **not** documented
-anywhere we can find.
+**`Export`: the exported notebook is scrubbed.** `SKILL.md` and `README.md` said
+export was "entire notebook only", which reads as *you get the notebook, results
+included*. Meta's export page says otherwise: code, markdown and **images**
+survive; **cell outputs, stdout, stderr and HTML are removed**. Numbers do not
+leave as numbers — anything you need to keep must be rendered as an image, and
+that is a decision to make before a long run, not after. New
+`references/utilities.md` § "Getting Results Out" owns this. The S3-bucket
+feature is not an alternative: its bucket is Secure-Research-Environment-owned,
+and Meta states it is not supported for Meta Content Library.
 
-**Added: `docs/ML_MODELS_OPEN_QUESTIONS.md`** — the ML section of
-`utilities.md` is entirely transcribed, so this inventories the 20 questions
-behind it and phases the work to settle them, cheapest evidence first and zero
-MCL budget throughout. It also records that Meta's approved-model list grows
-with no drift detection on our side, and the re-check procedure for that.
+**Inference from R is fine.** An earlier commit on this branch told readers that
+inference was "easiest left in Python" because of `**kwargs` unpacking. Tested
+and false: passing `input_ids`/`attention_mask` by name avoids the unpacking, and
+mean pooling is ordinary reticulate arithmetic. A 384-dim embedding took 0.7 s
+end to end. The working recipe replaced the discouragement.
 
-**Changed: Meta's approved-model list, entry #11's name** — the monthly drift
-check re-fetched the list on 2026-08-22, one day after the 2026-08-21
-snapshot. The count held at 13 and no model was added or removed, but entry
-#11's on-page name grew a subtitle: "Hugging Face DeBERTaV3" is now "Hugging
-Face DeBERTaV3: Improving DeBERTa using ELECTRA-Style Pre-Training with
-Gradient-Disentangled Embedding Sharing". `references/ml_models_approved.md`
-and `references/utilities.md` § "Download Machine Learning Models" are updated
-to match. Detected automatically; flagged for human confirmation before
-release.
+**The first drift-check "change" was our own transcription.** Corrected in
+`references/ml_models_approved.md` rather than left asserting a false edit date
+on Meta's page.
 
-**Corrected 2026-08-22:** the drift check's first run reported entry #11 as a
-change *at Meta*. It was this repository's own transcription that was short —
-the 2026-08-21 snapshot was built from a summarising fetch that dropped the
-paper-title subtitle. The snapshot now carries the page's full wording and says
-so. Recording it as Meta drift would have put a false date on Meta's page.
+### Added
+
+**ML models in the SRE** — `references/utilities.md` § "Download Machine Learning
+Models", now largely **[verified]** in a live session rather than transcribed:
+
+- `fbri.package_managers.huggingface` imports from R-side reticulate; reticulate
+  binds `/opt/conda/bin/python3` (3.11), the same conda env as the kernels.
+- Downloads land at `~/huggingface/<repo>/<revision>`, org prefix kept — read
+  from the module's source, then confirmed by downloading.
+- **`output_dir` replaces the whole path**, so two models sharing one directory
+  overwrite each other's `config.json`.
+- **Both helpers return `None`** despite docstrings promising a path string.
+- **`hf_list_files(repo, revision)`** — undocumented by Meta; probes a repo, and
+  the approval gate, without downloading.
+- **`hf_download_repo` pulls every file**: MiniLM's ~90 MB of weights cost
+  **931 MB** because ONNX, OpenVINO, TensorFlow and Rust variants come too.
+  Throughput ~16 MB/s.
+- **The org prefix is mandatory.** Every bare legacy alias (`t5-small`,
+  `bert-base-uncased`, `xlm-roberta-large`, …) returns 400 — the proxy does not
+  follow Hugging Face's rename redirects, and those bare names are exactly what
+  Meta's page prints.
+- **400 vs 404**: 400 is repo-level and cannot distinguish "wrong id" from "not
+  approved"; **404 means the repo resolved and passed the gate**, only the
+  revision is wrong.
+- **Revision pinning works** — full and 7-char SHAs, each getting its own
+  directory beside `main/`. Pin by SHA for reproducible work.
+- **No offline configuration needed**: `from_pretrained()` on a local path makes
+  no hub call.
+- **`sentence_transformers` is not installed**, though two approved models are
+  Sentence-Transformers models; use `AutoModel` + manual mean pooling.
+
+**GPU servers** — `references/utilities.md` § "CPU or GPU Server". CPU or GPU is
+chosen when the notebook server starts and switchable mid-session via **File** >
+**Hub Control Panel** without losing work. Verified real: `torch 2.4.0+cu118`,
+CUDA available.
+
+**`references/ml_models_approved.md`** — the approved list as a diff target,
+with **12 of 13 repo ids resolved by probing**. #11 DeBERTaV3 resists:
+`microsoft/mdeberta-v3-base` lists while `microsoft/deberta-v3-base` and
+`-large` do not, so the org is right and the gate is per-model. A 400 cannot
+separate "wrong id" from "not approved", so probing cannot settle it —
+`docs/SUPPORT_TICKET_DRAFT.md` asks Meta.
+
+**`docs/ML_MODELS_OPEN_QUESTIONS.md`** — the 20-question inventory and its
+results log; 19 closed, all without spending MCL budget.
+
+**A monthly drift check** — routine `trig_015jzBacsSw43Np7E23p3obe` re-fetches
+Meta's model list, diffs it against the snapshot, and opens a PR only when
+something changed. Paired with an at-use freshness check in `SKILL.md`: before
+answering which models are available, re-fetch and compare.
 
 ## v1.10.0 (2026-08-21)
 
