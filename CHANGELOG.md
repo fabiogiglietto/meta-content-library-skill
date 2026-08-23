@@ -10,6 +10,205 @@ maintaining their own copies.
 v1.11.0. This one merged first and took the number, so stage3 must be renumbered
 to **v1.12.0** before it merges.
 
+### Deleting a job does not refund budget — learned at a cost of ~74,000 records
+
+**[verified 2026-08-23, by the researcher]** A submission cell ran twice on an unstable SRE
+stream, creating six SNAPSHOT jobs for three tiers. Deleting the duplicates **frees the
+snapshot slots but does not return the records** — budget is consumed at submission and is
+gone. `SKILL.md` § "SNAPSHOT vs LIVE Mode" now states this, with the one-line
+`file.exists()` guard that would have made the re-run a no-op. **Every cell that submits a job
+should carry that guard.** There is no cheap way to learn this fact; write it into the cell.
+
+### CORRECTION: `link_attachment` works — four false negatives traced to one naming error
+
+**[verified 2026-08-22]** An earlier entry in this changelog claimed
+`link_attachment_fields` was documented but not served. **That was wrong.** The property is
+**`link_attachment`**; `link_attachment_fields` is the data dictionary's *display label*, not a
+field name. Requested correctly it returns `link_attachment.{description,link,name,caption}`.
+
+**Link URLs, titles and captions are obtainable.** Co-sharing analysis, domain-level media-diet
+measurement and URL-based diffusion **are** buildable on this API.
+
+The root cause of four consecutive false negatives was transliterating display labels into field
+names, compounded by `fields` dropping unknown names silently. **The fix is a rule, now the
+opening of `field_reference.md`: take field names from
+`client$openapi_spec()$components$schemas$FacebookPost$properties`, never from the data
+dictionary's labels.** The spec is free, in-session, complete and deployment-specific.
+
+The same read produced the full 16-property `FacebookPost` schema, the `LinkAttachment` and
+`Multimedia` sub-schemas (`multimedia` also has `id` and `tags`), and three undocumented
+parameters — notably **`surface_ids_to_exclude`**, which does server-side exclusion.
+
+Also corrected: `is_verified` / `activity_type` / `activity_name` were likewise tested under
+label-derived names. The schema has `activities` (array of `FacebookActivity`); there is no
+`is_verified` property, though `is_surface_verified` exists as a *parameter*. Those earlier
+negatives are withdrawn as unfounded rather than restated.
+
+### `link_attachment_fields`: documented for Facebook posts, not served
+
+**[verified 2026-08-22]** Meta's data dictionary lists `link_attachment_fields.{link,name,
+caption,description}` as Facebook Post fields (entries 33–36). **The API does not return them.**
+
+Established with a properly controlled test after three inadequate ones: brace syntax, a
+positive control that passed, and `content_types = list("links")` so every sampled row actually
+has an attachment. Three surfaces — page list, group, broad `q` search — 25/15/25 rows, all
+`content_type = links`, and in every case the response was `id, content_type` only.
+
+**Consequence: a shared link's URL cannot be obtained from a Facebook post.** Co-sharing
+analysis, domain-level media-diet measurement and URL-based diffusion **cannot be built on this
+API**. `shared_post_id` is the only artifact-identity field that actually arrives. Same status
+for `is_verified`, `activity_type`, `activity_name`.
+
+The three failed attempts are recorded in `field_reference.md` because each failure mode is
+generic: invented names; right names in dot syntax; right names and syntax but a sample where
+the field could not be populated (an all-`NULL` column is dropped, so absence-in-sample looks
+exactly like absence-in-schema).
+
+### Multimedia URLs and image-text matching ARE available — two earlier negatives reversed
+
+**[verified 2026-08-22]** Careful reading of the data dictionary plus retesting with brace syntax
+and a positive control overturned two conclusions this skill nearly recorded:
+
+- **`multimedia{url}` works.** Sub-fields returned: `type`, `duration`, `url`. But the URLs are
+  **presigned, ephemeral links** to `prod-fortapis-api-async-uploads.s3.amazonaws.com`, median
+  **1,803 characters**. Media is therefore **retrievable in principle but the URL is not an
+  identifier** — the same image in two posts yields two different URLs, so any dedup or
+  diffusion analysis keyed on media URL is invalid.
+- **`match_type` works — it just needs a `q` search.** With
+  `search_scope = post_text_and_image_text`, a 25-row sample returned `image_text 5 |
+  post_text 24`. Requesting `match_type` alongside `surface_ids` with no query returns nothing,
+  which is an easy false negative. **In-image text is searchable and matching posts are
+  identifiable, though the OCR text itself is never returned.**
+
+Confirmed genuinely absent, with a passing control in the same request:
+`link_attachment_fields`, `is_verified`, `activity_type`, `activity_name`.
+
+**Doc gap filed:** "Post surface type" is documented as "Pages, profiles" — **groups are
+omitted**, though group surface queries plainly work.
+
+### `fields` uses brace syntax — and drops unknown names silently
+
+**[verified 2026-08-22]** Nested sub-fields are requested as `statistics{like_count,haha_count}`,
+**not** `statistics.like_count`. The dots in the data dictionary are *naming*; the response comes
+back flattened to dots again, but the request must use braces. New `query_params.md` § "Field
+expansion" owns this, with Meta's own example.
+
+**The more dangerous half: an unknown field name is not an error.** The call succeeds and the
+column is simply missing — indistinguishable from the field being present but empty. In this
+session that produced two unsound conclusions in a row (first from invented names `image_text`
+and `link_url`, then from correct names in the wrong dot syntax).
+
+**The fix is a positive control**: include a field known to work in the same request. With
+`statistics{like_count,haha_count}` as control, the result is unambiguous —
+`link_attachment_fields` and `match_type` return nothing while the control returns cleanly, so
+those fields genuinely are not served. That discipline is now written into `query_params.md`.
+
+### The data dictionary is segmented by product — and we read the wrong section
+
+**[verified 2026-08-22]** Meta's post data dictionary covers several product surfaces on one
+page, distinguished only by URL anchor. The `#dd-fb-post-3pcleanroom` section describes the
+**Third-Party Cleanroom** schema. `link_attachment_fields.*`, `multimedia.url`,
+`multimedia.user_tags` and `match_type` are documented there and are **not returned by the
+Content Library API** — tested on group and page surfaces, in parent and dotted form.
+
+The `fields` parameter **drops unknown names silently**, so asking for a cleanroom field yields
+a successful response with fewer columns — indistinguishable from the field being empty. New
+`field_reference.md` § "The data dictionary is segmented by product" owns this.
+
+Two facts recovered from the same read:
+
+- **`multimedia` sub-fields vary by item type.** A photo-heavy group corpus shows only
+  `multimedia.type`; a video-heavy page corpus shows `type, duration`. **`multimedia.duration`
+  is real** — do not conclude a sub-field is absent from a single sample.
+- **`image_text` is a `match_type` value, not a returned field.** OCR text is **searchable but
+  never retrievable**: `search_scope = post_text_and_image_text` makes `q` match text inside
+  images, but no post surface returns an OCR column. Research designs that assume an
+  `image_text` field to analyse are not implementable against this API.
+
+### Spec-verified: producer lists are GET-only, and Marketplace has an `estimate`
+
+`client$openapi_spec()` read live on 2026-08-22 settled three things that were
+previously asserted without a source:
+
+- **`/lists/producers` and `/lists/producers/{alias_id}` are `get` only.** There
+  is **no POST**: producer lists cannot be created or modified through the API.
+  `SKILL.md` and `producer_lists.md` already said so; that claim is now
+  **verified** rather than inherited from Meta's prose. Worth stating plainly
+  because every other collection-shaped resource here (`async/jobs`,
+  `async/queries`, marketplace-listings jobs) *does* accept a POST — producer
+  lists are the exception.
+- **The path parameter is `{alias_id}`, not `{list_id}`** — wording consistent
+  with the API ID being a snapshot *alias*, not a live pointer.
+- **`/lists/shared-searches/{alias_id}` exists** (`get`), the saved-search
+  analogue of a shared producer list. Previously undocumented here.
+
+**Correction to `surfaces.md`: Marketplace DOES have an `estimate` endpoint.**
+That file said "No `estimate` endpoint is documented for any of these surfaces."
+The spec shows the full trio — `preview` / `estimate` / `job`, plus per-`alias_id`
+variants and `/{mcl_id}`. The guides' silence was a documentation gap, not an API
+one. The lesson generalises: **when the guides are silent, read the spec — it is
+free, it is in-session, and it is the authority.** Claims about channels,
+fundraisers and donations were not covered by this read and remain unverified.
+
+### The API-ID flow, walked end to end and written down properly
+
+The § "Share producer lists between the UI and the API" steps are now
+**[verified]** rather than transcribed, having been driven to completion on two
+real lists. Three things Meta's page does not tell you, each of which cost time:
+
+- **The caret is to the RIGHT of `Share`** — Meta says only "adjacent". The
+  control on the left is `···`, a different menu.
+- **Its accessible label is `Copy`.** Searching for a control labelled "Open
+  Dropdown" or "API" finds the wrong one, or nothing. Locate it by
+  `aria-haspopup="menu"` sitting right of the `Share` button.
+- **A bare `element.click()` does not open it.** The app requires a full pointer
+  sequence (`pointerover → pointerdown → mousedown → pointerup → mouseup →
+  click`). Worth knowing for anyone scripting the Content Library UI.
+
+**And the id format is self-documenting.** Per the dialog: *"the today's date in
+YYYY-MM-DD format, followed by a randomly generated string."* So the date in
+`2026-08-17-cwqm` is **when the ID was generated — the snapshot date — not when
+the list was created.** Combined with the snapshot semantics above, this means an
+id carries its own provenance: a date long before your collection window is a
+visible warning that the snapshot may be stale.
+
+### The API ID step — a documented mechanism this skill was missing entirely
+
+**A producer list created in the UI is invisible to the API until you generate an
+API ID for it.** Not mis-addressed — *absent*: it does not appear in
+`lists/producers` and it errors at `lists/producers/{id}`. The id is generated on
+demand via *Producers lists* → *View* → the **down-arrow next to `Share`** →
+**Create API list ID**.
+
+`producer_lists.md` cross-referenced a section called "Share producer lists
+between the UI and API" that **did not exist in the file** — a dangling
+reference, so the one place a reader would look for this said nothing. The
+section now exists and owns the fact. Source:
+[Share a producer list](https://developers.facebook.com/docs/content-library-and-api/appendix/share-producer-list) (v4.0+).
+
+This was found the expensive way: a live session could not resolve two lists that
+were plainly visible in the UI, and the hypothesis under test — a GUI→API
+propagation lag — was **wrong**. See `mcl-agent`
+`docs/run_log/2026-08-22-phase0b-sre-recon.md`.
+
+**The id is a SNAPSHOT of the list**, per Meta's own wording. It binds to the
+list as it stood when the id was generated, so editing a list afterwards is not
+guaranteed to be reflected. Curate first, generate second, and record the id with
+its generation date — two analyses citing "the same list" under different ids may
+not share the same producers, and nothing in the results would reveal it. New
+`producer_lists.md` § "Share producer lists between the UI and the API" owns
+this; `common_errors.md` gains two symptom rows; `SKILL.md` § endpoint summary
+now mentions the step.
+
+Also corrected: `common_errors.md` told readers the UI "shows the correct path
+when you click the API ID button" — a button it never located, in a menu that
+does not contain it. That sentence is gone.
+
+Still open: whether `lists/producers` accepts a **POST**. Meta's docs show only
+`GET`, and both `SKILL.md` and `producer_lists.md` assert UI-only creation, but
+**neither has been checked against `client$openapi_spec()`**. Tagged as
+documented-not-verified.
+
 ### Corrections to claims this skill was already making
 
 **`Export`: the exported notebook is scrubbed — verified by exporting one.** `SKILL.md` and `README.md` said

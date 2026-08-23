@@ -305,6 +305,180 @@ Engagement fields on Instagram comments (like and reply counts) are unconfirmed
 | `is_reply` | boolean | Is this a reply |
 | `parent_id` | string | Parent post if reply |
 
+## The data dictionary is segmented by product — check the anchor
+
+**[verified 2026-08-22]** Meta's post data dictionary documents several product surfaces on one
+page, distinguished only by URL anchor. The section at **`#dd-fb-post-3pcleanroom`** describes
+the **Third-Party Cleanroom** schema, **not** the Content Library API served in the SRE.
+
+Fields documented there that the Content Library API **does not return**, tested on both a
+group and a page surface, in both parent and dotted form:
+
+| Documented under `3pcleanroom` | Content Library API |
+|---|---|
+| `link_attachment_fields.{link,name,caption,description}` | **not returned** — silently dropped from `fields` |
+| `multimedia.url` (flagged "third-party cleanroom feature") | **not returned** |
+| `multimedia.user_tags` | **not returned** |
+| `match_type` | **not returned** |
+
+**Rule: a field documented under a `3pcleanroom` anchor is not evidence that the Content Library
+API serves it.** The `fields` parameter drops unknown names **silently**, so a request that
+"succeeds" with fewer columns is the signature of asking for fields this deployment does not
+have. **`client$openapi_spec()` is the authority for what is actually served** — free and
+in-session.
+
+### `multimedia` sub-fields vary by item type
+
+**[verified 2026-08-22]** `multimedia` is a list column whose sub-fields depend on what the item
+is:
+
+```
+group surface, ~80% photos   -> multimedia sub-fields: type
+page surface,  ~88% video    -> multimedia sub-fields: type, duration
+```
+
+`multimedia.duration` is real and available — but only on video items, so a corpus of photos
+will never show it. Do not conclude a sub-field is absent from one sample.
+
+### `image_text` is a match_type VALUE, not a field — but it IS usable
+
+**[verified 2026-08-22]** There is **no OCR text column** on any Content Library API post
+surface. `image_text` is a *value* of `match_type`, and it works:
+
+```r
+client$get(path = "facebook/posts/preview",
+           params = list("q" = "governo",
+                         "search_scope" = "post_text_and_image_text",
+                         "fields" = "id,match_type"))
+# -> match_type tally over 25 rows:  image_text 5 | post_text 24
+```
+
+**`match_type` requires a `q` search.** Requesting it alongside `surface_ids` with no query
+returns nothing — there is no "match" to report. That is not the field being unavailable, and it
+is an easy false negative to record.
+
+**What this buys.** In-image text can be **interrogated by keyword** and the matching posts
+**identified**, even though the OCR text itself is never returned. So a hypothesis about image
+content is testable at zero budget (`estimate` is free), and the matched post ids can be carried
+into further analysis. What is *not* possible is embedding or modelling in-image text, because
+you never receive it.
+
+### `multimedia{url}` DOES work — but the URLs are ephemeral, not identifiers
+
+**[verified 2026-08-22]** Request the sub-field explicitly and media URLs are returned:
+
+```r
+fields = "id,multimedia{type,url,duration,user_tags}"
+# multimedia sub-fields present: type, duration, url   (user_tags never appeared)
+```
+
+Measured over 25 items: **25 URLs, 25 unique, 0 missing**, all on
+`prod-fortapis-api-async-uploads.s3.amazonaws.com`, **median length 1,803 characters**.
+
+That shape — a Meta research S3 bucket, `async-uploads`, a ~1.8 kB URL — is a **presigned,
+time-limited download link generated per request**, not a stable content address.
+
+**Two consequences, and they pull in opposite directions:**
+
+- **Media files are retrievable in principle.** This is the download path the docs attribute to
+  the cleanroom; it is exposed here too, on explicit request.
+- **URLs cannot be used as artifact identity.** The same image in two posts will get two
+  different presigned URLs. Any de-duplication or diffusion analysis keyed on media URL is
+  invalid. Use `shared_post_id` for reshare identity; there is no image-identity field.
+
+Retrieving the bytes additionally depends on outbound network from an SRE cell — untested, and
+gated on Meta's Import & Export Policy — and analysing them needs a **vision model, which the
+approved-model list does not contain** (`ml_models_approved.md`). So today: retrievable in
+principle, not analysable.
+
+### THE RULE: get field names from the SPEC, not the data dictionary
+
+**[verified 2026-08-22]** The data dictionary shows **human-readable display labels**. The API
+uses **property names**. They are not the same string, and transliterating a label into a field
+name silently returns nothing.
+
+This cost four consecutive false negatives in one session. The label *"Link attachment fields
+description"* was read as `link_attachment_fields.description`. **The actual property is
+`link_attachment`.**
+
+**Always start here:**
+
+```r
+sp <- client$openapi_spec()
+fb <- sp$components$schemas$FacebookPost$properties
+names(fb)                                  # the definitive field list for THIS deployment
+sp$components$schemas$LinkAttachment$properties   # and its nested schemas
+```
+
+Free, in-session, complete, and specific to the deployment you are querying. There is no reason
+to discover a field list by trial and error.
+
+### The complete Facebook Post schema, from the spec
+
+**[verified 2026-08-22]** `FacebookPost` has **16 properties**:
+
+| Property | Type |
+|---|---|
+| `id`, `text`, `creation_time`, `modified_time`, `lang` | string |
+| `content_type`, `shared_post_id`, `branded_content_page_id` | string |
+| `is_branded_content` | boolean |
+| `match_type` | array |
+| `activities` | array of `FacebookActivity` |
+| `multimedia` | array of `Multimedia` |
+| `statistics` | `FacebookStatistics` |
+| `post_owner`, `surface` | `FacebookEntityOwner` |
+| **`link_attachment`** | **`FacebookLinkAttachment`** |
+
+Nested schemas:
+
+```
+LinkAttachment -> description, link, name          (response also carries .caption)
+Multimedia     -> id, type, duration, tags, url
+```
+
+### `link_attachment` WORKS — link URLs are obtainable
+
+**[verified 2026-08-22]** Requested by its real name, on link posts:
+
+```r
+fields = "id,content_type,link_attachment,shared_post_id"
+# -> id, content_type,
+#    link_attachment.description, link_attachment.link,
+#    link_attachment.name, link_attachment.caption      (25 rows)
+```
+
+**A shared link's URL, title, caption and description are all retrievable.** Co-sharing
+analysis, domain-level media-diet measurement and URL-based diffusion **are buildable on this
+API**. Any earlier claim to the contrary in this skill was a naming error, now corrected.
+
+### `multimedia` — `id` and `tags` exist too
+
+**[verified 2026-08-22]** The schema is `id, type, duration, tags, url`. Earlier notes here
+listed only `type`/`duration`/`url` because that is what a default projection happened to
+return; **`id` and `tags` require explicit request**. `multimedia.id` is a candidate stable
+media identifier — unlike `multimedia.url`, which is an ephemeral presigned link (below) — but
+whether the same image in two posts shares an id is **untested**.
+
+### `fields` is not in the spec's parameter list, but it works
+
+**[verified 2026-08-22]** `/facebook/posts/preview` declares:
+`lang, q, since, until, is_branded_content, is_surface_verified, content_types,
+views_bucket_start, views_bucket_end, post_ids, surface_ids, surface_ids_to_exclude,
+surface_types, surface_countries, search_scope, limit, sort, after, X-API-Version`.
+
+**`fields` is absent from that list yet is honoured by the server.** So the spec is authoritative
+for *schemas* but not exhaustive for *parameters* — do not conclude a parameter is unsupported
+because the spec omits it.
+
+Three parameters worth noting that this skill does not otherwise document:
+**`surface_ids_to_exclude`** (server-side exclusion — useful for building a "rest of the group"
+corpus without post-hoc filtering), **`surface_countries`**, and
+**`views_bucket_start` / `views_bucket_end`**.
+
+**Also note a gap in Meta's own docs:** "Post surface type" is documented as *"Types include:
+Pages, profiles."* **Groups are omitted**, yet a group `surface_id` query returns posts with
+`surface.type` populated. The enumeration is incomplete.
+
 ## Data Scope: Whose Posts Are Queryable
 
 **Post availability depends on producer type.** For Facebook **profiles**, posts
