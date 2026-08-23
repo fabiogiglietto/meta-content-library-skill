@@ -9,9 +9,9 @@ the reticulate wrapper is **[inferred]**; *nothing* has been run. This file is
 the plan for closing that gap, and the place results get recorded until they are
 folded into `utilities.md`.
 
-Tags follow `docs/SRE_AUTOMATION_SURFACE.md`: **[verified]** (observed live, with
-date), **[documented]** (stated by Meta, not observed), **[inferred]** (follows
-from those, not itself observed), **[open]**.
+Tags: **[verified]** (observed live, with date), **[documented]** (stated by
+Meta, not observed), **[inferred]** (follows from those, not itself observed),
+**[open]**.
 
 Delete this file once every question below is answered and the answers live in
 `utilities.md` — the same rule `OPEN_QUESTION_ENUM_CASING.md` carried.
@@ -373,10 +373,10 @@ MiniLM is ~1.9 GB, not 931 MB.
 
 ### Automation note — how this was read
 
-Read off the live session by **screenshot**, not transcription. That finding
-belongs to `SRE_AUTOMATION_SURFACE.md` § "But a screenshot reads it fine", which
-now owns it: screenshots and clicks work, `read_page` and scroll do not, so the
-human scrolls and Claude reads.
+Read off the live session by **screenshot**, not transcription. How the SRE is
+driven is not this skill's concern — that fact is owned by the
+client repo, which holds the SRE automation surface. Recorded here only as
+provenance for the reading.
 
 ### Phase A — recon, zero downloads
 **Settles 1, 2, 3, 9, 10, 12, 13, 14; likely 4.**
