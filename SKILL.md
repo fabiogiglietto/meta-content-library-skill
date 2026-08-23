@@ -165,8 +165,11 @@ fields for all of these: `references/surfaces.md`.
 
 Producer lists are **created in the Content Library UI**, not via the API, and
 read with `lists/producers/{list_id}` — not `producer-lists/{id}`, which 404s.
-See `references/producer_lists.md` for the CSV import format, the response
-shape, and batching.
+**A list is invisible to the API until you generate an API ID for it** (UI:
+*View* → the down-arrow next to *Share* → **Create API list ID**). That id is a
+**snapshot** of the list, so curate first and generate second. See
+`references/producer_lists.md` for the CSV import format, the API-ID step and its
+snapshot semantics, the response shape, and batching.
 
 - **preview** (GET): Sync, max 1000 results total - exploration only
 - **job** (POST): Async, up to ~100,000 results - use for research
@@ -374,6 +377,15 @@ Use **SNAPSHOT** for anything you need to reproduce or share: data is preserved
 up to a year, refreshed every 30 days, and the job can be shared. **LIVE** data
 is deleted after 30 days and cannot be shared — but LIVE jobs do **not** count
 against the 100-snapshot cap, so run exploration LIVE and save results to disk.
+**Deleting a job does NOT refund its budget charge** — confirmed by the researcher
+2026-08-23 after a duplicate submission. Budget is consumed at submission; deletion only frees
+the snapshot slot. So the cost of an accidental double-submission is the full second charge,
+permanently. **Guard every submission cell** so a re-run is a no-op:
+
+```r
+if (file.exists("jobs.rds")) stop("already submitted - delete jobs.rds to resubmit")
+```
+
 A LIVE job can be promoted later:
 
 ```r

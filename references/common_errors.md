@@ -26,7 +26,9 @@ Notes:
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| 404 "Path '/meta-content-library/producer-lists/{id}' was not found" | Wrong endpoint path | Use `lists/producers/{id}` not `producer-lists/{id}`. The MCL UI shows the correct path when you click the API ID button. |
+| 404 "Path '/meta-content-library/producer-lists/{id}' was not found" | Wrong endpoint path | Use `lists/producers/{id}` not `producer-lists/{id}`. |
+| A producer list visible in the UI is **absent from `lists/producers`** and also errors at `lists/producers/{id}` | **No API ID has been generated for that list.** The id is created on demand, not automatically | In the UI: *Producers lists* → *View* → the **down-arrow next to `Share`** → **Create API list ID**. The `···` menu does *not* offer this. See `producer_lists.md` § "Share producer lists between the UI and the API" |
+| Producer count from the API disagrees with the count shown in the UI | The API ID is a **snapshot**; the list was edited after the id was generated | Regenerate the API ID and record which id the analysis used |
 | "first argument must be a vector" on `split()` | Accessing `$ids` (doesn't exist) instead of `$producers$id` | Producer list response has `$producers` data.frame with columns (id, name, type). Use `list_data$producers$id` to get the ID vector. |
 
 ## Response Handling Errors
