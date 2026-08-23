@@ -186,6 +186,51 @@ estimate <- mcl_fromJSON(client$get(
 # estimate$expected_complete - TRUE if <100k (will get all results)
 ```
 
+## Field expansion: the `fields` parameter uses BRACE syntax, not dots
+
+**[verified 2026-08-22]** Source:
+[Field expansion](https://developers.facebook.com/docs/content-library-and-api/appendix/field-expansion).
+
+Nested sub-fields are requested with **curly braces**:
+
+```r
+# CORRECT — returns id, statistics.like_count, statistics.haha_count
+client$get(path = "facebook/posts/preview",
+           params = list("q" = "cybercrime",
+                         "fields" = "id,statistics{like_count,haha_count}"))
+```
+
+**The dots in the data dictionary are naming, not request syntax.** The dictionary writes
+`statistics.like_count`; the *request* is `statistics{like_count}`; the *response* comes back
+flattened to `statistics.like_count` again. Requesting `"statistics.like_count"` does not work.
+
+Defaults: naming a parent without braces returns that entity's default expanded fields; omitting
+`fields` entirely returns default expanded fields on default parent fields.
+
+### `fields` drops unknown names SILENTLY — always use a positive control
+
+An unrecognised field name is not an error. The call succeeds and the column is simply absent,
+which is **indistinguishable from the field existing but being empty**. This has produced wrong
+conclusions twice.
+
+**So when testing whether a field exists, include a field you know works in the same request**
+— `statistics{like_count}` is a good control. If the control comes back and the field under test
+does not, the field genuinely is not served. Without a control you cannot separate "not
+available" from "I typed it wrong" or "wrong syntax".
+
+Worked example of the discipline, run on Facebook posts (group and page surfaces):
+
+| Requested | Returned |
+|---|---|
+| `id,statistics{like_count,haha_count}` | `id, statistics.like_count, statistics.haha_count` — **control passes** |
+| `id,multimedia{type,url,duration,user_tags}` | `id, multimedia` — parent only; `url`/`user_tags` absent |
+| `id,link_attachment_fields{link,name,caption,description}` | `id` — **field not served** |
+| `id,match_type` | `id` — **field not served** |
+
+Conclusion, on sound evidence: `link_attachment_fields` and `match_type` are **not available**
+in the Content Library API; they belong to the Third-Party Cleanroom schema (see
+`field_reference.md` § "The data dictionary is segmented by product").
+
 ## Integer Parameters (Critical!)
 
 Always use `L` suffix for integers:

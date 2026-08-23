@@ -6,6 +6,10 @@
 
 Producer lists are pre-defined sets of accounts for Facebook Pages/Profiles or Instagram Accounts, created in the Content Library UI.
 
+**A list created in the UI is invisible to the API until you generate an API ID
+for it** — a manual, per-list step. See § "Share producer lists between the UI
+and the API".
+
 ## Critical: Endpoint Path
 
 ```
@@ -13,7 +17,9 @@ Producer lists are pre-defined sets of accounts for Facebook Pages/Profiles or I
 ✗ Wrong:    producer-lists/{list_id}     ← Returns 404
 ```
 
-The MCL UI shows the correct path when you click the API ID button on a producer list.
+The `{list_id}` here is the **API producer list ID** — a date-slug such as
+`2026-08-17-cwqm`, *not* the numeric id in the UI's URL. It must be generated
+per list; see § "Share producer lists between the UI and the API".
 
 ## Critical: Platform Differences
 
@@ -65,8 +71,9 @@ Notes:
   public and either verified — including paid Meta Verified — or have 100+
   followers under v6.0. Lists built against the old 25,000 threshold are not
   wrong, just narrower than they need to be.
-- After creating a list in the UI you can generate an API ID to use it via
-  `lists/producers/{list_id}` (see "Share producer lists between the UI and API").
+- **After creating a list in the UI you must generate an API ID before the API
+  can see it at all** — see § "Share producer lists between the UI and the API".
+  This is not optional and not automatic.
 
 ### Recipe: producer list from active commenters
 
@@ -118,6 +125,124 @@ producers %>%
 
 Then import `producer_import.csv` in the Content Library UI and generate an API
 ID for the resulting list.
+
+## Share producer lists between the UI and the API
+
+**A producer list created in the UI is not reachable from the API until you
+generate an API ID for it.** The id is **generated on demand and does not
+pre-exist**. Until it is generated the list is absent from `lists/producers`
+*and* unreachable at `lists/producers/{id}` — it is invisible, not merely
+mis-addressed.
+
+Source: [Share a producer list](https://developers.facebook.com/docs/content-library-and-api/appendix/share-producer-list).
+Requires **v4.0 or later**. **[documented 2026-08-22]**
+
+### The UI steps — walked end to end, **[verified 2026-08-22]**
+
+1. **Producers lists** in the left navigation bar
+2. **View** on the list's card (or open `/producer-lists/{ui_id}/` directly)
+3. the **`▼` caret immediately to the RIGHT of the `Share` button**
+4. **Create API list ID**
+5. a dialog shows the id and the exact call to make
+
+The top bar reads, left to right: `···` · `Share` · **`▼`** · `Save changes`.
+
+**Three traps, each of which cost a live session real time:**
+
+- **The caret is to the RIGHT of `Share`, not the left.** Meta's page says only
+  "adjacent to the Share button". The control on the *left* is the `···` menu.
+- **The caret's accessible label is `Copy`, not anything containing "dropdown" or
+  "API".** Searching the DOM for a control labelled "Open Dropdown" finds the
+  `···` menu and misses this one entirely. Identify it by
+  `aria-haspopup="menu"` positioned to the right of the `Share` button, not by
+  its label.
+- **The `···` menu and the `Share` dialog are both dead ends.** `···` offers
+  *Make a copy / Rename / Delete / Version history*; `Share` opens people-access
+  (email invite, viewer/owner, copy link). Before the caret menu is opened, the
+  string "API" does not appear anywhere in the page text.
+
+The caret menu contains exactly: **`Copy link`** and **`Create API list ID`**.
+
+**Driving it programmatically:** a bare `element.click()` does **not** open this
+menu — the app ignores it. A full pointer sequence does:
+`pointerover, pointerenter, pointerdown, mousedown, pointerup, mouseup, click`,
+each with `clientX`/`clientY` at the element centre. Same for the menu item.
+
+### The id format tells you when the snapshot was taken
+
+The dialog's own wording:
+
+> *"The ID consists of the today's date in YYYY-MM-DD format, followed by a
+> randomly generated string of characters."*
+
+So `2026-08-22-lxdb` was generated on 2026-08-22. **The date in a producer-list
+id is the date the ID was generated — i.e. the date of the snapshot — not the
+date the list was created.** That makes the id self-documenting about snapshot
+age, which is exactly the provenance a reproducible analysis needs: an id whose
+date is months before your collection window is a warning sign on its face.
+
+### The id is a SNAPSHOT — this has research consequences
+
+Meta's wording: the API ID *"represents a **snapshot** of a producer list."*
+
+The id is therefore bound to the list **as it was when the id was generated**,
+not to the list as it evolves. Edits made afterwards — adding or removing
+producers, possibly renaming — are not guaranteed to be visible through an id
+generated earlier.
+
+- **Finish curating the list, then generate the id.** Not the other way round.
+- **If you edit a list after generating its id, regenerate the id**, and record
+  which id a given analysis actually used.
+- **Record the id together with the date it was generated.** Two analyses citing
+  "the same list" under different ids may not be using the same producers — a
+  reproducibility hazard that is invisible in the results.
+- A producer count from `lists/producers/{id}` that disagrees with the UI's count
+  is the **expected symptom of a stale id**, not a bug.
+
+### Symptom → cause
+
+| Symptom | Cause |
+|---|---|
+| A list plainly visible in the UI is absent from `lists/producers` | No API ID has been generated for it |
+| `lists/producers/{numeric id from the UI URL}` errors | The UI URL id is not the API id — see § "Critical: Endpoint Path" |
+| The API's producer count differs from the UI's | The id is a snapshot predating the list's last edit |
+
+### Sharing with other researchers
+
+*"You can only share producer lists with users who have the same account type as
+yours."* **[documented]**
+
+### Creation is UI-only — VERIFIED against the spec
+
+`client$openapi_spec()`, read live on 2026-08-22, declares exactly two methods on
+the producer-list paths, **both `get`**:
+
+```
+/lists/producers            -> get
+/lists/producers/{alias_id} -> get
+```
+
+**There is no `POST`. Producer lists cannot be created or modified through the
+API** — the CSV import in the UI is the only route, and the API-ID step above is
+the only way to make a list readable. **[verified 2026-08-22]**
+
+This matters because it is a natural thing to assume otherwise: every other
+collection-shaped resource in this API (`async/jobs`, `async/queries`,
+marketplace-listings jobs) *does* accept a POST. Producer lists are the exception.
+
+### The path parameter is `{alias_id}`, not `{list_id}`
+
+The spec names it **`alias_id`**. That wording is consistent with the API ID
+being a *snapshot alias* rather than a pointer to the live list — see the
+snapshot section above. This file uses `{list_id}` throughout for readability;
+they are the same thing.
+
+### Related, from the same spec read: `/lists/shared-searches/{alias_id}`
+
+A sibling endpoint exists — **`get`** only — for **shared searches**, the
+saved-search analogue of a shared producer list. This skill does not otherwise
+document it. **[verified 2026-08-22 — endpoint exists; parameters and response
+shape unread]**
 
 ## List All Producer Lists
 

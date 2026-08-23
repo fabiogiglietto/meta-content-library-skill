@@ -45,8 +45,27 @@ The corresponding **sync** reads hang off the parent node and live in SKILL.md �
 "Nested Endpoints", which owns that table.
 
 Guessing `facebook/channels/job` or `facebook/marketplace/preview` from the
-older pattern gets you a 404. No `estimate` endpoint is documented for any of
-these surfaces — none of the guides mention one.
+older pattern gets you a 404.
+
+**Correction, 2026-08-22 — Marketplace *does* have an `estimate` endpoint.** This
+file previously said "No `estimate` endpoint is documented for any of these
+surfaces — none of the guides mention one." The guides may not, but the **OpenAPI
+spec does**. Read live via `client$openapi_spec()`:
+
+```
+/facebook/marketplace-listings/preview             -> get
+/facebook/marketplace-listings/estimate            -> get
+/facebook/marketplace-listings/estimate/{alias_id} -> get
+/facebook/marketplace-listings/job                 -> post
+/facebook/marketplace-listings/job/{alias_id}      -> post
+/facebook/marketplace-listings/{mcl_id}            -> get
+```
+
+So Marketplace has the full **preview / estimate / job** trio, plus per-alias
+variants and a by-id fetch. **[verified 2026-08-22]** The absence of an `estimate`
+in the *guides* is a documentation gap, not an API one — **the spec is the
+authority, and it is free to read.** The claim about channels, fundraisers and
+donations is untouched: those were not in this spec read and remain unverified.
 
 ## Facebook Channels
 
