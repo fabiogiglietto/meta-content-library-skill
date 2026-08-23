@@ -4,6 +4,49 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v1.11.1 (2026-08-23)
+
+### Removed `docs/SRE_AUTOMATION_SURFACE.md` — it was a stale copy of someone else's fact
+
+**Deleted, not moved.** The file was a 621-line snapshot, last touched
+2026-08-22, of a document that had since grown to 1309 lines in the `mcl-agent`
+client repo. Two copies, one owner: the copy here was already wrong about the
+paste channel, about modifier keys, and about what the AppStream Functions
+toolbar makes possible — every one of those settled *after* this snapshot was
+taken. Nobody reading it here would have known.
+
+This is release-checklist rule 4 enforced against the repo itself: *"check that
+any new fact has exactly one owner; add a pointer elsewhere rather than a second
+copy."* The rule was written for new facts and the violation was an old one.
+
+**The scope line, stated so this cannot recur:** this skill holds only what is
+needed to write reliable, functional code against the Meta Content Library
+API — endpoints, parameters, schemas, ID handling, caps, error subcodes, and the
+patterns that make them work. **How the SRE is driven is not an API fact.** It
+belongs to the `mcl-agent` client, which owns the browser automation surface, the
+driver design and the egress policy. A fact that would still be true for a
+different research question on a different corpus, and is about the API, lives
+here; if it is about driving the enclave, it does not.
+
+No pointer file replaces it. A stub about SRE automation would be the same
+scope violation in miniature, and the client repo is not published, so a link
+would dangle for anyone reading this repo on GitHub.
+
+### Three inbound references rewritten to stand alone
+
+All three cited the deleted file and would have dangled:
+
+- `CHANGELOG.md` (the v1.11.0 ML-models entry) and
+  `docs/ML_MODELS_OPEN_QUESTIONS.md` both borrowed the deleted file's
+  four-tag sourcing convention. The four tags — **[verified]**,
+  **[documented]**, **[inferred]**, **[open]** — are generic method, not an SRE
+  fact, so they are now **stated inline** rather than cited across repos. This
+  removes a cross-repo dependency the skill never needed.
+- `docs/ML_MODELS_OPEN_QUESTIONS.md` § "Automation note" cross-referenced a
+  section on reading the session by screenshot. Rewritten to record the
+  *provenance* of that reading and to name the owner, without restating the
+  driver fact.
+
 ## v1.11.0 (2026-08-22)
 
 **Note for `docs/stage3-first-run`:** that branch's CHANGELOG also claims
@@ -102,7 +145,7 @@ This sits next to "Install R Packages" because the two are easy to confuse:
 `fbri.package_managers.huggingface` downloads models — different package, different
 manager.
 
-Sourcing follows `docs/SRE_AUTOMATION_SURFACE.md`'s tags. The Python signatures,
+Sourcing follows the four-tag convention. The Python signatures,
 paths and restrictions are **[documented]** from
 [Machine Learning Models](https://developers.facebook.com/docs/researcher-platform/features/ml-models).
 The reticulate wrapper is **[inferred]** and marked untested — `fbri` is a
