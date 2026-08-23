@@ -83,8 +83,16 @@ and a positive control overturned two conclusions this skill nearly recorded:
 Confirmed genuinely absent, with a passing control in the same request:
 `link_attachment_fields`, `is_verified`, `activity_type`, `activity_name`.
 
-**Doc gap filed:** "Post surface type" is documented as "Pages, profiles" — **groups are
-omitted**, though group surface queries plainly work.
+**`post_owner` vs `surface`, and a withdrawn claim.** The owner is who *created* a post; the
+surface is where it *appears*. They diverge on reshares — a Page resharing someone else's post
+is the surface while the original creator remains the owner, with `shared_post_id` linking the
+two. **`surface_ids` therefore selects by surface**, so a producer-list pull includes reshares
+authored outside the list: a 14-page list returned 10,731 posts from 72 distinct owners.
+`field_reference.md` now carries the filter table for author-vs-amplifier questions.
+
+An earlier draft of this branch claimed Meta's docs omit groups from the surface-type
+enumeration. **Withdrawn** — they list "Pages, profiles, groups and events"; the claim came from
+a partial fetch, not from the docs.
 
 ### `fields` uses brace syntax — and drops unknown names silently
 

@@ -475,9 +475,41 @@ Three parameters worth noting that this skill does not otherwise document:
 corpus without post-hoc filtering), **`surface_countries`**, and
 **`views_bucket_start` / `views_bucket_end`**.
 
-**Also note a gap in Meta's own docs:** "Post surface type" is documented as *"Types include:
-Pages, profiles."* **Groups are omitted**, yet a group `surface_id` query returns posts with
-`surface.type` populated. The enumeration is incomplete.
+### `post_owner` vs `surface` — the pair the tier logic rests on
+
+**[verified 2026-08-23]** Meta's data dictionary, verbatim:
+
+- **Post owner** — *"Unique ID linked to the owner associated with the Facebook post"* — is
+  **who created the post**.
+- **Post surface** — *"The type of surface of the Facebook post. Post surface types include:
+  Pages, profiles, groups and events"* — is **where the post appears**.
+
+**They differ whenever content is reshared.** When a Page reshares another account's post, the
+**owner stays the original creator** and the **surface is the Page distributing it**;
+`shared_post_id` carries *"Unique ID linked to the reshared post included in the Facebook
+post."* Meta's own framing: this separation lets researchers *"distinguish between original
+content producers and the accounts amplifying that content through reshares."*
+
+**Consequence for producer-list queries, and it is easy to get wrong:** `surface_ids` selects by
+**surface**, so a producer-list pull returns *everything that appeared on those surfaces*,
+including reshares **authored by accounts outside the list**. Observed on live data: a 14-page
+producer list returned 10,731 posts with **72 distinct `post_owner.id`s**, and a 2-page list
+returned 389 posts with **50 owners**.
+
+So decide explicitly which question is being asked:
+
+| Question | Filter |
+|---|---|
+| What did these accounts **publish** (incl. amplification)? | none — `surface_ids` already answers it |
+| What did these accounts **author**? | keep rows where `post_owner.id %in% <list ids>` |
+| What did they **amplify**? | rows where `post_owner.id` is *not* in the list, or `!is.na(shared_post_id)` |
+
+Reporting an owner-based count as if it were a surface-based one (or vice versa) silently
+changes the population.
+
+*(An earlier draft of this file claimed Meta's docs omit groups from the surface-type
+enumeration. That was wrong — a bad reading of a partial fetch. The docs list "Pages, profiles,
+groups and events".)*
 
 ## Data Scope: Whose Posts Are Queryable
 
