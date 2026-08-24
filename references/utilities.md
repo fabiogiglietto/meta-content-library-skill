@@ -690,3 +690,37 @@ fail fast — budget a timeout.
 > **This does not settle the Terms question.** Fetching media into the enclave is an *import*, and
 > Terms §4 puts imports under the Import & Export Policy. What is recorded here is what the
 > network does, not what the contract permits.
+
+### ⚠ `Conda$new()$Install()` reports "Failed install" for non-R packages — even when conda succeeds
+
+**[verified 2026-08-24]** `conda$Install("tesseract")` printed conda's own transaction log
+through to completion:
+
+```
+[142] "Downloading and Extracting Packages: ...working... done"
+[143] "Preparing transaction: ...working... done"
+[144] "Verifying transaction: ...working... done"
+[145] "Executing transaction: ...working... done"
+[1]   "Failed install: tesseract, from channel: https://conda.anaconda.org/conda-forge/linux-64"
+```
+
+`Sys.which("tesseract")` came back **empty** afterwards. So the wrapper's verdict and conda's own
+output disagree: **conda resolved and executed a 138-package transaction, then `fbrir` declared
+the install failed.**
+
+The likely cause is in the wrapper, not the channel: Meta's page says *"R package names begin
+with `r-`"*, so `Conda$Install` is written for **R packages** and presumably verifies by looking
+for an installed R library. A native binary satisfies no such check, so it reports failure
+regardless of what conda did. Packages install into `/home/jovyan/.fort/user_packages/conda`,
+which is **not on `PATH`** — another reason `Sys.which()` finds nothing even on success.
+
+**Before concluding a native package is unavailable, check the filesystem, not the verdict:**
+
+```r
+p <- "/home/jovyan/.fort/user_packages/conda/bin/tesseract"
+file.exists(p); system2(p, "--version")
+```
+
+**Untested:** whether the files are actually there. If they are, the `Failed install` message is
+cosmetic and native binaries are usable by absolute path. If they are not, `Conda$Install` really
+is R-only and the Python `Pip` channel is the route for anything else.
