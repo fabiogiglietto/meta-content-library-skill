@@ -59,7 +59,7 @@ cat(sprintf("\nComments Budget: %s available\n", format(comments_avail, big.mark
 
 ## Install R Packages
 
-The research environment uses a custom CRAN mirror. Use `fbrir` to install packages:
+The Meta SRE uses a custom CRAN mirror. Use `fbrir` to install packages:
 
 ```r
 library(fbrir)
@@ -74,7 +74,7 @@ cran$InstallPackages("flextable", dependencies = TRUE)
 cran$InstallPackages(c("ggplot2", "dplyr", "tidyr"), dependencies = TRUE)
 ```
 
-**Note**: Standard `install.packages()` does not work in the research environment.
+**Note**: Standard `install.packages()` does not work in the SRE.
 
 ## Download Machine Learning Models
 
@@ -101,11 +101,11 @@ cran$InstallPackages(c("ggplot2", "dplyr", "tidyr"), dependencies = TRUE)
 > (`docs/ML_MODELS_OPEN_QUESTIONS.md`); this catches it at the moment it would
 > mislead someone.
 >
-> **You have web access here even though the research environment does not.** The
-> no-internet rule below applies to code executed inside that environment, not
-> to you — you are running on the researcher's own machine.
+> **You have web access here even though the SRE does not.** The no-internet
+> rule below applies to code executed inside the SRE, not to you — you are
+> running on the researcher's own machine.
 
-Two package managers sit side by side in the environment, and they are not
+Two package managers sit side by side in the SRE, and they are not
 interchangeable:
 
 | You want | Use |
@@ -113,7 +113,7 @@ interchangeable:
 | An R package from CRAN | `fbrir` → `CRAN$new()$InstallPackages()` (above) |
 | A pre-trained model from Hugging Face | `fbri.package_managers.huggingface` (below) |
 
-**The rule the rest of this section follows from: the research environment has no internet
+**The rule the rest of this section follows from: the SRE has no internet
 access** (SKILL.md § Environment). `from_pretrained("facebook/mbart-large-50-many-to-many-mmt")` cannot
 reach huggingface.co and will fail. You download an **approved** model first
 through the `fbri` helper, then load it from its local path.
@@ -122,7 +122,7 @@ through the `fbri` helper, then load it from its local path.
 > transcribed from
 > [Machine Learning Models](https://developers.facebook.com/docs/researcher-platform/features/ml-models)
 > (fetched 2026-08-21). **The import works from R: [verified 2026-08-22]** in a
-> live session — see "Downloading from R". The download *call* itself is
+> live SRE session — see "Downloading from R". The download *call* itself is
 > still untested.
 
 ### Downloading (Python, as documented)
@@ -305,7 +305,7 @@ When in doubt, `hf_list_files()` settles it in one free call.
 
 **[verified 2026-08-22]** — `fbri`, `fbri.package_managers` and
 `fbri.package_managers.huggingface` all import from R-side reticulate in a live
-session. reticulate binds to `/opt/conda/bin/python3` (Python **3.11**), the
+SRE session. reticulate binds to `/opt/conda/bin/python3` (Python **3.11**), the
 same conda environment the notebook kernels use, which is why the import
 resolves. `import()` below is therefore the supported path, not a guess. The
 **download call** has not been run yet — that is Phase B in
@@ -411,7 +411,7 @@ rather than trusting this table, and resolve any new entry's id with
 
 ## CPU or GPU Server
 
-**Yes — the research environment lets you run your notebook on a GPU server**, and you pick which
+**Yes — the SRE lets you run your notebook on a GPU server**, and you pick which
 at server start rather than requesting it in advance. The option has existed
 since **June 2022**.
 
@@ -628,7 +628,7 @@ Full comparison and the 100-snapshot cap: `references/collections.md` § "The
 
 ## The package-manager table above is incomplete — there are four channels, not two
 
-**[verified 2026-08-23, in a live session]** `dir()` on the module, read from R:
+**[verified 2026-08-23, in a live SRE session]** `dir()` on the module, read from R:
 
 ```
 fbri                     -> common, package_managers
@@ -673,7 +673,7 @@ breaks the environment.
 
 ## "No internet access" is too strong — it is *Meta-proxied hosts only*
 
-**[verified 2026-08-23]** This file and `SKILL.md` both say the research environment has no internet access. The
+**[verified 2026-08-23]** This file and `SKILL.md` both say the SRE has no internet access. The
 measured behaviour is narrower and more useful:
 
 | Target | Result |
@@ -735,6 +735,6 @@ conda-forge packages, and its success/failure verdict cannot be trusted for anyt
 an R package.** Verify from the filesystem and run the binary by absolute path — `Sys.which()`
 will not find it because the prefix is not on `PATH`.
 
-This matters beyond one package: it means the environment can be given **capabilities the approved-model
+This matters beyond one package: it means the SRE can be given **capabilities the approved-model
 list does not cover** — OCR here — through Meta's own documented channel, without routing model
 weights around that list.

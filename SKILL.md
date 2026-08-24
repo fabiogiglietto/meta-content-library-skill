@@ -16,7 +16,7 @@ updated: 2026-08-24
 - **Export**: notebook only, and **its outputs are stripped** — code, markdown and
   **images** survive; cell outputs, stdout, stderr and HTML do not. Numbers do not
   leave as numbers. See `references/utilities.md` § "Getting Results Out"
-- **No internet access** *(inside the research environment — not for you; see below)*: R packages
+- **No internet access** *(inside the SRE — not for you; see below)*: R packages
   come from a custom CRAN mirror and pre-trained ML models from an approved
   Hugging Face list — see `references/utilities.md`
 - **Server type**: CPU or **GPU**, chosen when the notebook server starts and
@@ -27,7 +27,7 @@ updated: 2026-08-24
 [Meta's list](https://developers.facebook.com/docs/researcher-platform/features/ml-models)
 first and compare it against `references/ml_models_approved.md` — it grows, and
 the skill's copy is a dated transcription. The no-internet constraint above binds
-the code you write for the research environment, **not you**: you run on the researcher's machine.
+the code you write for the SRE, **not you**: you run on the researcher's machine.
 Procedure and fallback: `references/utilities.md` § "Download Machine Learning
 Models".
 
