@@ -2,7 +2,7 @@
 
 > **Documented, not tested.** Everything in this file is transcribed from the
 > Meta Content Library API guides and Data dictionary (fetched 2026-08-21).
-> None of it has been run against a live SRE session, unlike the tables in
+> None of it has been run against a live session, unlike the tables in
 > `field_reference.md` marked as confirmed. Treat an unexpected `NULL` column or
 > a rejected parameter as this file being wrong, not your query — and settle it
 > with `client$openapi_spec()` (SKILL.md § "OpenAPI Spec").
@@ -202,7 +202,7 @@ Message and update fields:
 
 `multimedia` on Facebook channel messages carries type, MCL ID, duration and
 user tags. Media **URLs** resolve only in an approved third-party cleanroom; in
-the SRE you must request `multimedia{url}` explicitly and it may come back empty.
+the research environment you must request `multimedia{url}` explicitly and it may come back empty.
 
 ## Facebook Marketplace Listings
 
