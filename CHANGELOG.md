@@ -4,6 +4,66 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v1.11.2 (2026-08-24)
+
+### Enum casing is settled — and it is not uniform
+
+`docs/OPEN_QUESTION_ENUM_CASING.md` is **deleted**, as its own header instructed
+once both halves were answered. The answers now live with the parameters they
+describe, per release-checklist rule 4.
+
+**[verified 2026-08-21]** Three castings, each established separately:
+
+| Where | Casing | How |
+|---|---|---|
+| `sort` | lowercase — `most_to_least_views` | the 2025-11-10 REST-ful pass |
+| `mode` | UPPERCASE — `"SNAPSHOT"` / `"LIVE"` | the `enum` in `client$openapi_spec()`, 5 occurrences |
+| `status` (returned) | UPPERCASE — `COMPLETE` | `get_status()` on four live jobs |
+
+This is a **confirmation** of what `SKILL.md` already carried from v1.7.0
+testing, not a discovery. What is new is that the 2025-11-10 lowercasing pass
+provably did **not** reach job status, and that `status` carries no `enum` in the
+spec at all — only prose — so nothing but a live job could ever have settled it.
+`mode`'s spec *description* meanwhile reads "snapshot mode" in lowercase while
+its `enum` says `SNAPSHOT`: **prose casing does not predict enum casing**, which
+is why `query_params.md` now carries a table rather than a rule.
+
+**No code changes.** Every example already passed `"SNAPSHOT"`, and
+`mcl_wait_for_job()` stays **case-insensitive on purpose** — one session on one
+API version is not a contract, and the failure mode if it changes is silent.
+
+### `since` / `until` is not a clean UTC day
+
+**[verified 2026-08-21]** `since = "2026-08-20", until = "2026-08-21"` returned
+`creation_time` from **2026-08-20 00:14:45Z through 2026-08-21 00:59:52Z** — 18
+of 2,872 rows fell on the 21st. So `until` is **not** exclusive at UTC midnight.
+
+The exact boundary is left **[open]** rather than guessed: only the first hour of
+the 21st appeared, which is consistent with an offset of about an hour from UTC
+but not distinguishable from other explanations on one observation.
+`query_params.md` documents the workaround — request a day wider and filter
+client-side on `creation_time`, which is correct under any boundary semantics.
+
+### Two producer-list traps
+
+**[verified 2026-08-21]** **List names are not unique.** One `lists/producers`
+response held two lists with byte-identical names, same platform, same producer
+count, same composition — one evidently a UI "Make a copy". Resolve-by-name
+silently picks one, so `producer_lists.md` now carries a uniqueness assert.
+
+**The UI and API disagree on producer count.** A list whose UI header read "50 of
+832 producers" returned **830** from `lists/producers/{id}`. Cause **[open]**.
+The API count is authoritative for batching arithmetic; sizing a loop from the UI
+figure leaves it permanently short.
+
+### ID handling: the scientific-notation rule has a scope
+
+**[verified 2026-08-21]** It covers **post, producer and surface** ids, which are
+16-digit numerics. It does **not** cover **async job ids** or **producer-list
+ids**, which in v6.0 are date-slugs (`2026-08-21-nqw-ytm`, `2026-08-17-cwqm`) —
+already strings, no hazard. `SKILL.md` § "ID Handling" says so explicitly now,
+since the rule as written invited applying it to every id in the API.
+
 ## v1.11.1 (2026-08-23)
 
 ### Removed `docs/SRE_AUTOMATION_SURFACE.md` — it was a stale copy of someone else's fact

@@ -470,10 +470,11 @@ for (i in 1:3) {
 ```
 
 **Record the exact casing.** This is the one test that prints the raw status
-string rather than routing it through `mcl_job_status()`, so it is where the
-open question in `docs/OPEN_QUESTION_ENUM_CASING.md` gets settled. Transcribe
-what you see verbatim — `COMPLETE` and `complete` are different answers, and
-normalizing it here throws away the observation.
+string rather than routing it through `mcl_job_status()`. The documented value
+is **`COMPLETE`**, uppercase (`references/query_params.md` § "Post Filters") —
+this test confirms it still holds on the version under test. Transcribe what you
+see verbatim — `COMPLETE` and `complete` are different answers, and normalizing
+it here throws away the observation.
 
 **Expected Outcome:**
 - Status transitions from IN_PROGRESS to COMPLETE
@@ -1621,10 +1622,11 @@ print(mcl_fromJSON(async_resp$text))
 - [ ] Async hyphenated path works
 - [ ] `limit` ceiling confirmed (documented as 0-50)
 - [ ] `mode` accepted as `"LIVE"` uppercase — try lowercase `"live"` and record
-- [ ] Record the literal string `job$get_status()` returns (`COMPLETE` or
-      `complete`). `mcl_wait_for_job()` is case-insensitive so nothing breaks
-      either way, but the observed value settles the open question in
-      `docs/OPEN_QUESTION_ENUM_CASING.md` — bring the result back there
+- [ ] Record the literal string `job$get_status()` returns and confirm it is
+      **`COMPLETE`**, the documented value. `mcl_wait_for_job()` is
+      case-insensitive so nothing breaks either way, but a lowercase
+      `complete` here means the casing table in `references/query_params.md`
+      needs updating for this version
 - [ ] Job deleted after the test
 
 **Screenshot Required:** Yes - CRITICAL (validates the hyphenated async path)
