@@ -721,6 +721,20 @@ p <- "/home/jovyan/.fort/user_packages/conda/bin/tesseract"
 file.exists(p); system2(p, "--version")
 ```
 
-**Untested:** whether the files are actually there. If they are, the `Failed install` message is
-cosmetic and native binaries are usable by absolute path. If they are not, `Conda$Install` really
-is R-only and the Python `Pip` channel is the route for anything else.
+**[verified 2026-08-24] The files ARE there — the `Failed install` message is cosmetic.**
+
+```
+EXISTS TRUE | bin-files 273
+VER tesseract 5.5.3
+List of available languages in ".../user_packages/conda/share/tessdata/" (125): ... ita ita_old ...
+```
+
+A 138-package conda transaction installed a working `tesseract 5.5.3` with **125 language
+models**, and the wrapper called it a failure. **So `Conda$Install` does install native
+conda-forge packages, and its success/failure verdict cannot be trusted for anything that is not
+an R package.** Verify from the filesystem and run the binary by absolute path — `Sys.which()`
+will not find it because the prefix is not on `PATH`.
+
+This matters beyond one package: it means the SRE can be given **capabilities the approved-model
+list does not cover** — OCR here — through Meta's own documented channel, without routing model
+weights around that list.
