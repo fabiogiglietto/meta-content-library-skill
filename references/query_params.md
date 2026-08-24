@@ -9,8 +9,8 @@
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `q` | string | Search query — keywords and boolean operators. **No double-quoted phrases** (subcode 3790184) |
-| `since` | string | Start date (YYYY-MM-DD) |
-| `until` | string | End date (YYYY-MM-DD) |
+| `since` | string | Start date (YYYY-MM-DD). **Not a clean UTC-midnight boundary — see below** |
+| `until` | string | End date (YYYY-MM-DD). **Inclusive of at least part of the named date — see below** |
 | `limit` | integer | Results per page (use `L` suffix: `100L`) |
 | `lang` | string | Language filter (ISO 639-1: "en", "es") |
 | `country` | string | Country filter (ISO 3166-1: "US", "GB") |
@@ -61,10 +61,50 @@ Note also that `media_type` (singular) is a *response field* on Instagram posts;
 `media_types` (plural) was the deprecated *filter*. They are not the same thing,
 and only the filter was replaced.
 
-Enum **values** are lowercase (`most_to_least_views`, not
-`MOST_TO_LEAST_VIEWS`) — the 2025-11-10 REST-ful pass lowercased them. The
-`mode` values `"SNAPSHOT"` / `"LIVE"` are the tested spellings and stay
-uppercase.
+**Enum casing in v6.0 is not uniform. Do not generalise from one parameter to
+another** — all three of these were verified separately on 2026-08-21:
+
+| Where | Casing | How verified |
+|---|---|---|
+| `sort` | **lowercase** — `most_to_least_views` | the 2025-11-10 REST-ful pass lowercased them |
+| `mode` | **UPPERCASE** — `"SNAPSHOT"` / `"LIVE"` | `enum` declaration in `client$openapi_spec()`, 5 occurrences |
+| `status` (returned) | **UPPERCASE** — `COMPLETE` | `get_status()` on four live jobs |
+
+Note the trap that makes guessing unsafe: `mode`'s own `description` in the spec
+reads "live mode or snapshot mode" in lowercase while its `enum` says
+`["LIVE", "SNAPSHOT"]`. **Prose casing in this spec does not predict enum
+casing.** `status` has no `enum` in the spec at all — only prose reading "in
+progress, completed, failed, etc." — so its uppercase value could only ever have
+been established by running a job, which is what settled it.
+
+## The `since` / `until` window is not a clean UTC day
+
+**[verified 2026-08-21]** Requesting `since = "2026-08-20", until = "2026-08-21"`
+against a producer list returned posts with `creation_time` from
+**2026-08-20 00:14:45 UTC through 2026-08-21 00:59:52 UTC** — 18 of 2,872 rows
+fell on the 21st.
+
+So `until` is **not** exclusive at UTC midnight; it includes at least part of the
+named date. What the boundary actually is remains **[open]**: only the first hour
+of the 21st appeared, not the whole day, while the window opened before 01:00 on
+the 20th. That is consistent with an offset of about an hour from UTC, but a
+single observation cannot distinguish that from other explanations and this file
+does not assert one.
+
+`creation_time` itself is documented UTC (`field_reference.md`).
+
+**What to do about it.** Do not rely on the boundary. Request one day wider than
+you need and filter client-side on `creation_time`:
+
+```r
+# want: posts created on 2026-08-20 UTC
+res <- ...   # query with since = "2026-08-20", until = "2026-08-21"
+ct   <- as.POSIXct(gsub("T", " ", sub("(\\+|Z).*$", "", res$creation_time)), tz = "UTC")
+res  <- res[which(as.Date(ct) == as.Date("2026-08-20")), , drop = FALSE]
+```
+
+This is correct under any boundary semantics, and comparing the returned range
+against the requested one is how the anomaly above was found in the first place.
 
 ## Async-Only Parameters
 

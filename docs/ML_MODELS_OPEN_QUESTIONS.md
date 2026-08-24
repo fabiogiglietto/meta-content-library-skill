@@ -14,7 +14,8 @@ Meta, not observed), **[inferred]** (follows from those, not itself observed),
 **[open]**.
 
 Delete this file once every question below is answered and the answers live in
-`utilities.md` — the same rule `OPEN_QUESTION_ENUM_CASING.md` carried.
+`utilities.md` — the same rule the retired `OPEN_QUESTION_ENUM_CASING.md`
+carried, and which retired it.
 
 ---
 

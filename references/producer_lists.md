@@ -260,6 +260,27 @@ lists <- mcl_fromJSON(response$text)
 print(lists)
 ```
 
+### Resolving a list by name — names are NOT unique
+
+**[verified 2026-08-21]** A single `lists/producers` response carried **two**
+lists with byte-identical names — same platform, same producer count, same
+composition, one evidently made with the UI's "Make a copy". A resolve-by-name
+helper will silently pick one of them, and which one it picks is not stable.
+
+Because the list id is a date-slug generated per snapshot (§ "Share producer
+lists between the UI and the API"), resolving by name is the natural reflex.
+Assert uniqueness every time:
+
+```r
+ll  <- mcl_fromJSON(client$get(path = "lists/producers")$text)
+d   <- if (!is.null(ll$data)) ll$data else ll
+hit <- d[trimws(tolower(d$name)) == tolower(TARGET_NAME), ]
+stopifnot(NROW(hit) == 1)          # 2 matches is a real, observed case
+list_id <- hit$id[1]
+```
+
+Prefer pinning the id itself in analysis code, with the date it was generated.
+
 ## Get Producer List Details
 
 The response contains a `producers` **data.frame** with columns `id`, `name`, `type` — not a simple vector of IDs.
@@ -292,6 +313,17 @@ head(producers)
 ids <- producers$id
 stopifnot(is.character(ids))   # a numeric vector here means fromJSON() was used
 ```
+
+### The UI and the API can disagree on producer count
+
+**[verified 2026-08-21]** For one list the UI header read *"50 of 832
+producers"* while `lists/producers/{id}` returned **830**. The cause is
+**[open]** — plausibly accounts that no longer resolve.
+
+**Treat `nrow(list_data$producers)` as authoritative for batching arithmetic**,
+and do not check it against the UI figure to decide whether a pull is complete.
+A batching loop sized from the UI number will look like it is two producers
+short of a full pass every time.
 
 ## Query Posts from Producer List
 
