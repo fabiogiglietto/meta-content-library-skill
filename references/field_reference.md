@@ -309,7 +309,8 @@ Engagement fields on Instagram comments (like and reply counts) are unconfirmed
 
 **[verified 2026-08-22]** Meta's post data dictionary documents several product surfaces on one
 page, distinguished only by URL anchor. The section at **`#dd-fb-post-3pcleanroom`** describes
-the **Third-Party Cleanroom** schema, **not** the Content Library API served in the SRE.
+the **Third-Party Cleanroom** schema, **not** the Content Library API served in the
+research environment.
 
 Fields documented there that the Content Library API **does not return**, tested on both a
 group and a page surface, in both parent and dotted form:
@@ -386,7 +387,7 @@ time-limited download link generated per request**, not a stable content address
   different presigned URLs. Any de-duplication or diffusion analysis keyed on media URL is
   invalid. Use `shared_post_id` for reshare identity; there is no image-identity field.
 
-Retrieving the bytes additionally depends on outbound network from an SRE cell — untested, and
+Retrieving the bytes additionally depends on outbound network from a notebook cell — untested, and
 gated on Meta's Import & Export Policy — and analysing them needs a **vision model, which the
 approved-model list does not contain** (`ml_models_approved.md`). So today: retrievable in
 principle, not analysable.

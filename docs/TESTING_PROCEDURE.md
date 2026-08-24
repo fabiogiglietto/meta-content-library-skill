@@ -6,7 +6,7 @@
 
 ## Overview
 
-This document provides a systematic procedure to test all code examples in the MCL API R Skill repository. Testing should be performed in the Meta Secure Research Environment (SRE) with access to the MCL API.
+This document provides a systematic procedure to test all code examples in the MCL API R Skill repository. Testing should be performed in Meta's research environment with access to the MCL API.
 
 ### Testing Environment Requirements
 
@@ -19,7 +19,7 @@ This document provides a systematic procedure to test all code examples in the M
 ### Testing Approach
 
 Since code cannot be executed automatically, each example must be:
-1. Copied into a Jupyter notebook cell in the SRE
+1. Copied into a Jupyter notebook cell in the research environment
 2. Executed manually
 3. Results verified against expected outcomes
 4. Screenshots captured for documentation
@@ -1820,7 +1820,7 @@ cat("rows:", nrow(don), "vs donor_count:", fr$statistics.donor_count[1], "\n")
 - **Quota Exhaustion:** If quota runs low, prioritize critical tests
 - **Slow Jobs:** Some jobs may take 5-10 minutes; be patient
 - **Missing Prerequisites:** Some tests require data from previous tests
-- **Network Issues:** SRE connection may be slow; allow extra time
+- **Network Issues:** the connection may be slow; allow extra time
 
 ### Troubleshooting
 
