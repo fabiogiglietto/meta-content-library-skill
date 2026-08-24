@@ -625,3 +625,116 @@ and is not. SNAPSHOT jobs refresh every 30 days with updated data, including
 
 Full comparison and the 100-snapshot cap: `references/collections.md` § "The
 100-Snapshot Cap".
+
+## The package-manager table above is incomplete — there are four channels, not two
+
+**[verified 2026-08-23, in a live SRE session]** `dir()` on the module, read from R:
+
+```
+fbri                     -> common, package_managers
+fbri.package_managers    -> Pip, PipException, huggingface, pip
+```
+
+So `huggingface` is one of **two** Python-side channels, and R has **two** of its own.
+Meta documents all four; this file previously named only CRAN and Hugging Face.
+
+| You want | Use | Source |
+|---|---|---|
+| An R package from CRAN | `fbrir` → `CRAN$new()$InstallPackages("abglasso")` | [Install R packages](https://developers.facebook.com/docs/researcher-platform/features/install-r) |
+| An R package (or **any conda-forge package**, including native binaries) | `fbrir` → `Conda$new()$Install("r-treemap")` | same page |
+| A Python package | `from fbri.package_managers import Pip; Pip.get_instance().install("pkg")` | [Install Python packages](https://developers.facebook.com/docs/researcher-platform/pip) |
+| A pre-trained model from Hugging Face | `fbri.package_managers.huggingface` (above) | ML models page |
+
+```r
+library(fbrir)
+cran <- CRAN$new();  cran$InstallPackages(c("abctools", "abdiv"))
+conda <- Conda$new(); conda$Install(c("r-timetk", "r-timereg"))   # R packages are prefixed "r-"
+```
+
+```python
+from fbri.package_managers import Pip
+pip = Pip.get_instance()
+pip.install("package"); pip.install(["a", "b"]); pip.install("pkg", upgrade=True)
+pip.list(); pip.uninstall("pkg"); pip.purge()      # purge removes ALL user-installed packages
+```
+
+**Both routes go through a Meta proxy**, and neither needs an approval step: R packages via
+`https://mesa-override-graph-api.test.fb-researchtool.com/public/external-proxy/`, Python via a
+private **AWS CodeArtifact** PyPI mirror whose credentials are configured for you.
+
+**The `Conda` channel is the consequential one.** conda-forge carries **native binaries**, not
+just R and Python libraries — which means capabilities the approved-model list does not cover
+(an OCR engine, image and video tooling) may be installable without touching that list at all.
+A classical engine is not a pre-trained model, and the two gates are separate.
+
+Meta's own operating advice, worth following: **use a notebook dedicated to installs**, restart
+the kernel afterwards, and **only uninstall what you installed** — removing system-level packages
+breaks the environment.
+
+## "No internet access" is too strong — it is *Meta-proxied hosts only*
+
+**[verified 2026-08-23]** This file and `SKILL.md` both say the SRE has no internet access. The
+measured behaviour is narrower and more useful:
+
+| Target | Result |
+|---|---|
+| `prod-fortapis-api-async-uploads.s3.amazonaws.com` (a presigned `multimedia{url}`) | **HTTP 200, 208,284 bytes, `image/jpg`** — fetched from a cell with `requests` |
+| `HF_ENDPOINT` (Meta's Hugging Face reverse proxy) | works — a pinned model downloaded through it |
+| `cran.r-project.org` via `available.packages()` | **hung until the kernel was interrupted** |
+
+So outbound network from a cell **does** work, to **Meta-operated or Meta-proxied hosts**. That is
+why the `fbri`/`fbrir` package managers exist at all: they are not conveniences wrapping a direct
+connection, they are the connection. Code that assumes a public endpoint will hang rather than
+fail fast — budget a timeout.
+
+> **This does not settle the Terms question.** Fetching media into the enclave is an *import*, and
+> Terms §4 puts imports under the Import & Export Policy. What is recorded here is what the
+> network does, not what the contract permits.
+
+### ⚠ `Conda$new()$Install()` reports "Failed install" for non-R packages — even when conda succeeds
+
+**[verified 2026-08-24]** `conda$Install("tesseract")` printed conda's own transaction log
+through to completion:
+
+```
+[142] "Downloading and Extracting Packages: ...working... done"
+[143] "Preparing transaction: ...working... done"
+[144] "Verifying transaction: ...working... done"
+[145] "Executing transaction: ...working... done"
+[1]   "Failed install: tesseract, from channel: https://conda.anaconda.org/conda-forge/linux-64"
+```
+
+`Sys.which("tesseract")` came back **empty** afterwards. So the wrapper's verdict and conda's own
+output disagree: **conda resolved and executed a 138-package transaction, then `fbrir` declared
+the install failed.**
+
+The likely cause is in the wrapper, not the channel: Meta's page says *"R package names begin
+with `r-`"*, so `Conda$Install` is written for **R packages** and presumably verifies by looking
+for an installed R library. A native binary satisfies no such check, so it reports failure
+regardless of what conda did. Packages install into `/home/jovyan/.fort/user_packages/conda`,
+which is **not on `PATH`** — another reason `Sys.which()` finds nothing even on success.
+
+**Before concluding a native package is unavailable, check the filesystem, not the verdict:**
+
+```r
+p <- "/home/jovyan/.fort/user_packages/conda/bin/tesseract"
+file.exists(p); system2(p, "--version")
+```
+
+**[verified 2026-08-24] The files ARE there — the `Failed install` message is cosmetic.**
+
+```
+EXISTS TRUE | bin-files 273
+VER tesseract 5.5.3
+List of available languages in ".../user_packages/conda/share/tessdata/" (125): ... ita ita_old ...
+```
+
+A 138-package conda transaction installed a working `tesseract 5.5.3` with **125 language
+models**, and the wrapper called it a failure. **So `Conda$Install` does install native
+conda-forge packages, and its success/failure verdict cannot be trusted for anything that is not
+an R package.** Verify from the filesystem and run the binary by absolute path — `Sys.which()`
+will not find it because the prefix is not on `PATH`.
+
+This matters beyond one package: it means the SRE can be given **capabilities the approved-model
+list does not cover** — OCR here — through Meta's own documented channel, without routing model
+weights around that list.
