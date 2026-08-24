@@ -1,6 +1,6 @@
 # MCL API R Skill for Claude
 
-> **Version:** 1.11.4 — see [CHANGELOG.md](CHANGELOG.md)
+> **Version:** 1.11.5 — see [CHANGELOG.md](CHANGELOG.md)
 
 A Claude skill for working with the Meta Content Library (MCL) API v6.0 using R.
 
@@ -31,23 +31,48 @@ Everything the skill teaches is in **[SKILL.md](SKILL.md)** and the
 
 ## Installation
 
-### Claude Desktop / Claude Code
+Nothing here auto-updates. However you install it, you get a snapshot of the
+repository at that moment — watch [CHANGELOG.md](CHANGELOG.md) for new versions
+and re-run the update step below.
 
-```json
-{
-  "skills": [
-    {
-      "source": "github:fabiogiglietto/mcl-api-r-skil"
-    }
-  ]
-}
+### Claude Code
+
+Clone once, then symlink the clone into your personal skills directory. The
+command name comes from the *directory* name, so link it as `mcl-api-r`:
+
+```bash
+git clone https://github.com/fabiogiglietto/mcl-api-r-skil.git ~/skills/mcl-api-r-skil
+ln -s ~/skills/mcl-api-r-skil ~/.claude/skills/mcl-api-r
 ```
 
-### Manual
+For a project-local install, symlink into that project's `.claude/skills/`
+instead — or clone straight into `.claude/skills/mcl-api-r` if collaborators
+should get the skill with the repository.
 
-1. Download the latest release
-2. Extract to your skills directory
-3. Reference the skill in your Claude configuration
+Update with `git pull` in the clone. Claude Code watches the skills directory,
+so a pulled `SKILL.md` is picked up without a restart — but a conversation that
+has already invoked the skill keeps the copy it loaded, so start a new session
+after pulling. Files under `references/` are read on demand and are current as
+soon as the pull lands.
+
+### claude.ai and Claude Desktop
+
+Upload the skill as a zip under **Customize → Skills → Add**. The zip must have
+the skill folder as its root, not the files loose at the top level:
+
+```
+mcl-api-r.zip
+└── mcl-api-r/
+    ├── SKILL.md
+    └── references/
+```
+
+```bash
+git clone https://github.com/fabiogiglietto/mcl-api-r-skil.git mcl-api-r
+zip -r mcl-api-r.zip mcl-api-r -x 'mcl-api-r/.git/*'
+```
+
+To update, build a fresh zip from a newer clone and upload it again.
 
 ## Usage
 
