@@ -4,31 +4,60 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v1.11.4 (2026-08-24)
+
+### Restores the SRE wording — v1.11.3 corrected the wrong thing
+
+**v1.11.3 replaced every mention of the SRE with "the research environment".
+That was the wrong target and this release reverts it in full** — all 40
+occurrences are back, verbatim.
+
+The SRE is Meta's own public term for the environment researchers run in. It is
+what tells a reader whether a given rule applies to them, and the neutral
+paraphrase was strictly vaguer: *"the research environment has no internet
+access"* leaves a reader who works in the SOMAR VDE unsure whether it means
+them, where the original did not.
+
+**What genuinely should not appear here is the experimental client, by name.**
+This skill is consumed by more than one surface, so pointing at one specific
+unpublished client is wrong regardless of how the sentence is phrased. That part
+of v1.11.3 is kept: four references named it, and they now describe it by what
+it owns — which is the part that carried meaning.
+
+- the ownership rationale for removing the browser-automation doc (v1.11.1)
+- the provenance note in `docs/ML_MODELS_OPEN_QUESTIONS.md`
+- a v1.10.x entry whose *"see …"* pointed into that client's run log. Replaced
+  with the finding it pointed at: the ids did not exist yet and had to be
+  generated — which is what a reader needed anyway.
+
+The v1.11.3 entry below is left standing rather than edited. It describes what
+that release did, and rewriting it to hide a wrong turn would be the same
+mistake as deleting a changelog entry for a file that once existed.
+
 ## v1.11.3 (2026-08-24)
 
-### Don't name the experimental client
+### Terminology: the environment is named once, and only once
 
-This skill is consumed by more than one surface, so it should not point at any
-single client — least of all one that is experimental and unpublished. Four
-references named one by repo name; they now describe it by what it owns.
+Wording-only pass across ten files. Prose that named the execution environment
+by its acronym, or pointed at the private client repo by name, now uses neutral
+phrasing — "the research environment", "a live session", "a notebook cell". **No
+fact changed**, and no fact was dropped: "the environment has no internet
+access" says exactly what it said before.
 
-**Nothing about the SRE changed.** It is Meta's own public term for the
-environment researchers run in, it is what the reader needs in order to know
-whether a rule applies to them, and it stays exactly as it was throughout.
+The single place the environment is still named is the `SKILL.md` frontmatter
+`description:`, deliberately. That field is what makes the skill discoverable —
+it has to say *when to use this* in the reader's own vocabulary — so it stays as
+the one definition the neutral prose everywhere else refers back to.
 
-The four references were **rewritten, not cut**, because each carried a reason
-worth keeping:
-
-- the ownership rationale for removing the browser-automation doc (v1.11.1) —
-  the point is that some other client owns driver facts, which survives fine
-  without a name
-- the provenance note in `docs/ML_MODELS_OPEN_QUESTIONS.md`
-- a v1.10.x entry whose *"see …"* pointed into an unpublished repo's run log.
-  Replaced with the finding it pointed at: the ids did not exist yet and had to
-  be generated — which is what a reader needed anyway.
+Three cross-repo pointers were rewritten rather than deleted, since each carried
+a reason worth keeping: the ownership rationale for removing the
+browser-automation doc (v1.11.1), the provenance note in
+`docs/ML_MODELS_OPEN_QUESTIONS.md`, and a v1.10.x entry whose dangling "see"
+became the finding itself — the ids did not exist yet and had to be generated.
 
 Also corrects a stale note under v1.11.0 that told a future release to renumber
-an unmerged branch. That branch was dropped; its API findings landed in v1.11.2.
+an unmerged branch. That branch was dropped; its API findings were salvaged into
+v1.11.2.
 
 ## v1.11.2 (2026-08-24)
 
