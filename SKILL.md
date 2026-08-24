@@ -1,13 +1,13 @@
 ---
 name: mcl-api-r
 description: Meta Content Library (MCL) API v6.0 helper for R users on Meta Research Platforms. Use when researchers need to query Facebook, Instagram or WhatsApp public content using R via reticulate in the Meta Secure Research Environment (SRE) or SOMAR Virtual Data Enclave (VDE). Covers async queries, collections, jobs, rate limits, SNAPSHOT mode, producer lists, channels, Marketplace, fundraisers, loading IDs as character, and proper integer handling.
-version: 1.11.1
-updated: 2026-08-23
+version: 1.11.2
+updated: 2026-08-24
 ---
 
 # Meta Content Library API v6.0 for R
 
-> **Skill Version:** 1.11.1 | **Updated:** 2026-08-23 | [Changelog](CHANGELOG.md)
+> **Skill Version:** 1.11.2 | **Updated:** 2026-08-24 | [Changelog](CHANGELOG.md)
 
 ## Environment
 
@@ -75,6 +75,12 @@ MCL IDs are 15–19 digit numbers. Some endpoints return them **unquoted** in JS
 - **Scientific notation** below 2^53: the value is exact but prints/pastes as `9.6378e+14`, so `paste0("instagram/posts/", post_id, "/comments/preview")` builds a garbage URL and the API answers *"Invalid Meta Content Library ID"* (subcode 3790088) — the same error you get from a raw URL ID.
 
 There's also a typing hazard: `bigint_as_char = TRUE` alone converts a column **only when some value in that batch exceeds 2^53**, so the same column is `chr` in one chunk and `num` in the next, and `bind_rows()` fails with *"Can't combine `id` <character> and `id` <double>"*.
+
+**Scope note — [verified 2026-08-21].** This applies to **post, producer and
+surface** ids, which are 16-digit numerics. It does **not** apply to **async job
+ids** or **producer-list ids**, which in v6.0 are date-slugs of the form
+`2026-08-21-nqw-ytm` and `2026-08-17-cwqm`. Those are already strings and carry
+no scientific-notation hazard.
 
 **Fix both at once — parse with `bigint_as_char = TRUE`, then coerce every ID field unconditionally:**
 
@@ -283,17 +289,20 @@ if (nrow(results) > 0) { ... }  # Error: missing value where TRUE/FALSE needed
 
 ## Waiting for a Job
 
-Never poll with a bare `while (job$get_status() != "COMPLETE")`. The 2025-11-10
-REST-ful pass lowercased enum values, and it is unconfirmed whether job status
-was included. Under a bare comparison the two possible outcomes are both silent:
+**[verified 2026-08-21]** `get_status()` returns **`COMPLETE`** — uppercase.
+Observed on four separate jobs against v6.0; the 2025-11-10 REST-ful pass did
+**not** lowercase job status. A bare
+`while (status != "COMPLETE")` would not, in fact, have spun.
+
+Keep using the helper anyway. One session on one API version is not a contract,
+the failure mode if that changes is silent, and the helper costs nothing:
 
 - `while (status != "COMPLETE")` against `"complete"` — **spins forever**, no error
 - `while (status == "IN_PROGRESS")` against `"in_progress"` — **exits immediately**
   and reads a half-written result as if it were final
 
-Use this helper instead. It is correct under either casing, it cannot spin
-forever, and it treats an unrecognized status as "keep waiting" rather than as
-success:
+It is correct under either casing, it cannot spin forever, and it treats an
+unrecognized status as "keep waiting" rather than as success:
 
 ```r
 mcl_job_status <- function(job) toupper(trimws(job$get_status()))
@@ -315,7 +324,8 @@ mcl_wait_for_job <- function(job, poll = 5, timeout = 3600) {
 Every wait in this skill goes through `mcl_wait_for_job()`. If you compare a
 status yourself, compare `mcl_job_status(job)`, never the raw return value.
 
-Resolving the casing question for good: `docs/OPEN_QUESTION_ENUM_CASING.md`.
+Casing is settled and **not uniform across parameters** — see the table in
+`references/query_params.md` § "Post Filters".
 
 ## Async Query Template
 
