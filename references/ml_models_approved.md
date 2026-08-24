@@ -1,4 +1,4 @@
-# Approved ML models in the SRE — snapshot
+# Approved ML models in the research environment — snapshot
 
 **This file exists to be diffed.** It records Meta's approved-model list exactly
 as fetched, so a later fetch that differs is a detectable event rather than a
