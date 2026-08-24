@@ -1,4 +1,4 @@
-# Open question: how ML models actually work in the SRE
+# Open question: how ML models actually work in the research environment
 
 **Status: documented, almost nothing verified. 2026-08-22.**
 `references/utilities.md` § "Download Machine Learning Models" was written by
@@ -41,7 +41,7 @@ time.
 | 13 | Which ML libraries are preinstalled, at what **versions**? | **[verified 2026-08-22]** `transformers` OK, `torch` OK, **`sentence_transformers` NOT AVAILABLE**. Versions still unread (section 4 not yet seen) | The missing one bites: Meta lists two Sentence-Transformers models that the usual `SentenceTransformer()` call cannot load | **A partly done** |
 | 14 | **Disk quota** — will `nllb-200-3.3B` (~17 GB) even fit? | **[verified 2026-08-22]** `/home/jovyan` on `/dev/nvme2n1`: **32G total, 8.6G used, 23G available (28%)**; RAM 64 GB | Fits with ~6 GB spare — two large models will not coexist | **A done** |
 | 15 | Do downloads **persist across sessions**? | [open] | If home is ephemeral, every session re-downloads and the workflow changes shape | E |
-| 16 | Any **egress restriction on model outputs**? | **[verified 2026-08-22] yes, a severe one.** An exported notebook was inspected: every cell's output replaced by `[NOTICE] N output(s) filtered out`, source intact. Notebook export **strips all cell outputs** except images; the S3 feature writes to an **SRE-owned** bucket and excludes Meta Content Library anyway | Embeddings and classifications **cannot leave as data** — only as rendered images. Now in `utilities.md` § "Getting Results Out" | **done, by reading** |
+| 16 | Any **egress restriction on model outputs**? | **[verified 2026-08-22] yes, a severe one.** An exported notebook was inspected: every cell's output replaced by `[NOTICE] N output(s) filtered out`, source intact. Notebook export **strips all cell outputs** except images; the S3 feature writes to a **platform-owned** bucket and excludes Meta Content Library anyway | Embeddings and classifications **cannot leave as data** — only as rendered images. Now in `utilities.md` § "Getting Results Out" | **done, by reading** |
 | 17 | Is inference realistically drivable **from R**, or is a Python cell the honest recommendation? | **[verified 2026-08-22] R works fine.** Tokenizer + model loaded and a mean-pooled embedding produced entirely from R via reticulate: `torch.Size([1, 384])` in 0.5 s | Our "leave it in Python" advice was too pessimistic and has been corrected | **C done** |
 | 18 | Do downloads consume any **quota** (MCL or otherwise)? | **[verified 2026-08-22]** the traffic goes to `prod-fortapis-graph-api.fb-researchtool.com`, a different host from the MCL API, and touches no MCL endpoint. No budget interaction | Confirmed by the endpoint value | **B done** |
 | 19 | **Offline gotcha**: does `from_pretrained(local_path)` still try to reach the hub? | **[verified 2026-08-22] NO.** Tokenizer and model each loaded from the local path in **0.1 s**, no hang, no error, with no offline environment variables set | `TRANSFORMERS_OFFLINE` / `HF_HUB_OFFLINE` are not needed | **C done** |
@@ -374,9 +374,9 @@ MiniLM is ~1.9 GB, not 931 MB.
 
 ### Automation note — how this was read
 
-Read off the live session by **screenshot**, not transcription. How the SRE is
-driven is not this skill's concern — that fact is owned by the
-client repo, which holds the SRE automation surface. Recorded here only as
+Read off the live session by **screenshot**, not transcription. How the research
+environment is driven is not this skill's concern — that fact is owned by the
+client that holds the browser automation surface. Recorded here only as
 provenance for the reading.
 
 ### Phase A — recon, zero downloads
@@ -516,6 +516,6 @@ Two bear directly on questions above; recorded so they are not lost:
 | [Install Python packages yourself](https://developers.facebook.com/docs/researcher-platform/pip) | `utilities.md` § "Install R Packages" documents only the R side; the Python side is what `fbri` lives in |
 | [Export Jupyter notebooks](https://developers.facebook.com/docs/researcher-platform/features/notebook-export) | Confirms or corrects the export claim in `SKILL.md` § Environment |
 | [Share R notebooks](https://developers.facebook.com/docs/researcher-platform/features/share-notebooks) | Unexamined |
-| [Compare SRE to RStudio](https://developers.facebook.com/docs/researcher-platform/features/r-studio) | Unexamined |
+| [RStudio on the researcher platform](https://developers.facebook.com/docs/researcher-platform/features/r-studio) | Unexamined |
 
 Out of scope for the ML work, in scope for the skill.
