@@ -4,6 +4,29 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v1.11.5 (2026-08-24)
+
+### Install instructions that actually install the skill
+
+The old Installation section offered a `{"skills": [{"source": "github:..."}]}`
+config block. No such mechanism exists, and this repository is not packaged as a
+plugin, so that block installed nothing. It is replaced by the two paths that
+work: clone-and-symlink for Claude Code, and a zip upload under **Customize →
+Skills** for claude.ai and Claude Desktop. The "download the latest release"
+fallback is gone too — there are no releases to download.
+
+The section now also says what happens when the skill is updated, because
+nothing here auto-updates: `git pull` is the whole update story for a clone, a
+pulled `SKILL.md` is picked up without restarting Claude Code but not inside a
+conversation that already invoked the skill, and `references/` files are current
+as soon as the pull lands. Zip installs are re-uploaded.
+
+The frontmatter `description` is also cut from 446 characters to 198, to fit the
+200-character limit that claude.ai applies to uploaded skills. It keeps the
+platform names, the SRE/VDE scope and the five trigger nouns — async queries,
+producer lists, SNAPSHOT mode, IDs, quotas — and drops the rest of the feature
+list, which `README.md` § "What it covers" already carries.
+
 ## v1.11.4 (2026-08-24)
 
 ### Restores the SRE wording — v1.11.3 corrected the wrong thing
