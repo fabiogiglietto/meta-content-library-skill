@@ -1,4 +1,4 @@
-# Support ticket draft — ML models in the research environment
+# Support ticket draft — ML models in the SRE
 
 Drafted 2026-08-22 from the Phase A/B findings in `ML_MODELS_OPEN_QUESTIONS.md`.
 The blocking question is #11 DeBERTaV3, which probing cannot settle because a

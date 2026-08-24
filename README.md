@@ -1,13 +1,13 @@
 # MCL API R Skill for Claude
 
-> **Version:** 1.11.3 — see [CHANGELOG.md](CHANGELOG.md)
+> **Version:** 1.11.4 — see [CHANGELOG.md](CHANGELOG.md)
 
 A Claude skill for working with the Meta Content Library (MCL) API v6.0 using R.
 
 ## Overview
 
 This skill helps researchers query Facebook, Instagram and WhatsApp public
-content using R via reticulate in Meta's research environment or the
+content using R via reticulate in Meta's Secure Research Environment (SRE) or the
 SOMAR Virtual Data Enclave (VDE).
 
 Everything the skill teaches is in **[SKILL.md](SKILL.md)** and the
@@ -86,7 +86,7 @@ monitoring.
 - R with the reticulate package
 - MCL API v6.0 access
 
-Export from the research environment is by notebook only, and the exported notebook is
+Export from the SRE is by notebook only, and the exported notebook is
 **scrubbed**: code, markdown and images are kept, but cell outputs are removed.
 Anything you need to take away has to be rendered as an image.
 
