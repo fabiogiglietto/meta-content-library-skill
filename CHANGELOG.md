@@ -4,6 +4,36 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v1.11.4 (2026-08-24)
+
+### Restores the SRE wording — v1.11.3 corrected the wrong thing
+
+**v1.11.3 replaced every mention of the SRE with "the research environment".
+That was the wrong target and this release reverts it in full** — all 40
+occurrences are back, verbatim.
+
+The SRE is Meta's own public term for the environment researchers run in. It is
+what tells a reader whether a given rule applies to them, and the neutral
+paraphrase was strictly vaguer: *"the research environment has no internet
+access"* leaves a reader who works in the SOMAR VDE unsure whether it means
+them, where the original did not.
+
+**What genuinely should not appear here is the experimental client, by name.**
+This skill is consumed by more than one surface, so pointing at one specific
+unpublished client is wrong regardless of how the sentence is phrased. That part
+of v1.11.3 is kept: four references named it, and they now describe it by what
+it owns — which is the part that carried meaning.
+
+- the ownership rationale for removing the browser-automation doc (v1.11.1)
+- the provenance note in `docs/ML_MODELS_OPEN_QUESTIONS.md`
+- a v1.10.x entry whose *"see …"* pointed into that client's run log. Replaced
+  with the finding it pointed at: the ids did not exist yet and had to be
+  generated — which is what a reader needed anyway.
+
+The v1.11.3 entry below is left standing rather than edited. It describes what
+that release did, and rewriting it to hide a wrong turn would be the same
+mistake as deleting a changelog entry for a file that once existed.
+
 ## v1.11.3 (2026-08-24)
 
 ### Terminology: the environment is named once, and only once
@@ -91,7 +121,7 @@ since the rule as written invited applying it to every id in the API.
 
 ## v1.11.1 (2026-08-23)
 
-### Removed the browser-automation surface doc — it was a stale copy of someone else's fact
+### Removed `docs/SRE_AUTOMATION_SURFACE.md` — it was a stale copy of someone else's fact
 
 **Deleted, not moved.** The file was a 621-line snapshot, last touched
 2026-08-22, of a document that had since grown to 1309 lines in the client repo
@@ -107,13 +137,13 @@ copy."* The rule was written for new facts and the violation was an old one.
 **The scope line, stated so this cannot recur:** this skill holds only what is
 needed to write reliable, functional code against the Meta Content Library
 API — endpoints, parameters, schemas, ID handling, caps, error subcodes, and the
-patterns that make them work. **How the research environment is driven is not an API
-fact.** It belongs to the client that owns the browser automation surface, the
-driver design and the egress policy. A fact that would still be true for a
+patterns that make them work. **How the SRE is driven is not an API fact.** It
+belongs to the client that owns the browser automation surface, the driver
+design and the egress policy. A fact that would still be true for a
 different research question on a different corpus, and is about the API, lives
 here; if it is about driving the enclave, it does not.
 
-No pointer file replaces it. A stub about environment automation would be the same
+No pointer file replaces it. A stub about SRE automation would be the same
 scope violation in miniature, and the client repo is not published, so a link
 would dangle for anyone reading this repo on GitHub.
 
@@ -124,8 +154,8 @@ All three cited the deleted file and would have dangled:
 - `CHANGELOG.md` (the v1.11.0 ML-models entry) and
   `docs/ML_MODELS_OPEN_QUESTIONS.md` both borrowed the deleted file's
   four-tag sourcing convention. The four tags — **[verified]**,
-  **[documented]**, **[inferred]**, **[open]** — are generic method, not an
-  environment fact, so they are now **stated inline** rather than cited across repos. This
+  **[documented]**, **[inferred]**, **[open]** — are generic method, not an SRE
+  fact, so they are now **stated inline** rather than cited across repos. This
   removes a cross-repo dependency the skill never needed.
 - `docs/ML_MODELS_OPEN_QUESTIONS.md` § "Automation note" cross-referenced a
   section on reading the session by screenshot. Rewritten to record the
@@ -140,8 +170,8 @@ into v1.11.2.
 
 ### Deleting a job does not refund budget — learned at a cost of ~74,000 records
 
-**[verified 2026-08-23, by the researcher]** A submission cell ran twice on an unstable
-session, creating six SNAPSHOT jobs for three tiers. Deleting the duplicates **frees the
+**[verified 2026-08-23, by the researcher]** A submission cell ran twice on an unstable SRE
+stream, creating six SNAPSHOT jobs for three tiers. Deleting the duplicates **frees the
 snapshot slots but does not return the records** — budget is consumed at submission and is
 gone. `SKILL.md` § "SNAPSHOT vs LIVE Mode" now states this, with the one-line
 `file.exists()` guard that would have made the re-run a no-op. **Every cell that submits a job
@@ -370,7 +400,7 @@ on Meta's page.
 
 ### Added
 
-**ML models in the research environment** — `references/utilities.md` § "Download Machine Learning
+**ML models in the SRE** — `references/utilities.md` § "Download Machine Learning
 Models", now largely **[verified]** in a live session rather than transcribed:
 
 - `fbri.package_managers.huggingface` imports from R-side reticulate; reticulate
@@ -421,8 +451,8 @@ answering which models are available, re-fetch and compare.
 
 ## v1.10.0 (2026-08-21)
 
-**Added: how to download machine learning models in the research environment**
-(`references/utilities.md` § "Download Machine Learning Models"). The environment has no
+**Added: how to download machine learning models in the SRE**
+(`references/utilities.md` § "Download Machine Learning Models"). The SRE has no
 internet access, so `from_pretrained("facebook/mbart-...")` cannot reach
 huggingface.co — an approved model must be downloaded first through
 `fbri.package_managers.huggingface` (`hf_download_repo` for a whole repo,
@@ -475,7 +505,7 @@ still open, now as documentation rather than as a live hazard. The file records
 which public pages were checked and came back empty (there is no public
 async-jobs page at all, and neither `get-api-code` nor `api-search-id` prints a
 `mode` value), a Claude for Chrome prompt for sweeping what the check missed, and
-a zero-budget in-environment diagnostic that reads the OpenAPI enum and an
+a zero-budget in-SRE diagnostic that reads the OpenAPI enum and an
 already-finished job rather than submitting anything.
 
 **Corrected in the v1.9.0 entry below:** it claimed a fix to
@@ -533,7 +563,7 @@ update previews.
 
 **Added: Test Suite 11** to `docs/TESTING_PROCEDURE.md` (five sync-only,
 zero-async-budget tests) so the new surfaces can be promoted from documented to
-verified in one live session. It also asks the tester to record whether `mode`
+verified in one SRE session. It also asks the tester to record whether `mode`
 accepts a lowercase value and where the `limit` ceiling actually falls.
 
 Not changed: `mode = "SNAPSHOT"` / `"LIVE"` stay uppercase. The 2025-11-10
