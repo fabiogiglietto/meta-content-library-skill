@@ -126,6 +126,17 @@ client$post(path = paste0("async/jobs/", job_id, "/snapshot"))
 client$delete(path = paste0("async/jobs/", job_id))
 ```
 
+### Your local copies do not survive the month
+
+A SNAPSHOT job's data is held by Meta for up to a year, but **every file you
+write inside the SRE — including a job's saved `.json` — is deleted in the
+monthly maintenance window**. Recovery is by re-reading the job, not by reading
+your file. `references/utilities.md` § "The monthly wipe" owns this.
+
+Because a re-run re-submits and budget is charged at submission, the recovery
+path after a wipe is to fetch results from the existing `query_id` / job IDs, not
+to re-execute the submission cells.
+
 ### The 100-Snapshot Cap
 
 SNAPSHOT-mode jobs are capped at **100 concurrent per user**; exceeding it fails

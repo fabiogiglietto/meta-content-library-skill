@@ -19,6 +19,22 @@ account can see, or the first page of more?
   absence here is weak evidence that the listing is complete. Weak, not conclusive: 80 is
   a suspiciously round number, and an endpoint can page without advertising it on page one.
 
+### Checked against Meta's documentation, 2026-08-25 — still nothing
+
+The appendix page that documents the feature
+([Share producer lists](https://developers.facebook.com/docs/content-library-and-api/appendix/share-producer-list))
+describes the UI steps, the snapshot semantics, the `/lists/producers/<api_producer_list_id>`
+path and the same-account-type sharing rule. **It says nothing about pagination,
+about a `limit` parameter, or about any cap on the number of lists returned.**
+
+That is a third weak signal in the same direction as the missing `paging` key —
+and it is worth exactly as much: the guides omit an `estimate` endpoint that the
+OpenAPI spec declares (see `references/surfaces.md`), so an absence in the guides
+is not evidence of an absence in the API. **The spec, not the guides, is where
+this could still be answered without a live call**: read
+`client$openapi_spec()$paths[["/lists/producers"]]$get$parameters` and see whether
+a `limit` or `after` is declared. That is free and has not been done.
+
 ## Why it matters
 
 Resolve-by-name is the documented and recommended way to reach a list, because the API id

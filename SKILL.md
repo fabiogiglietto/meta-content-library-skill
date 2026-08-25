@@ -1,17 +1,19 @@
 ---
 name: mcl-api-r
 description: Meta Content Library (MCL) API v6.0 in R. Use when querying Facebook, Instagram or WhatsApp content via reticulate in the SRE or SOMAR VDE: async queries, producer lists, SNAPSHOT mode, IDs, quotas.
-version: 1.12.0
+version: 1.13.0
 updated: 2026-08-25
 ---
 
 # Meta Content Library API v6.0 for R
 
-> **Skill Version:** 1.12.0 | **Updated:** 2026-08-25 | [Changelog](CHANGELOG.md)
+> **Skill Version:** 1.13.0 | **Updated:** 2026-08-25 | [Changelog](CHANGELOG.md)
 
 ## Environment
 
-- **Platform**: Amazon WorkSpaces Secure Browser with JupyterLab
+- **Platform**: Amazon WorkSpaces Secure Browser with JupyterLab — there are
+  **two portals, United States and Ireland**; pick the one your access was
+  granted for
 - **Language**: R with Python client via reticulate
 - **Export**: notebook only, and **its outputs are stripped** — code, markdown and
   **images** survive; cell outputs, stdout, stderr and HTML do not. Numbers do not
@@ -22,14 +24,23 @@ updated: 2026-08-25
 - **Server type**: CPU or **GPU**, chosen when the notebook server starts and
   switchable mid-session without losing work — see `references/utilities.md` §
   "CPU or GPU Server"
+- **Everything except your notebooks is deleted every month.** On the 1st of each
+  month the SRE wipes all cell outputs, all non-notebook files and all query
+  results, and JupyterHub is unavailable for the day. Notebooks (code and
+  markdown) survive. Plan for it — `references/utilities.md` § "The monthly wipe"
 
-**Answering questions about available ML models?** Re-fetch
-[Meta's list](https://developers.facebook.com/docs/researcher-platform/features/ml-models)
-first and compare it against `references/ml_models_approved.md` — it grows, and
-the skill's copy is a dated transcription. The no-internet constraint above binds
-the code you write for the SRE, **not you**: you run on the researcher's machine.
-Procedure and fallback: `references/utilities.md` § "Download Machine Learning
-Models".
+**Everything in this skill is a dated transcription of a moving target.** The
+no-internet constraint above binds the code you write for the SRE, **not you**:
+you run on the researcher's machine and can check Meta's documentation yourself.
+Two cases where you should, before answering:
+
+- **Available ML models** — re-fetch
+  [Meta's list](https://developers.facebook.com/docs/researcher-platform/features/ml-models)
+  and compare against `references/ml_models_approved.md`; it grows. Procedure and
+  fallback: `references/utilities.md` § "Download Machine Learning Models".
+- **Anything else, when this skill is more than a month stale** — see
+  [Staying Current](#staying-current) at the end of this file. It is one page
+  fetch, and it tells you whether the rest of the file can be trusted.
 
 ## Critical Requirements
 
@@ -152,14 +163,25 @@ write(toJSON(spec, pretty = TRUE), "openapi_spec.json")
 ## Key Endpoints (v6.0)
 
 ```
-Facebook:  /facebook/{posts|pages|groups|events|profiles|comments}/{preview|job|estimate}
+Facebook:  /facebook/{posts|pages|groups|events|profiles}/{preview|job|estimate}
+           /facebook/comments/{job|estimate}          <- NO /comments/preview
            /facebook/{channels|fundraisers|marketplace-listings}/preview
-Instagram: /instagram/{posts|accounts|comments}/{preview|job|estimate}
+Instagram: /instagram/{posts|accounts}/{preview|job|estimate}
+           /instagram/comments/{job|estimate}         <- NO /comments/preview
            /instagram/{channels|fundraisers}/preview
 WhatsApp:  /whatsapp/channels/preview
 Utility:   /budgets, /async/jobs, /async/queries, /async/collections
 Producer:  /lists/producers, /lists/producers/{list_id}
+Shared:    /{platform}/posts/{preview|job}/{alias_id}, /lists/shared-searches/{alias_id}
 ```
+
+**Comments break the `{resource}/{preview|job}` pattern.** There is no
+`facebook/comments/preview` or `instagram/comments/preview`. Reading comments
+**synchronously** goes through the *parent* — `facebook/posts/{post_id}/comments/preview`,
+`facebook/comments/{comment_id}/replies/preview` — while reading them in bulk goes
+through `{platform}/comments/job` with `parent_ids`. Guessing the flat sync path
+is the single most common comments mistake, and it is why the "✗ Wrong" example
+in [Nested Endpoints](#nested-endpoints) uses exactly that URL.
 
 **The `{resource}/{preview|job}` pattern does not extend to every surface.**
 Async message jobs hyphenate the resource and hang off the platform root —
@@ -192,6 +214,8 @@ Some resources require parent IDs in the URL path, not as query parameters:
 
 | Resource | Pattern | Example |
 |----------|---------|---------|
+| Facebook post comments | `/facebook/posts/{post_id}/comments/preview` | Get comments on a post |
+| Facebook comment replies | `/facebook/comments/{comment_id}/replies/preview` | Get replies to a comment |
 | Instagram post comments | `/instagram/posts/{post_id}/comments/preview` | Get comments on a post |
 | Instagram comment replies | `/instagram/comments/{comment_id}/replies/preview` | Get replies to a comment |
 | Instagram channel messages | `/instagram/channels/{channel_id}/messages/preview` | Get channel messages |
@@ -213,6 +237,22 @@ client$get(
   params = list("post_ids" = post_id)
 )
 ```
+
+### The general shape: ID-based retrieval
+
+Both patterns above are instances of one rule — an MCL ID can be put **in the
+path**, on its own or followed by a nested resource:
+
+```
+{entity_type}/{mcl_id}/preview                      # one entity by ID
+{entity_type}/{mcl_id}/{nested_resource}/preview    # its children
+```
+
+Documented as supported for Facebook pages, groups, events, profiles, posts,
+comments, Marketplace listings, fundraisers, donations, channels and channel
+messages; Instagram accounts, posts, comments, fundraisers, channels and channel
+messages; WhatsApp channels and channel updates; and nonprofits. These are sync
+reads, so the 1,000-result page cap applies — go async when you need more.
 
 ## Finding Surface IDs (MCL IDs ≠ Facebook/Instagram URL IDs)
 
@@ -374,12 +414,24 @@ posts <- mcl_fromJSON(file.path("results", "climate_2024.json"))
 | Comment budget | 500,000 comments/7-day rolling (separate) |
 | Max async results | ~100,000 per query |
 | Snapshots | 100 concurrent per user (subcode 3790172; LIVE jobs are exempt) |
+| Comment estimate | Reports "1 million or more" above 1,000,000 |
+| Multimedia queries | 1,000 per rolling week — **third-party cleanroom environments only**, not the SRE |
+
+The 7-day window is rolling *"to the second"*, not to the day: each query's usage
+expires exactly seven days after it was submitted.
 
 **Check budget:**
 ```r
 budget <- mcl_fromJSON(client$get(path = "budgets")$text)
 cat("Available:", budget$queries$max_usage_limit - budget$queries$total_usage, "\n")
 ```
+
+`budgets` reports four numbers per pool, not two:
+`current_usage`, `preallocated_rows_for_running_queries`, `total_usage` and
+`max_usage_limit`. **`preallocated_rows_for_running_queries` is the reason a
+deleted job does not refund budget** — rows are reserved when the job is
+submitted, not when it finishes. `references/utilities.md` § "Check Quota Status"
+reads all four.
 
 ## SNAPSHOT vs LIVE Mode
 
@@ -432,6 +484,80 @@ rerun_response <- client$post(
 new_job_id <- mcl_fromJSON(rerun_response$text)$id
 ```
 
+## API Search IDs — run a UI search from R
+
+**[added 2026-08-25 from Meta's docs]** A search built in the Content Library UI
+can be handed to the API as an **API search ID** (`alias_id`) — an alias for the
+query *and all its filters*. It stores the search, never the results.
+
+The format is the same date-slug shape as job and producer-list IDs:
+`2024-10-12-iehs`, `2024-10-12-iut-opq`. Like those, it is already a string —
+none of the [ID Handling](#id-handling-always-load-ids-as-character) hazards
+apply.
+
+**Create it in the UI**: run the search → *Create API search ID* in the top menu
+bar (or, from a saved search: *Saved searches* → **…** → *Create API search ID*).
+
+**Use it from R** — the ID goes in the **path**, not in `params`:
+
+```r
+# Run the stored search synchronously
+resp <- client$get(path = "facebook/posts/preview/2026-08-25-abcd")
+
+# ... or as an async job
+job <- client$post(path = "facebook/posts/job/2026-08-25-abcd",
+                   params = list("mode" = "SNAPSHOT",
+                                 "name" = "UI search, replayed",
+                                 "description" = "PI: …, IRB #…"))
+
+# Inspect the filters an alias carries, without running it
+filters <- mcl_fromJSON(client$get(path = "lists/shared-searches/2026-08-25-abcd")$text)
+```
+
+`lists/shared-searches/{alias_id}` returns `id`, `creation_time`, `platform`
+(facebook or instagram), **`filters_sync_search`** and **`filters_async_search`**
+(the same filters formatted for each call style), and `version` — the API version
+current when the alias was made. Read it before running an alias you did not
+create: an alias is opaque, and this is the only way to see what it will query.
+
+**Override individual filters** by appending parameters to the call; the rest of
+the stored search is preserved. This is the clean way to re-run someone else's
+search over your own date window.
+
+Two things to know before relying on it:
+
+- **Available for Facebook and Instagram post searches**, and shareable only with
+  users who have **the same account type** as you.
+- **A UI search that returns more than 100,000 results will fail as an async
+  job.** The UI shows you the result count; check it there before replaying the
+  search here. The same applies to the *Get API code* button (`</>` in the UI
+  menu bar), which generates a ready-made R or Python snippet for the current
+  search — convenient, and under no obligation to fit inside the API's caps.
+
+Producer lists have the same UI-to-API bridge, with its own snapshot semantics:
+`references/producer_lists.md` § "Share producer lists between the UI and the
+API".
+
+## Citing the Data
+
+Meta assigns a **DOI per version**, and the API and the Library are cited
+separately. For v6.0:
+
+| Product | Citation |
+|---|---|
+| Content Library **API** | Meta Platforms, Inc., (Month Accessed, Year Accessed). Meta Content Library API version v6.0 <https://doi.org/10.48680/meta.metacontentlibraryapi.6.0> |
+| Content **Library** (the UI) | Meta Platforms, Inc., (Month Accessed, Year Accessed). Meta Content Library version v6.0 <https://doi.org/10.48680/meta.metacontentlibrary.6.0> |
+
+Cite the version you actually queried, not the current one — the DOI is
+version-specific precisely because the data scope changes between versions (the
+follower threshold alone moved 25,000 → 1,000 → 100 across v4.0, v5.0 and v6.0).
+`client$LATEST_VERSION` in the [Setup](#setup) block means a notebook re-run
+after a version bump is querying a different corpus than the paper described; pin
+the version explicitly with `client$set_default_version()` if that matters.
+
+Current list, including older versions:
+<https://developers.facebook.com/docs/content-library-and-api/citations>.
+
 ## Common Errors
 
 These are the errors that change how you write a query in the first place. For
@@ -446,13 +572,134 @@ wrong response fields — see `references/common_errors.md`.
 | Invalid parameter | Wrong ID param for platform | Facebook: `surface_ids`, Instagram: `account_ids` |
 | Invalid parameter with the right param name | ID param sent as a scalar (comma-joined string, or a length-1 vector reticulate turned into a string) | Pass an array: `as.list(ids)` |
 | `'list' object has no attribute 'items'` | Passed `params = list()` (empty list) | Omit `params`, or pass a named list |
-| Invalid Keyword Search (subcode 3790184) | Query used a double-quoted phrase | Remove double quotes; use single-word tokens joined with `OR` (quoted phrases work in the UI, not the API) |
+| Invalid Keyword Search (subcode 3790184) | Query used a double-quoted phrase | Remove double quotes. There is no phrase search to reach — matching is word by word |
+| **No error — silently narrower results** | `q` used the *words* `AND` / `OR` / `NOT`. Meta documents only the symbols `&` (or a space), `\|` and `-` | Use `climate \| policy`, `climate policy`, `vaccine -covid` — see `references/query_params.md` § "Query Syntax" |
+| **No error — only top-level comments** | A comments job without `fetch_all` | `fetch_all = TRUE` returns every reply level |
+| 404 on `{platform}/comments/preview` | That path does not exist | Sync comments hang off the parent post/comment; bulk comments go through `{platform}/comments/job` |
 | Invalid Meta Content Library ID (subcode 3790088) | Used a raw Facebook/Instagram URL ID as `surface_ids`/`account_ids` | Search the entity by name (e.g. `facebook/groups/preview` with `q`) and use the returned `id` |
 | Invalid Meta Content Library ID (subcode 3790088) with a *correct* ID | ID held as `numeric`, so it was sent as `9.6378e+14` | Parse with `mcl_fromJSON()`; pass IDs as quoted character — see [ID Handling](#id-handling-always-load-ids-as-character) |
 | Estimated response size too large (subcode 3790057) | Query would return more than ~100,000 results | Split by date window, and/or query fewer `surface_ids` |
 | Exceeded async snapshots limit (subcode 3790172) | More than 100 concurrent SNAPSHOT jobs | Use `mode = "LIVE"` when reproducibility isn't needed; delete finished snapshots |
 | Budget exceeded | Quota depleted | Wait for 7-day rolling reset |
 | Producer-list post query estimates ~0 results | List is mostly ordinary profiles, whose posts aren't in the queryable dataset | Verified or 100+ follower profiles only — see `references/field_reference.md` § "Data Scope" |
+
+## Staying Current
+
+This skill is a transcription of documentation that changes without warning, and
+**a stale field name fails silently** — `fields` drops unknown names without
+erroring, and `intersect()`-style column selection drops them again. That failure
+mode is why this section exists: nothing will tell you the skill is out of date.
+
+### Baseline — what the last check found
+
+> **Documentation checked: 2026-08-25.** At that date the newest **dated** entry
+> on Meta's changelog was **2026-04-30 (WhatsApp channels data)**, which this
+> skill covers. Everything below v6.0 in Meta's version list was already
+> reconciled.
+
+State the baseline as a *finding*, not just a date: the next checker compares one
+entry against another rather than doing arithmetic on when someone last looked.
+
+### When to check
+
+**Do not fetch on every invocation.** Two rules, both cheap to evaluate:
+
+1. **If today is more than ~30 days past the baseline date**, say so in one line
+   and offer to check. Do not block the researcher's actual question on it. A
+   natural hook: the SRE is unavailable on the first of each month anyway
+   (`references/utilities.md` § "The monthly wipe"), so that day is already lost
+   to querying and is a good one to spend on this.
+2. **If stale *and* you are about to assert something this skill marks as
+   documentation-sourced rather than `[verified DATE]`, check first.** The
+   provenance markers exist precisely so this rule is decidable — a table headed
+   "Documented, not tested" or a row without a `[verified]` stamp is exactly the
+   kind of claim that a docs change invalidates. A `[verified]` observation is
+   safer, because it was true of a real response.
+
+### The check: one page, then stop
+
+**The changelog is the tripwire.** Fetch only this:
+
+<https://developers.facebook.com/docs/content-library-and-api/changelog>
+
+Compare its topmost **dated** entry against the baseline above.
+
+- **Same entry, nothing newer → done.** Total cost: one fetch.
+- **Newer entries exist → read only the guides those entries name**, using the
+  map below. A full reconciliation of all 25 guides is a day's work and is not
+  what a monthly check is for.
+
+Two things about that page that will otherwise waste a fetch: it interleaves
+**dated** entries (no version number — the 2026 and 2025 changes) with
+**versioned** ones (v5.0, v4.0…), and **v6.0 itself shipped as the undated
+2025-11-10 "REST-ful API updates" entry**. So "is there a new version?" is the
+wrong question; "is there a dated entry newer than the baseline?" is the right
+one.
+
+### Where a changed page lands in this skill
+
+Derived 2026-08-25 by reconciling every page against every file. Use it to go
+straight from a changelog entry to the file that owns the fact — and to be sure
+a change is recorded once rather than in three places.
+
+| Meta page | Owner in this skill |
+|---|---|
+| `guides/search-guide`, `guides/advanced-search` | `references/query_params.md` § "Query Syntax (`q`)" |
+| `guides/rate-limiting` | SKILL.md § "Rate Limits & Budget"; `references/utilities.md` § "Check Quota Status" |
+| `guides/data-deletion` | `references/utilities.md` § "The monthly wipe" |
+| `guides/fb-posts`, `guides/ig-posts` | `references/field_reference.md` (post tables); `query_params.md` (post filters) |
+| `guides/fb-comments`, `guides/ig-comments`, `guides/bulk-comments` | `field_reference.md` (comment tables); `query_params.md` § "Comments Queries" |
+| `guides/fb-pages`, `fb-groups`, `fb-events`, `fb-profiles`, `ig-accounts` | `field_reference.md` (producer tables); `query_params.md` (ID params, sort defaults) |
+| `guides/fb-channel*`, `ig-channel*`, `wa-channel*`, `fb-marketplace`, `fb-fundraisers`, `ig-fundraisers`, `fb-donations` | `references/surfaces.md` — owns both parameters and fields for these |
+| `guides/id-based-retrieval` | SKILL.md § "Nested Endpoints" |
+| `appendix/data` (the data dictionary) | `field_reference.md` and `surfaces.md` — field names for every surface |
+| `appendix/field-expansion` | `query_params.md` § "Field expansion" |
+| `appendix/search-quality` | `query_params.md` § "How good is the search?" |
+| `appendix/share-producer-list` | `references/producer_lists.md` |
+| `appendix/api-search-id`, `appendix/get-api-code` | SKILL.md § "API Search IDs" |
+| `content-library-api/overview` | `field_reference.md` § "Data Scope" — geography, audience limits, the download prohibition |
+| `content-library-api/quick-start`, `get-access` | SKILL.md § "Environment" and § "Setup" |
+| `citations` | SKILL.md § "Citing the Data" |
+| `support` | `docs/SUPPORT_TICKET_DRAFT.md` |
+
+### Record the result — including "nothing changed"
+
+**A check that writes nothing down did not happen.** Next month's reader cannot
+tell "checked, clean" from "never checked", and will pay for the fetch again.
+
+- **Nothing new:** update the baseline date above and add one line to
+  `CHANGELOG.md` — *"docs check 2026-09-25: newest dated entry still 2026-04-30,
+  no action."* No version bump.
+- **Something changed:** update the affected file, bump the baseline to the new
+  entry, and follow the release checklist at the end of `CHANGELOG.md`.
+
+### When you cannot fetch
+
+Some surfaces this skill runs on have no web access. **Say so rather than
+assuming the file is current**: "this skill's documentation baseline is
+2026-08-25 and I can't check Meta's changelog from here — treat field names and
+limits as of that date." Silence reads as currency, and that is the failure this
+section exists to prevent.
+
+### Who actually runs it
+
+**In the source repo**, a monthly GitHub Action does the fetch and opens an issue
+when the changelog grows an entry — `.github/workflows/meta-docs-check.yml`, with
+its state in `.github/meta-docs-baseline.json`. Run it by hand from the Actions
+tab, or locally:
+
+```
+python3 .github/scripts/check_meta_docs.py --check    # 0 clean · 1 drift · 2 broken
+python3 .github/scripts/check_meta_docs.py --update   # after reconciling
+```
+
+**That Action does not travel with the skill.** A copy installed by zip upload,
+or symlinked from a clone that never syncs, has the protocol above and no
+scheduler — which is exactly why the protocol is written for you to execute
+rather than delegated to CI. If you are reading this file and it is more than a
+month past the baseline, the check is yours to offer.
+
+The SRE's own operational state is not this skill's business either.
 
 ## References
 

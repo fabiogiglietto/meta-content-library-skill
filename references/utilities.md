@@ -449,6 +449,58 @@ strings, or for writing and debugging the query itself, CPU starts faster.
 
 ## Getting Results Out
 
+### The monthly wipe — everything but the notebook goes
+
+**[added 2026-08-25]** Source:
+[Data deletion](https://developers.facebook.com/docs/content-library-and-api/content-library-api/guides/data-deletion).
+
+Export is not the only deadline. **Every 30 days the Secure Research Environment
+deletes almost everything you have produced**, whether or not you are finished
+with it:
+
+| Deleted | Kept |
+|---|---|
+| **All output cells** in every notebook | The `.ipynb` files themselves |
+| **All non-notebook files** on persistent storage | Input cells — code and markdown |
+| **All S3 bucket files**, including uploads, async query output and **all query results** | Graphics embedded in notebook cells |
+
+The wipe runs in a **monthly maintenance window from 12:00 AM PST on the first of
+the month through 11:59 PM PST that same day**, during which **JupyterHub is
+unavailable**. Approved research programmes studying systemic risks in the
+European Union are exempt.
+
+**Do not confuse this with SNAPSHOT retention.** They are two different
+thirty-days:
+
+| | What it is | Lives |
+|---|---|---|
+| **Server-side SNAPSHOT data** | Meta's copy of a job's results | Up to a **year**, refreshed every 30 days, shareable |
+| **Your files in the SRE** | Saved `.json`/`.csv`, S3 uploads, cell outputs | Wiped **monthly**, no exceptions |
+
+So a completed SNAPSHOT job is still there after the wipe and can be re-read; the
+CSV you wrote from it is not.
+
+**Three consequences for how you write notebooks:**
+
+1. **Write notebooks to be re-run, not to be read.** Input cells survive, so the
+   recovery path after a wipe is "run it again" — which only works if the whole
+   pipeline is in cells rather than in a file some earlier cell produced.
+2. **Guard submission cells anyway.** Re-running a notebook re-submits its jobs,
+   and budget is charged at submission with no refund. The
+   `if (file.exists("jobs.rds")) stop(...)` guard from SKILL.md § "SNAPSHOT vs
+   LIVE Mode" is *itself* wiped — the file disappears, the guard opens. After a
+   wipe, re-run against existing `query_id`s (`references/collections.md`
+   § "Query Management") rather than re-submitting.
+3. **Time long analyses away from the first of the month**, and export anything
+   you need before it.
+
+Meta's own note is worth repeating: regenerated outputs will **not** include
+content that no longer meets visibility requirements. A re-run after a wipe is
+not guaranteed to reproduce the earlier numbers — which is an argument for
+SNAPSHOT mode and for rendering key results as images while you have them.
+
+### Notebook export
+
 > **[verified 2026-08-22]** — a real notebook was exported from a live session
 > and the resulting file inspected. Sourced from
 > [Export Jupyter notebooks](https://developers.facebook.com/docs/researcher-platform/features/notebook-export)
@@ -624,7 +676,8 @@ and is not. SNAPSHOT jobs refresh every 30 days with updated data, including
 `updated_fields` and `is_invalid_id` flags for redacted content.
 
 Full comparison and the 100-snapshot cap: `references/collections.md` § "The
-100-Snapshot Cap".
+100-Snapshot Cap". Note that this is **server-side** retention — your own files
+in the SRE are wiped monthly regardless, see § "The monthly wipe" above.
 
 ## The package-manager table above is incomplete — there are four channels, not two
 
