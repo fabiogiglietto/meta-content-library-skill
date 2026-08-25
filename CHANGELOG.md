@@ -4,6 +4,88 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v1.12.0 (2026-08-25)
+
+Everything here came out of **one execution** — a top-10-by-views query over a union of
+two producer lists, 2026-08-24 — rather than from re-reading Meta's documentation. Several
+items are corrections to things this skill has asserted confidently for months. That is
+the point of running the thing.
+
+### Corrected: Facebook engagement field names were never right
+
+`field_reference.md` listed `statistics.reactions`, `.comments`, `.shares`. The API
+returns **`statistics.reaction_count`, `.comment_count`, `.share_count`**, plus a
+per-emoji breakdown (`like/love/wow/haha/sad/angry/care_count`) that the bare `reactions`
+name hid completely.
+
+Nothing written against the documented names ever worked, and nothing ever said so:
+column selection goes through `intersect()`, which drops unmatched names silently. The
+symptom is a results table with every engagement column quietly missing.
+a client's template inherited the bug from this file and shipped it.
+
+### Corrected: `async/jobs` wraps its payload in `jobs`, not `data`
+
+The defensive idiom `if (!is.null(x$data)) x$data else x` **falls through silently** on
+this endpoint — `$data` is NULL, the variable becomes the whole envelope, `$mode` is NULL,
+and any summary computed from it is wrong *without erroring*. It reported `0 of 100
+snapshot slots used` on an account holding 434 jobs; the real figure was 5.
+
+Also: `creation_time`/`update_time` are **integer epochs** on a job (they are ISO strings
+on a post — same field name, different type), and there is **no `name` column**, so a job
+cannot be identified by the name it was submitted with.
+
+### Added: the default post projection, and the permalink that does not exist
+
+`facebook/posts/preview` with no `fields` returns exactly 24 columns, now listed. Notably
+**`text` is not among them** — post bodies must be requested explicitly, and their absence
+is the default rather than a fault.
+
+**No post permalink field exists**, and this is now *verified* absent rather than merely
+unstated: no URL field in the projection, and an `openapi_spec()` grep for
+`permalink|post_url|content_url|share_url` returns zero. The Content Library **GUI** URL
+that does work is documented instead, with the two controls that establish it — a bogus
+id is rejected, and two posts by the same producer render differently, which is what rules
+out the route resolving the *producer* rather than the post. Its dataset id is
+account-scoped and cross-account resolution is untested.
+
+Also adds **`statistics.views_date_last_refreshed`** (undocumented until now, and directly
+relevant to views rankings since it dates the number being sorted on).
+
+### Extended: resolve-by-name needs a tie-break, not just a guard
+
+The documented case was two byte-identical lists. An account held **three** ids per name,
+and the two generated the same day were identical while the five-month-old one was a
+different population. `stopifnot(NROW(hit) == 1)` correctly refuses to guess and then
+leaves the caller stuck, so the resolution procedure is now written down — including that
+the listing carries **no producer count**, so telling candidates apart costs one GET each.
+
+Also records that lists overlap heavily (89 shared producers between lists of 144 and 96),
+so a union must be deduped before the ids are passed.
+
+### Confirmed
+
+- **The `since`/`until` boundary anomaly, on a 7-day window.** The until-day contributed
+  19 rows ending `00:25:33` (previously: ending `00:59:52` on a 1-day window). Still
+  **[open]** as to the exact boundary — two observations, neither pins it. What is new is
+  the cost: the narrow window would have dropped **1,085 posts**, one seventh of the
+  corpus, silently.
+- **`get_status()` returns `COMPLETE` for a LIVE job too.** The 2026-08-21 result rested
+  on four SNAPSHOT jobs, leaving open whether mode affected the casing. It does not.
+- **Views coverage is a property of the corpus, not the API** — 5.5 % on 830 ordinary
+  profiles, **88.8 %** on 130 pages + 21 profiles. Neither figure may be carried forward.
+  Both runs found hundreds of `NA` and **exactly zero** real zeros, so coercing `NA` to `0`
+  before ranking invents a result.
+
+### Open questions filed
+
+- `docs/OPEN_QUESTION_ASYNC_QUERIES_502.md` — `async/queries` returned 502 Bad Gateway
+  while every other endpoint that session was fine. If persistent, it takes out all five
+  documented query-management operations, and it is the only route to
+  duplicate-submission detection now that jobs are known to carry no name.
+- `docs/OPEN_QUESTION_LISTS_PRODUCERS_PAGINATION.md` — 80 lists returned with no paging
+  key. The hazard is not missing data but a confident misdiagnosis: a zero-match resolve
+  reading as "no API ID generated", which sends someone to regenerate an id that exists.
+
 ## v1.11.5 (2026-08-24)
 
 ### Install instructions that actually install the skill
