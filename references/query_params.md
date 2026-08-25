@@ -106,6 +106,32 @@ res  <- res[which(as.Date(ct) == as.Date("2026-08-20")), , drop = FALSE]
 This is correct under any boundary semantics, and comparing the returned range
 against the requested one is how the anomaly above was found in the first place.
 
+### Reproduced on a 7-day window — **[verified 2026-08-24]**
+
+A second run, over seven days rather than one, reproduces the same shape and shows what
+the narrow window would have cost:
+
+```
+requested:   since = 2026-08-17, until = 2026-08-24
+returned:    2026-08-17 00:01:02  ->  2026-08-24 00:25:33  UTC
+
+2026-08-17 2026-08-18 2026-08-19 2026-08-20 2026-08-21 2026-08-22 2026-08-23  2026-08-24
+      1431        830       1194       1158       1137       1100       1085          19
+```
+
+- **The until-day contributes a sliver, not a day.** 19 rows, ending **00:25:33**. The
+  2026-08-21 observation saw the sliver end at 00:59:52. Both are consistent with a
+  boundary shortly after UTC midnight on the until-day; **neither pins it**, and the size
+  of the sliver just reflects how many posts happen to exist in those first minutes. The
+  exact boundary stays **[open]**.
+- **The since-day opens at or before 00:01:02**, consistent with 00:14:45 on 2026-08-20.
+  Nothing yet shows the window opening meaningfully *after* midnight, so widening `since`
+  is optional; widening `until` is not.
+- **What the narrow window would have cost:** requesting `until = 2026-08-23` would have
+  returned that day's first ~25 minutes only — losing essentially all **1,085** posts of
+  the last target day, one seventh of the corpus, silently. This is the concrete reason
+  the mitigation above is mandatory rather than defensive.
+
 ## Async-Only Parameters
 
 | Parameter | Type | Description |

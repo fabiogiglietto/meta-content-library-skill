@@ -281,6 +281,48 @@ list_id <- hit$id[1]
 
 Prefer pinning the id itself in analysis code, with the date it was generated.
 
+#### The guard is necessary but not sufficient — you also need a tie-break
+
+**[verified 2026-08-24]** The two-identical-lists case above is the easy one. A later
+account held **three** ids per name, and they were *not* all the same list:
+
+| id | name | producers | types |
+|---|---|---|---|
+| `2026-08-24-kasv` | Extremists 2 (clean) | 96 | page 84, profile 12 |
+| `2026-08-24-iicm` | Extremists 2 (clean) | 96 | page 84, profile 12 |
+| `2026-03-29-bqtm` | Extremists 2 (clean) | **95** | page 83, profile 12 |
+
+Comparing the producer-id **sets**, not just the counts:
+
+```
+kasv vs iicm   identical: TRUE    shared 96      <- same-day pair, redundant
+kasv vs bqtm   identical: FALSE   shared 95      <- different population
+```
+
+So `stopifnot(NROW(hit) == 1)` correctly refuses to guess, but on its own it leaves you
+stuck. The resolution procedure that works:
+
+1. **Fetch each candidate's detail** — the `lists/producers` listing carries only
+   `id`, `name`, `platform`, **no producer count**, so the counts that let you tell them
+   apart require one GET per candidate.
+2. **Compare the producer-id sets**, not the counts. Equal counts do not imply equal sets.
+3. **Same-date duplicates are typically redundant** (byte-identical here, on both names) —
+   pick either and record which.
+4. **Cross-date ids are different populations**, because the date in the id is the date
+   the snapshot was taken (§ "The id format tells you when the snapshot was taken"). The
+   five-month-old ids each held one producer fewer.
+5. **The researcher chooses.** Which snapshot is correct is a research decision — a fresh
+   population or a reproduction of an older one — not something the resolver can infer.
+
+The reason this cannot be shortcut: a wrong pick here yields a complete, plausible answer
+to a slightly different question, with nothing downstream to flag it.
+
+#### Lists sharing producers is normal — dedupe before passing ids
+
+Where a query spans several lists, expect heavy overlap. `Extremists 1` (144) and
+`Extremists 2` (96) shared **89** producers, so the deduped union was **151**, not 240.
+Passing the concatenation would have sent 89 ids twice. Union, `unique()`, then chunk.
+
 ## Get Producer List Details
 
 The response contains a `producers` **data.frame** with columns `id`, `name`, `type` — not a simple vector of IDs.
