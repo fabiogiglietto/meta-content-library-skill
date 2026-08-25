@@ -100,12 +100,46 @@ resolve_originals <- function(ids) {
 ```
 
 ### Engagement Statistics
+
+**[verified 2026-08-24 against a live `facebook/posts/preview` projection]** — the names
+are `*_count`. Earlier versions of this table listed bare plurals
+(`statistics.reactions`, `.comments`, `.shares`); **those names are not returned by the
+API** and code written against them silently produces nothing, because the usual way to
+select columns is `intersect()`, which drops what it cannot match without complaint.
+
 | Field | Type | Description |
 |-------|------|-------------|
-| `statistics.reactions` | integer | Total reactions count |
-| `statistics.comments` | integer | Comment count |
-| `statistics.shares` | integer | Share count |
-| `statistics.views` | integer | View count (where available) |
+| `statistics.reaction_count` | integer | Total reactions |
+| `statistics.comment_count` | integer | Comment count |
+| `statistics.share_count` | integer | Share count |
+| `statistics.views` | integer | View count (where available — see below) |
+| `statistics.views_date_last_refreshed` | — | When the view count was last refreshed |
+
+Reactions are also broken out per emoji, which the bare `reactions` name obscured
+entirely:
+
+| Field | Field | Field |
+|---|---|---|
+| `statistics.like_count` | `statistics.love_count` | `statistics.wow_count` |
+| `statistics.haha_count` | `statistics.sad_count` | `statistics.angry_count` |
+| `statistics.care_count` | | |
+
+**`statistics.views_date_last_refreshed` matters for any views-based ranking**: it dates
+the number you are sorting on, so two posts' view counts are not necessarily current as
+of the same moment. Its exact type and semantics are **[untested]** — it was observed in
+the projection, not exercised.
+
+#### How much of a corpus carries `views` is not a property of the API
+
+"Where available" means video/reel. What fraction of a corpus that is depends entirely on
+the corpus, and two runs bracket a range wide enough to change what a ranking means:
+**5.5 %** on 2,854 posts from 830 ordinary profiles (2026-08-21), **88.8 %** on 7,935
+posts from 130 pages + 21 profiles (2026-08-24). Measure it per query rather than
+carrying either figure forward.
+
+**Distinguish absent from zero.** Both runs returned hundreds of `NA` and **exactly zero**
+real zeros (2,697/0 and 890/0). The field is *absent* on non-video posts, not
+measured-as-zero, so coercing `NA` to `0` before ranking invents a result.
 
 ### Media Fields
 | Field | Type | Description |
