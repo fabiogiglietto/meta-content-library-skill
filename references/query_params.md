@@ -519,6 +519,16 @@ estimate <- mcl_fromJSON(client$get(
 # estimate$expected_complete - TRUE if <100k (will get all results)
 ```
 
+**"Approximate" is worth a magnitude — [observed 2026-08-25].** A producer-list query
+over a 7-day window estimated **700** and the completed job returned **583**: the
+estimate ran **~20 % high**. One observation, on one query, so it is not a bound — but
+it is enough to say that `estimated_results` is a **sizing** figure, not a count.
+
+Two consequences: do not use it as the denominator of any reported rate (use
+`nrow()` of the result), and when an estimate sits just under a cap, treat it as
+*near* the cap rather than under it. `expected_complete` is the reliable half — it
+was `TRUE` and the job did return everything.
+
 ## Field expansion: the `fields` parameter uses BRACE syntax, not dots
 
 **[verified 2026-08-22]** Source:
@@ -539,6 +549,40 @@ flattened to `statistics.like_count` again. Requesting `"statistics.like_count"`
 
 Defaults: naming a parent without braces returns that entity's default expanded fields; omitting
 `fields` entirely returns default expanded fields on default parent fields.
+
+### `fields` works on the ASYNC JOB endpoint too — **[verified 2026-08-25]**
+
+Everything above was established against `preview`. It holds unchanged on
+**`facebook/posts/job`**, which is the case that costs money to get wrong: a job
+submitted without `fields` returns the 24-column default projection, and **`text` is
+not in it** (`field_reference.md` § "The default projection"). Discovering that after
+the job has completed means paying for a second job at full budget, with no refund.
+
+Verified end to end on a 211-producer list over a 7-day window — the same `fields`
+string previewed first, then submitted:
+
+```r
+FIELDS <- paste0("id,creation_time,text,lang,surface{id,name,type},",
+                 "statistics{views,reaction_count,comment_count,share_count,like_count}")
+
+# 1. FREE positive control -- confirm the projection before spending anything
+pv <- mcl_fromJSON(client$get(path = "facebook/posts/preview",
+                              params = c(list("limit" = 5L, "fields" = FIELDS), id_params))$text)
+stopifnot("text" %in% names(pv$data))          # the field that is NOT default
+
+# 2. the same string on the job
+job <- client$post(path = "facebook/posts/job",
+                   params = c(list("fields" = FIELDS, "mode" = "LIVE"), id_params))
+```
+
+All nine requested fields came back on both calls, and the 583-row job result carried
+`text`, `lang`, `surface.{id,name,type}` and the four `statistics.*` columns — brace
+expansion, flattening and all.
+
+> **The discipline this implies is cheap and worth making a habit:** `preview` costs no
+> budget, so **preview the exact `fields` string before submitting the job that uses it.**
+> Because unknown names are dropped *silently* (next section), a typo is otherwise
+> invisible until the job is paid for and finished.
 
 ### `fields` drops unknown names SILENTLY — always use a positive control
 
