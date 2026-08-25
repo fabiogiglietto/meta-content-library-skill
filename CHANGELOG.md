@@ -4,6 +4,50 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v1.13.1 (2026-08-25)
+
+Two promotions from **read** to **observed**, both from a single live researcher run
+(top posts by views from a 211-page Facebook producer list, 7-day window, 583 rows
+returned). No behaviour changes, no corrections — v1.13.0 was right about both. What
+this release adds is the thing v1.13.0 could not supply, because it was a reading pass:
+evidence.
+
+### `fields` brace expansion verified on the ASYNC JOB endpoint
+
+v1.13.0 established brace syntax against `facebook/posts/preview`
+(`query_params.md` § "Field expansion", verified 2026-08-22). It behaves identically on
+**`facebook/posts/job`** — confirmed with a nine-field projection
+(`text,lang,surface{id,name,type},statistics{...}`) that came back complete on both the
+preview and the 583-row job result, brace expansion and response flattening included.
+
+**Why this one was worth verifying rather than assuming.** `text` is not in the
+24-column default projection, so a job submitted without `fields` returns no post
+bodies — and unlike a bad parameter, that failure is *silent and expensive*: it only
+surfaces once the job has completed and been paid for, and a second job costs full
+budget with no refund. The generalisation from `preview` to `job` was the plausible
+one, but "plausible" and "the budget is already spent" are a bad pairing.
+
+The habit that follows is now written down beside it: **`preview` the exact `fields`
+string before submitting the job that uses it.** Previews are free, unknown field names
+are dropped silently, and this converts an expensive post-hoc discovery into a free
+pre-flight one.
+
+### `estimated_results` given a magnitude
+
+"Approximate count" now carries an observed number: an estimate of **700** preceded a
+job returning **583** — **~20 % high**. One observation is not a bound and is not
+presented as one, but it is enough to stop `estimated_results` being used as a
+denominator for reported rates (use `nrow()`), and enough to treat an estimate sitting
+just under a cap as *near* it. `expected_complete` was `TRUE` and honest: the job did
+return everything.
+
+### Also confirmed, no change needed
+
+Job `status` returned **`COMPLETE`**, uppercase — the fifth live confirmation, against
+Meta's 2025-11-10 "all enums now lowercase" changelog entry. `field_reference.md`
+§ "Where the docs and this file disagree" already records this; the observation is
+logged here rather than restated there.
+
 ## v1.13.0 (2026-08-25)
 
 A **documentation reconciliation** pass: Meta's
