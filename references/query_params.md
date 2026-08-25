@@ -9,8 +9,8 @@
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `q` | string | Search query — keywords and boolean operators. **No double-quoted phrases** (subcode 3790184) |
-| `since` | string | Start date (YYYY-MM-DD). **Not a clean UTC-midnight boundary — see below** |
-| `until` | string | End date (YYYY-MM-DD). **Inclusive of at least part of the named date — see below** |
+| `since` | string **or integer** | Start date `YYYY-MM-DD` **or a UNIX timestamp**. **Not a clean UTC-midnight boundary — see below** |
+| `until` | string **or integer** | End date `YYYY-MM-DD` **or a UNIX timestamp**. **Inclusive of at least part of the named date — see below** |
 | `limit` | integer | Results per page (use `L` suffix: `100L`) |
 | `lang` | string | Language filter (ISO 639-1: "en", "es") |
 | `country` | string | Country filter (ISO 3166-1: "US", "GB") |
@@ -36,20 +36,45 @@
 | `post_ids` | list | Specific posts, max 250 |
 | `fields` | list | Field selection |
 
-`profile_ids`, `page_ids`, `group_ids` and `event_ids` were deprecated in v4.0
-in favour of `surface_ids`; `admin_countries` and `owner_types` became
-`surface_countries` and `surface_types`. Code written against the older names
-predates two deprecations and will not run.
+### The v4.0 deprecations are scoped to `facebook/posts` — **[corrected 2026-08-25]**
 
-### The Four Spellings of "verified"
+On **`facebook/posts`**, `profile_ids` / `page_ids` / `group_ids` / `event_ids`
+were replaced by `surface_ids` in v4.0, and `admin_countries` / `owner_types`
+became `surface_countries` / `surface_types`. Post code written against the older
+names predates two deprecations and will not run.
+
+**Those same names are alive and current on the producer-search endpoints.** An
+earlier version of this file stated the deprecation without qualification, which
+reads as "never use `page_ids`" — wrong, and it leaves you with no way to
+restrict a Page search to known Pages:
+
+| Endpoint | ID parameter | Max |
+|---|---|---|
+| `facebook/pages/preview` | `page_ids` | 250 |
+| `facebook/groups/preview` | `group_ids` | 250 |
+| `facebook/profiles/preview` | `profile_ids` | 250 |
+| `facebook/events/preview` | `event_ids` | 250 |
+| `instagram/accounts/preview` | `account_ids` | 250 |
+| `facebook/posts/preview` | `surface_ids` (**not** the four above) | 250 |
+| `instagram/posts/preview` | `account_ids` / `post_ids` | 250 |
+
+`admin_countries` likewise survives on `facebook/pages` and `facebook/profiles`
+(it filters on the admin's country); it is only on `facebook/posts` that the
+name is `surface_countries`. `website` is a further filter on both of those two
+endpoints, matching the URL in the About section.
+
+### The Five Spellings of "verified"
 
 Same concept, a different parameter name on every surface. Getting it wrong
-returns "Invalid parameter", not a silently ignored filter:
+returns "Invalid parameter", not a silently ignored filter. **Two rows were added
+2026-08-25 from Meta's guides** — the Instagram *posts* spelling in particular is
+not the one the Instagram *accounts* endpoint uses:
 
 | Endpoint | Filter parameter |
 |----------|------------------|
 | `facebook/posts` | `is_surface_verified` |
-| `facebook/profiles`, `instagram/accounts` | `is_verified` |
+| `instagram/posts` | `is_account_verified` |
+| `facebook/pages`, `facebook/profiles`, `instagram/accounts` | `is_verified` |
 | `facebook/channels`, `instagram/channels` | `is_admin_verified` |
 | `whatsapp/channels` | `is_channel_verified` |
 
@@ -132,6 +157,95 @@ returned:    2026-08-17 00:01:02  ->  2026-08-24 00:25:33  UTC
   the last target day, one seventh of the corpus, silently. This is the concrete reason
   the mitigation above is mandatory rather than defensive.
 
+### The experiment that would close this — **[not yet run]**
+
+`since` and `until` are documented as accepting **either `YYYY-MM-DD` or a UNIX
+timestamp**, on every endpoint that has them. That is a lever the two runs above
+did not have: a timestamp names an exact second, so one query pins the boundary
+that two date-granular observations could not.
+
+```r
+# 2026-08-24 00:00:00 UTC, exactly
+until_epoch <- as.integer(as.POSIXct("2026-08-24 00:00:00", tz = "UTC"))
+params <- list("since" = "2026-08-17", "until" = until_epoch, ...)
+```
+
+If the returned maximum `creation_time` still runs past the requested instant,
+the offset is server-side and the date form is not the cause. Procedure:
+`docs/TESTING_PROCEDURE.md` § "Pin the `until` boundary with an epoch second".
+
+Until that is run, **the widen-and-filter mitigation above stays the operative
+advice** — it is correct under every boundary semantics, and a timestamp that
+turns out to behave like a date would silently reintroduce the loss.
+
+## Sort Defaults Differ by Endpoint — and the Default Is Rarely Chronological
+
+> Transcribed from the endpoint guides, 2026-08-25. Casing is lowercase
+> throughout (see the enum-casing table above).
+
+| Endpoint | `sort` values | Default |
+|---|---|---|
+| `facebook/posts`, `instagram/posts` | `most_to_least_views`, `newest_to_oldest`, `oldest_to_newest` | `most_to_least_views` |
+| `facebook/pages` | `most_to_least_follower_count`, `newest_to_oldest` | `most_to_least_follower_count` |
+| `facebook/groups` | `most_to_least_member_count`, `newest_to_oldest` | `most_to_least_member_count` |
+| `facebook/profiles` | `most_to_least_followers_count`, `newest_to_oldest` | `most_to_least_followers_count` |
+| `facebook/events` | `most_to_least_people_going_count`, `newest_to_oldest` | `most_to_least_people_going_count` |
+| `facebook/comments`, `instagram/comments` | `newest_to_oldest`, `oldest_to_newest`, `none` | `newest_to_oldest` |
+| `facebook/channels`, `instagram/channels` | `most_to_least_member_count`, `newest_to_oldest`, `oldest_to_newest` | `most_to_least_member_count` |
+| `whatsapp/channels` | `most_to_least_follower_count`, `most_to_least_channel_updates`, `newest_to_oldest`, `oldest_to_newest` | `most_to_least_follower_count` |
+
+Two traps:
+
+- **The docs spell the Pages value `most_to_least_follower_count` and the
+  Profiles value `most_to_least_followers_count`** — singular on one endpoint,
+  plural on the other. One of the two may be a documentation typo; treat the
+  pair as unverified and read the enum from `client$openapi_spec()` before
+  relying on either. An unrecognised `sort` is an "Invalid parameter" error, so
+  this fails loudly rather than silently.
+- **`sort` is documented as synchronous-only on `instagram/accounts`,
+  `facebook/events` and the comments endpoints.** The bulk-comments guide states
+  outright that *"no sorting is applied in the response"* of an async comments
+  job — so an async pull is unordered and must be sorted client-side.
+
+Because a truncated result set is the *top* of the sort order, the default
+matters: a `facebook/posts` query cut off at 100,000 keeps the most-viewed
+posts, not the most recent ones.
+
+## Instagram Post Filters
+
+> Transcribed from the Instagram posts guide, 2026-08-25.
+
+Mostly parallel to the Facebook post filters, with three differences that break
+copy-pasted code:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `account_ids` | list | Instagram account IDs, max 250 — **not** `surface_ids` |
+| `account_types` | list | `creator`, `business`, `personal` — the Instagram analogue of `surface_types` |
+| `is_account_verified` | boolean | **not** `is_surface_verified` |
+| `search_scope` | enum | `post_text_only` (default), `post_text_and_image_text` |
+| `content_types` | list | `albums`, `photos`, `stories`, `videos` |
+| `sort` | enum | `most_to_least_views` (default), `newest_to_oldest`, `oldest_to_newest` |
+| `is_branded_content` | boolean | Include or exclude branded content |
+| `views_bucket_start` / `views_bucket_end` | integer | View-count bounds |
+| `post_ids` | list | Specific posts, max 250 |
+| `lang`, `since`, `until`, `fields` | | as for Facebook posts |
+
+There is no `link` filter and no `surface_countries` equivalent on Instagram.
+
+## Facebook Events Has Four Date Parameters
+
+`facebook/events/preview` distinguishes when the event *record* falls from when
+the event itself *runs*:
+
+| Parameter | Filters on |
+|---|---|
+| `since` / `until` | events **scheduled** on or after / before the date |
+| `event_since` / `event_until` | events that **started** on or after / before the date |
+
+All four accept `YYYY-MM-DD` or a UNIX timestamp. Using only `since`/`until` out
+of habit answers a different question from the one most event studies ask.
+
 ## Async-Only Parameters
 
 | Parameter | Type | Description |
@@ -142,23 +256,76 @@ returned:    2026-08-17 00:01:02  ->  2026-08-24 00:25:33  UTC
 
 ## Query Syntax (`q`)
 
-### Boolean Operators
+### Operators are SYMBOLS, not words — **[corrected 2026-08-25 from Meta's docs]**
 
-Combine terms with `AND`, `OR`, `NOT`, and parentheses:
+Source: [Advanced search guidelines](https://developers.facebook.com/docs/content-library-and-api/content-library-api/guides/advanced-search).
+
+| Operator | Written as | Examples, verbatim from the docs |
+|---|---|---|
+| AND | `&` **or a blank space** | `cat&dog&allergy` · `cat dog allergy` · `cat&dog allergy` |
+| OR | `\|` | `cat \| dog` · `cat\|dog` · `cat \|dog` |
+| NOT | `-` | `dog -puppy` · `dog-puppy` · `dog - puppy` |
+
+Whitespace around an operator is optional and does not change the meaning.
+
+**Precedence: NOT first, then AND, then OR** — left to right among clauses of
+equal precedence. Parentheses regroup:
+
+| Query | Means |
+|---|---|
+| `lemon lime \| grapefruit` | (lemon AND lime) OR grapefruit |
+| `fuyu \| persimmon - astringent` | fuyu OR (persimmon NOT astringent) |
+| `(fuyu \| persimmon) - astringent` | (fuyu OR persimmon) NOT astringent |
+| `((action movie) \| (newman \| redford)) - outlaw` | nesting is allowed |
+
+Constraints, all documented:
+
+- **Single-word keywords only.** Phrases are not supported (see below), and
+  **wildcards are not supported**.
+- **The operator characters cannot themselves be keywords** — ampersand, pipe,
+  hyphen, blank space and parentheses.
+- **Right-to-left languages** are parsed right to left, keeping the same
+  NOT → AND → OR precedence, and **grouping with parentheses is not supported**
+  for them.
+
+### The word forms `AND` / `OR` / `NOT` are not documented operators
+
+Earlier versions of this file taught `"climate AND policy"`, `"climate OR
+environment"` and `"vaccine NOT covid"`. **Meta's documentation lists only the
+symbols.** No live test has yet been run, so this file does not assert that the
+word forms fail — but it can say which way the error runs, and that is enough to
+stop using them:
+
+- If `OR` is treated as an **ordinary keyword**, `climate OR environment`
+  tokenises to `climate & or & environment` — every match must contain all
+  three words. That is dramatically **narrower** than the union it looks like.
+- If `OR` is dropped as a **stopword**, the query becomes `climate &
+  environment` — the intersection. Also **narrower**.
+
+Under either reading the result is narrower than the OR that was intended, and
+nothing errors. Anyone who copied `"climate OR environment"` out of an earlier
+version of this file has been running a different query than they thought.
+
+**Use the symbols.** They are what the documentation specifies:
 
 ```r
-# AND - both terms required
-params = list("q" = "climate AND policy")
+# ✓ union — either word
+params = list("q" = "climate | environment")
 
-# OR - either term
-params = list("q" = "climate OR environment")
+# ✓ intersection — both words (a blank space IS the AND operator)
+params = list("q" = "climate policy")
+params = list("q" = "climate&policy")     # identical
 
-# NOT - exclude term
-params = list("q" = "vaccine NOT covid")
+# ✓ exclusion
+params = list("q" = "vaccine -covid")
 
-# Complex combinations with parentheses
-params = list("q" = "(climate OR environment) AND (policy OR legislation)")
+# ✓ grouping
+params = list("q" = "(climate | environment) (policy | legislation)")
 ```
+
+To settle the word forms for good, compare three `estimate` calls — `estimate`
+is free and sync searches run 60/minute, so this costs nothing but a minute:
+see `docs/TESTING_PROCEDURE.md` § "Which `q` operators does the API honour?".
 
 ### No Double-Quoted Phrases (subcode 3790184)
 
@@ -170,6 +337,11 @@ Unlike the Content Library UI, the API **rejects** double-quoted phrase searches
  "error_subcode":3790184,"status":400}
 ```
 
+Meta's search guide gives the underlying reason: matching is performed
+independently word by word, *"meaning that searching by phrase is not supported
+(queries 'All for one' and 'One for all' are equivalent)"*. So the rejection is
+not a parser quirk to work around — **there is no phrase search to reach**.
+
 ```r
 # ✗ Rejected by the API (works only in the UI)
 params = list("q" = '"climate change"')
@@ -178,20 +350,81 @@ params = list("q" = '"climate change"')
 params = list("q" = "climate")
 
 # ✓ Tokens joined with OR
-params = list("q" = "climate OR warming")
+params = list("q" = "climate | warming")
 
 # ✓ Narrow with AND instead of a phrase
-params = list("q" = "climate AND policy")
+params = list("q" = "climate policy")
 ```
 
-`OR` does not reproduce a phrase — it matches posts containing *either* word, so
+`|` does not reproduce a phrase — it matches posts containing *either* word, so
 it broadens the corpus rather than matching the bigram. Prefer a distinctive
 single token where one exists (`Meloni` rather than `"Giorgia Meloni"`, `M5S`
-rather than `"Movimento 5 Stelle"`), and use `AND` when both words must appear.
+rather than `"Movimento 5 Stelle"`), and use a space (AND) when both words must
+appear — remembering that word order and adjacency are not tested either way.
 
 Note that `q = "climate change"` — an R string holding two space-separated words
-— is fine: no double-quote character reaches the API. What 3790184 rejects is a
-query **value** containing `"` characters, i.e. `q = '"climate change"'`.
+— is fine: no double-quote character reaches the API, and the space is simply
+the AND operator. What 3790184 rejects is a query **value** containing `"`
+characters, i.e. `q = '"climate change"'`.
+
+### Tokenization — exact, with no stemming
+
+From Meta's [Search guide](https://developers.facebook.com/docs/content-library-and-api/content-library-api/guides/search-guide):
+
+- Tokens are words separated by spaces or punctuation
+  ( `?@$%^*()+=~[{}];:"<>|.` ), with some URL normalisation and locale-specific
+  handling for non-English languages.
+- **Tokenization is exact — it introduces no word variants.** *"'cats' will not
+  be tokenized to 'cat'"*. There is no stemming, lemmatisation or fuzzy
+  matching, so plurals and inflections must be enumerated:
+  `elezione | elezioni | elettorale`.
+- **Direct @mentions are excluded from the index** and are scrubbed from results
+  when the mentioned user does not meet eligibility criteria. You cannot find
+  posts by searching for the handle they mention.
+
+### What `q` actually searches, per endpoint
+
+`q` is not a free-text search over the whole record — each endpoint declares
+which fields it covers:
+
+| Endpoint | `q` searches |
+|---|---|
+| `facebook/posts`, `instagram/posts` | the post `text` field |
+| `facebook/pages` | `name` and `description` |
+| `facebook/groups` | `name` and `description` |
+| `facebook/events` | `name` and `description` |
+| `facebook/profiles` | `name` and `intro` |
+| `instagram/accounts` | `name` and `biography` |
+| `facebook/channels`, `instagram/channels` | `name` only |
+| `whatsapp/channels` | `name` and `description` |
+| `facebook/marketplace-listings` | listing title and description |
+| `facebook/fundraisers`, `instagram/fundraisers` | `title` and `description` |
+
+With `search_scope = "post_text_and_image_text"` on posts, text recognised in
+images joins the searchable surface — see `field_reference.md` § "`image_text`
+is a match_type VALUE".
+
+### How good is the search? — measured by Meta, not by us
+
+Meta publishes a [search quality approach](https://developers.facebook.com/docs/content-library-api/search-quality)
+with figures from tests run **2024-12-01 to 2024-12-05** over ~50 test terms:
+
+| Measure | Result |
+|---|---|
+| Median recall | 99 % across Pages, groups, events, profiles, Instagram accounts and posts |
+| Recall, 20th percentile | 97 % (Facebook posts), 96 % (Instagram posts) |
+| Median precision | 98–99 % across endpoints |
+| Ranked recall (top 1,000 by creation time or views) | 96–99 % median |
+
+Quality was also tested in Arabic, German and Hindi with results comparable to
+English, with two named limitations: **German queries cannot process "ß"**, and
+**Arabic requires a separate search per diacritical variant**.
+
+Meta's own caveats matter more than the headline numbers: the validation set may
+contain ineligible content (which *understates* true recall), indexing is
+occasionally imperfect or delayed, and content visible on-platform can be
+excluded from the API as privacy rules evolve. A missing post is not
+automatically a bug in your query.
 
 ## Producer Lists
 
@@ -225,19 +458,53 @@ filters, price bounds. See `references/surfaces.md`.
 
 ## Comments Queries
 
-Comments require `parent_ids` (post IDs):
+Comments split by access mode, and the split is not the usual preview/job pair —
+**there is no `{platform}/comments/preview`**. Sync reads hang off the parent
+post or comment; bulk reads go through `{platform}/comments/job` with
+`parent_ids`, with `{platform}/comments/estimate` to size it first. **SKILL.md
+§ "Nested Endpoints" owns the path table**; this section owns the parameters.
 
 ```r
 response <- client$post(
     path = "facebook/comments/job",
     params = list(
-        "parent_ids" = as.list(post_ids),   # array, even for one ID
+        "parent_ids" = as.list(post_ids),   # array, even for one ID; max 250
+        "fetch_all" = TRUE,                 # all reply levels, not just top-level
         "mode" = "SNAPSHOT",
         "name" = "Comments on Target Posts",
         "description" = "Comments for sentiment analysis"
     )
 )
 ```
+
+### Bulk-comment parameters
+
+> Transcribed from the [Bulk comments guide](https://developers.facebook.com/docs/content-library-and-api/content-library-api/guides/bulk-comments)
+> and the Facebook comments guide, 2026-08-25.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `parent_ids` | list | Post **or comment** IDs, in any mix. **Max 250 per query** |
+| `fetch_all` | boolean | `TRUE` returns **every reply level**; `FALSE` (the default) returns **top-level replies only** |
+| `fields` | list | Field selection; defaults apply if omitted |
+| `sort` | enum | `newest_to_oldest` (default), `oldest_to_newest`, `none` — **synchronous endpoints only** |
+| `since` / `until` | string or integer | `YYYY-MM-DD` or UNIX timestamp. Documented as **UTC** for comments |
+
+**`fetch_all = TRUE` collapses the two-pull workaround.** `field_reference.md` §
+"Replies Require a Second Pull" documents fetching top-level comments and then
+re-querying with the comment IDs that report replies. That still works and is
+still the way to fetch replies *selectively* — but a whole thread now comes back
+from one job. The default is `FALSE`, so **a comments job written without
+`fetch_all` returns top-level comments only**, and nothing says so.
+
+Three further limits:
+
+- Async comment responses are **unordered** — *"no sorting is applied in the
+  response"*. Sort client-side.
+- The comments **estimate caps at 1,000,000**: a larger corpus reports "1 million
+  or more" rather than a number.
+- Comments draw on their **own 500,000-record 7-day budget**, separate from the
+  query budget (SKILL.md § "Rate Limits & Budget").
 
 ## Estimate Response
 

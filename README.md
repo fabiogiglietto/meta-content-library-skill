@@ -1,8 +1,14 @@
 # MCL API R Skill for Claude
 
-> **Version:** 1.12.0 — see [CHANGELOG.md](CHANGELOG.md)
+> **Version:** 1.13.0 — see [CHANGELOG.md](CHANGELOG.md)
 
 A Claude skill for working with the Meta Content Library (MCL) API v6.0 using R.
+
+Upstream documentation:
+<https://developers.facebook.com/docs/content-library-and-api>. Where this skill
+and Meta's docs disagree, the skill records both and keeps whichever claim was
+checked against a live response — see `references/field_reference.md` § "Where
+the docs and this file disagree".
 
 ## Overview
 
@@ -26,8 +32,17 @@ Everything the skill teaches is in **[SKILL.md](SKILL.md)** and the
 - **Safe response handling** for NULL and empty responses
 - **Large dataset chunking** for queries over the ~100,000-result cap
 - **Quota monitoring**, collections, and job management
+- **`q` search syntax** — the symbol operators (`&`, `|`, `-`), precedence, exact
+  tokenization, and which fields each endpoint actually searches
+- **API search IDs** — replay a Content Library UI search from R, and read its
+  filters before running it
 - **Verified error subcodes** (3790088, 3790184, 3790057, 3790172) with fixes
+- **Citation DOIs** for the API and the Library, and why they are version-specific
+- **The monthly wipe** — what the SRE deletes every 30 days, and what survives
 - **OpenAPI spec access** for anything the skill doesn't answer
+- **A staleness check** — a dated documentation baseline, a one-page tripwire, and
+  a map from each of Meta's doc pages to the file here that owns it, plus a
+  monthly GitHub Action that opens an issue when Meta's changelog moves
 
 ## Installation
 
@@ -104,6 +119,8 @@ monitoring.
 | `references/common_errors.md` | Full error catalog and debugging patterns |
 | `references/utilities.md` | Quota checking, package and ML model installation, job retrieval |
 | `docs/TESTING_PROCEDURE.md` | Manual verification procedure for the code examples |
+| `.github/workflows/meta-docs-check.yml` | Monthly check of Meta's changelog; opens an issue on drift |
+| `.github/scripts/check_meta_docs.py` | The checker — run `--check` locally, `--update` after reconciling |
 
 ## Requirements
 
@@ -113,7 +130,9 @@ monitoring.
 
 Export from the SRE is by notebook only, and the exported notebook is
 **scrubbed**: code, markdown and images are kept, but cell outputs are removed.
-Anything you need to take away has to be rendered as an image.
+Anything you need to take away has to be rendered as an image. Separately, the
+SRE **deletes all non-notebook files and all query results every 30 days** — plan
+for notebooks that can be re-run rather than files that persist.
 
 ## Contributing
 

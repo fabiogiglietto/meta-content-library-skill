@@ -1,7 +1,10 @@
 # Surfaces Added in v6.0 (Channels, Marketplace, Fundraisers, Donations)
 
 > **Documented, not tested.** Everything in this file is transcribed from the
-> Meta Content Library API guides and Data dictionary (fetched 2026-08-21).
+> Meta Content Library API guides and Data dictionary (fetched 2026-08-21;
+> re-checked against the same pages 2026-08-25, which confirmed the channel,
+> Marketplace, fundraiser and donation parameters unchanged and added the
+> WhatsApp update fields below).
 > None of it has been run against a live SRE session, unlike the tables in
 > `field_reference.md` marked as confirmed. Treat an unexpected `NULL` column or
 > a rejected parameter as this file being wrong, not your query — and settle it
@@ -66,6 +69,11 @@ variants and a by-id fetch. **[verified 2026-08-22]** The absence of an `estimat
 in the *guides* is a documentation gap, not an API one — **the spec is the
 authority, and it is free to read.** The claim about channels, fundraisers and
 donations is untouched: those were not in this spec read and remain unverified.
+
+> **Sort values and defaults for these surfaces are repeated in the per-surface
+> tables below for convenience; `references/query_params.md` § "Sort Defaults
+> Differ by Endpoint" owns the cross-endpoint comparison and the warning that a
+> truncated result set is the *top* of the sort order.**
 
 ## Facebook Channels
 
@@ -203,6 +211,49 @@ Message and update fields:
 `multimedia` on Facebook channel messages carries type, MCL ID, duration and
 user tags. Media **URLs** resolve only in an approved third-party cleanroom; in
 the SRE you must request `multimedia{url}` explicitly and it may come back empty.
+Meta's dictionary is explicit for WhatsApp: `multimedia.url` is *"URL within a
+storage location to which the multimedia content has been downloaded by the
+third-party cleanroom"* — and taking media out is prohibited outright, not merely
+unimplemented (`field_reference.md` § "Downloading is not permitted"). Treat
+media URLs as metadata, not as a download path.
+
+### WhatsApp channel updates carry more than the table above — **[added 2026-08-25]**
+
+The cross-platform table lists what the three platforms have in common. WhatsApp
+updates have four further groups of fields, all from Meta's data dictionary, and
+they are the reason WhatsApp is worth querying separately rather than folding
+into a generic "channel message" schema:
+
+| Field | Description |
+|---|---|
+| `forwarded_update_info.id` / `.name` | The channel an update was **forwarded from**. With `statistics.forward_count`, this is a directed diffusion edge between channels — the closest thing this API offers to a sharing graph |
+| `question_reply_attachment.quoted_question_text` | The original question a `question_reply` update answers |
+| `question_reply_attachment.user_response_text` | The response text |
+| `admin_profile.name` | The channel admin who posted the update (WhatsApp has no `owner.*` block) |
+| `multimedia.type` / `.id` / `.url` / `.duration` | photo, video or audio; `duration` on video |
+| `statistics.top_reactions[].reaction` / `.count` | The **top five** reaction types and their counts — an emoji, e.g. ♥️, plus a number |
+| `statistics.reactions_count` | Total reactions of all types |
+| `link_attachment.name` / `.description` / `.url` | Link attachments |
+
+Poll and quiz attachments are structured, not free text:
+
+```
+poll_attachment.question
+poll_attachment.options[].text
+poll_attachment.options[].vote_count
+
+quiz_attachment.question
+quiz_attachment.options[].text
+quiz_attachment.options[].vote_count
+quiz_attachment.options[].is_correct_answer
+```
+
+Two notes for analysis. **`statistics.top_reactions` is truncated at five** —
+it is not a complete reaction distribution, and summing it will not equal
+`statistics.reactions_count`. And every `options[]` field is an **array inside a
+list-column** after `flatten = TRUE`; `mcl_fromJSON()` walks into them so any IDs
+stay character, but you still need `tidyr::unnest()` (or a `purrr::map_int()`)
+to get vote counts into a data.frame.
 
 ## Facebook Marketplace Listings
 
