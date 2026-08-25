@@ -69,14 +69,55 @@ client$delete(path = paste0("async/queries/", query_id))
 ## Job Management
 
 ```r
-# List all jobs
-jobs <- mcl_fromJSON(client$get(path = "async/jobs")$text)
+# List all jobs -- the payload is under $jobs, NOT $data. See the warning below.
+jl   <- mcl_fromJSON(client$get(path = "async/jobs")$text)
+jobs <- jl$jobs                      # data.frame: id, creation_time, update_time,
+                                     #             status, mode, query_id
+stopifnot(is.data.frame(jobs))       # assert; the wrong key fails silently
 
 # Get job metadata
 job_meta <- mcl_fromJSON(
     client$get(path = paste0("async/jobs/", job_id))$text
 )
 # Returns: id, status, mode, query_id, creation_time
+```
+
+### ⚠ The `async/jobs` envelope key is `jobs`, not `data` — **[verified 2026-08-24]**
+
+Most list-shaped responses in this API wrap their payload in `data`, so the common
+defensive idiom is:
+
+```r
+d <- if (!is.null(x$data)) x$data else x     # WRONG for async/jobs
+```
+
+Against `async/jobs` that idiom **falls through silently**: `$data` is NULL, so `d`
+becomes the whole envelope, `d$mode` is NULL, and any summary computed from it is
+wrong *without erroring*. On 2026-08-24 this reported `0 of 100 snapshot slots used`
+on an account with 434 jobs; the true figure was 5. A wrong number that looks
+plausible is worse than a failure, and the only thing that caught it was probing the
+response shape rather than trusting the idiom.
+
+```
+class(jl):  list          names(jl):  jobs
+jl$jobs:    'data.frame': 434 obs. of 6 variables
+```
+
+Two further properties of the listing:
+
+- **`creation_time` and `update_time` are integer epoch seconds here**, not the ISO-8601
+  strings `creation_time` carries on a *post* record. Same field name, different type,
+  different endpoint.
+- **There is no `name` column.** The `name` supplied at submission is not readable back
+  from the job listing, so **jobs cannot be identified by name from this endpoint** —
+  which matters if you are trying to detect an already-submitted duplicate. That lives
+  on the query (`async/queries`), which was returning **502** on the same date; see
+  `../docs/OPEN_QUESTION_ASYNC_QUERIES_502.md`.
+
+```r
+# Counting SNAPSHOT slots against the 100-concurrent cap, correctly:
+jobs <- mcl_fromJSON(client$get(path = "async/jobs")$text)$jobs
+sum(jobs$mode == "SNAPSHOT" & jobs$status != "FAILED", na.rm = TRUE)
 
 # Convert LIVE to SNAPSHOT (preserve data)
 client$post(path = paste0("async/jobs/", job_id, "/snapshot"))
