@@ -4,6 +4,196 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v1.13.0 (2026-08-25)
+
+A **documentation reconciliation** pass: Meta's
+[Content Library and API docs](https://developers.facebook.com/docs/content-library-and-api)
+were read end to end — the 25 API guides, the data dictionary, the appendix, the
+changelog — and this skill was checked against them field by field.
+
+**There is no new API feature here.** The newest dated entry on Meta's changelog is
+2026-04-30 (WhatsApp channels), which v1.12.0 already covered. Everything below is a
+correction, a gap, or a conflict — which is the opposite failure mode from v1.12.0's:
+that release found things by *running* the API, this one found things by *reading*.
+
+Where a documented name contradicts something this skill verified against a live
+response, **the observation stays operative** and both are recorded — see
+`field_reference.md` § "Where the docs and this file disagree".
+
+### BREAKING: `q` boolean operators are symbols, not words
+
+`AND` / `OR` / `NOT` as words are **not documented operators**. Meta's
+[Advanced search guidelines](https://developers.facebook.com/docs/content-library-and-api/content-library-api/guides/advanced-search)
+give `&` **or a blank space** for AND, `|` for OR, and `-` for NOT, with
+parentheses for grouping and precedence NOT → AND → OR.
+
+Every version of this skill up to v1.12.0 taught `"climate OR environment"` and
+`"vaccine NOT covid"`. No live test has been run, so this release does not assert that
+the word forms fail — but it does state the direction of the error, which is enough:
+whether `OR` is treated as an ordinary keyword (ANDed in) or dropped as a stopword, the
+result is **narrower** than the union it looks like, and nothing errors. Anyone who
+copied those examples has been running a different query than they thought.
+
+`docs/TESTING_PROCEDURE.md` § Test 12.1 settles it with three free `estimate` calls.
+
+Also added from the same pages: exact tokenization rules (no stemming — `cats` is not
+`cat`), the per-endpoint list of which fields `q` actually searches, and Meta's own
+search-quality figures (median recall 99 %, precision 98–99 %, tested 2024-12-01/05)
+with the caveats that matter more than the headline.
+
+### Corrected: the Instagram post field table was wrong throughout
+
+`caption`, `producer_id` / `producer_username` / `producer_name` / `producer_type` /
+`producer_verified`, `statistics.likes`, `statistics.comments`, `statistics.plays`,
+`media_count`, `image_text` — **none of these appear in Meta's Instagram post
+dictionary.** The documented shape is the same one Facebook was verified to have on
+2026-08-24: `text`, `post_owner.{id,username,name,type}`, `statistics.like_count`,
+`statistics.comment_count`, `statistics.views`, plus `hashtags`, `match_type`,
+`is_verified`, `content_type`, `modified_time`.
+
+The failure mode is the one that produced the `statistics.reactions` bug: `intersect()`
+column selection drops unmatched names in silence, so the author and engagement columns
+go quietly missing. The new table is documentation-sourced and explicitly **not**
+verified — Test 12.3 is one free sync call that would settle it.
+
+### Corrected: the v4.0 ID-parameter deprecations are scoped to `facebook/posts`
+
+`page_ids`, `group_ids`, `profile_ids` and `event_ids` were deprecated **on the posts
+endpoint** in favour of `surface_ids`. They are the current, documented ID parameters on
+the producer-*search* endpoints (max 250 each), and `admin_countries` likewise survives
+on `facebook/pages` and `facebook/profiles`. The previous blanket statement read as
+"never use `page_ids`", which leaves no way to restrict a Page search to known Pages.
+
+### Corrected: there is no `{platform}/comments/preview`
+
+Sync comment reads hang off the parent — `facebook/posts/{id}/comments/preview`,
+`facebook/comments/{id}/replies/preview` — and bulk reads go through
+`{platform}/comments/job` with `parent_ids`. The Key Endpoints block advertised a flat
+`/comments/preview` while the Nested Endpoints section used that same path as its
+"✗ Wrong" example. The Facebook nested rows (previously Instagram-only) are now listed,
+along with the general ID-based-retrieval pattern and the entity types that support it.
+
+### Corrected: smaller field-name fixes
+
+- **Facebook Pages**: `verification_status` (not a boolean `verified`),
+  `page_categories` — a list of up to three (not `category`), and `about` and
+  `description` are the short and long About paragraphs, not synonyms.
+- **Facebook Events**: `event_start_time` / `event_end_time`, not `start_time` /
+  `end_time`. Four date parameters, not two: `since`/`until` filter on scheduling,
+  `event_since`/`event_until` on when the event ran.
+- **Facebook Groups**: `privacy` and `admin_count` are not in Meta's dictionary —
+  demoted to unconfirmed.
+- **Facebook Profiles** gains a field table for the first time. `verification_status` is
+  an enum (`not_verified` / `blue_verified`), so the truthiness test that works for a
+  boolean is a bug here.
+- **A fifth spelling of "verified"**: `instagram/posts` filters with
+  `is_account_verified` — not the `is_verified` its own accounts endpoint uses, and not
+  Facebook's `is_surface_verified`.
+
+### Corrected: the Threads table was invented
+
+Meta's dictionary documents Threads posts, profiles and replies with the **API field
+column reading `N/A` on every row but one** (`is_account_verified`), and none of the 25
+API guides covers Threads. The speculative table here (`statistics.likes`,
+`statistics.reposts`, `is_reply`, …) is removed. Threads is still named in the API's
+policy text, so this is "no published API field names", not "not part of the product".
+
+### Added: features the skill never documented
+
+- **API search IDs (`alias_id`)** — a whole feature. A UI search becomes
+  `facebook/posts/preview/{alias_id}` or `facebook/posts/job/{alias_id}`, with
+  `lists/shared-searches/{alias_id}` to read the filters an alias carries before running
+  it, and appended parameters to override individual filters. This also explains the
+  `/job/{alias_id}` paths that the 2026-08-22 spec read had spotted without an
+  explanation.
+- **`fetch_all` on comments jobs** — `TRUE` returns every reply level in one job.
+  `FALSE` is the default, which means every comments job written against this skill so
+  far returned top-level comments only. The two-pull pattern is retained as the cheaper
+  route for fetching replies selectively.
+- **`since` / `until` accept a UNIX timestamp**, on every endpoint that has them. That
+  is a lever on the still-**[open]** until-boundary anomaly that neither previous run
+  had: a timestamp names an exact second. Test 12.2 would close the question with one
+  query.
+- **Citation DOIs** — a research-facing skill with no citation guidance. v6.0's API and
+  Library DOIs are now in SKILL.md, with the reason they are version-specific.
+- **The monthly wipe.** Every 30 days the SRE deletes all cell outputs, **all
+  non-notebook files** and **all query results, including async output in S3**;
+  notebooks and their input cells survive, and JupyterHub is down for the first of the
+  month. This is a different thirty-days from SNAPSHOT retention (server-side, up to a
+  year) and the two are now stated side by side. It also breaks the
+  `if (file.exists("jobs.rds"))` re-submission guard, since the guard file is wiped too.
+- **Geographic and audience exclusions**: China, North Korea, South Korea and Togo are
+  excluded outright; age-restricted content is excluded; location-restricted content is
+  excluded on Instagram and WhatsApp, while on Facebook it depends on where the query is
+  run from — so the collection location is part of the method.
+- **"Downloading … by any means is not permitted"**, verbatim, next to the
+  `multimedia{url}` section that describes media as retrievable in principle.
+- **`activities.type` / `activities.name`** (`streaming`, `playing`) — the contents of
+  the `activities` array the spec declares and never explains.
+- **A third `match_type` value**, `multimedia_text`. Only two were ever observed.
+- **Comment statistics** are richer than recorded: the full per-emoji reaction
+  breakdown, plus `statistics.comment_count` (all replies, nested included) **and**
+  `statistics.top_level_reply_count` (one level) — two different numbers that a
+  "replies" column can silently swap.
+- **WhatsApp channel updates**: `forwarded_update_info.*` (a directed channel-to-channel
+  diffusion edge), `question_reply_attachment.*`, the `multimedia.*` sub-fields, and the
+  fact that `statistics.top_reactions` is **truncated at five** and will not sum to
+  `statistics.reactions_count`.
+- **Sort defaults per endpoint**, and the reminder that a truncated result set is the
+  *top* of the sort order — a `facebook/posts` query cut at 100,000 keeps the
+  most-viewed posts, not the most recent.
+- **Budget mechanics**: the `budgets` endpoint reports four numbers, and
+  `preallocated_rows_for_running_queries` is *why* deleting a job does not refund it.
+  The rolling window is "to the second". The multimedia budget (1,000 queries/week)
+  applies to third-party cleanrooms, not the SRE.
+
+### Open / unresolved
+
+- **`parent_id` vs `parent_comment_id`** on comments — this skill says one, the
+  dictionary says the other, and **neither is verified**. The dictionary also says the
+  field is *absent* rather than empty on a top-level comment, which changes the correct
+  guard from `== ""` to a `names()` check. Flagged prominently; Test 12.4 settles it.
+- **`most_to_least_follower_count` (Pages) vs `most_to_least_followers_count`
+  (Profiles)** — one letter apart in Meta's own docs. Possibly a typo; read the enum
+  from the spec.
+- **The `lists/producers` pagination question stays open.** The appendix page documents
+  no pagination and no `limit` — a third weak signal, worth as little as the other two,
+  since the guides also omit an `estimate` endpoint the spec declares. The unread cheap
+  answer is `client$openapi_spec()$paths[["/lists/producers"]]$get$parameters`.
+
+### Added: a way to notice this sooner next time
+
+This pass existed because nothing in the skill said when its transcription was last
+checked, or against what. **SKILL.md § "Staying Current"** now carries a dated baseline
+(*"as of 2026-08-25 the newest dated entry was 2026-04-30"*), a one-page tripwire — the
+changelog, not the 25 guides — and the **page-to-file map** derived during this
+reconciliation, so a changelog hit goes straight to the file that owns the fact instead
+of being re-derived. Checks that find nothing are recorded too, since an unrecorded clean
+check is indistinguishable from no check at all.
+
+A **monthly GitHub Action** (`.github/workflows/meta-docs-check.yml`) runs that tripwire
+in this repo and opens a labelled issue when the changelog grows an entry, with the
+page-to-file map and the docs-never-override-`[verified]` rule in the issue body. Three
+outcomes are distinguished, because a tripwire that breaks and reports "no change" is
+worse than none: exit 0 clean, 1 drift, **2 the check itself failed** — which gets its own
+issue and fails the run rather than passing green. Verified against the live page: Meta
+answers a bare request with HTTP 400 and needs browser-shaped `Sec-Fetch-*` headers, and
+all three exit paths were exercised.
+
+The Action does not travel with the skill — a zip upload or an unsynced clone gets the
+protocol and no scheduler, which is why the protocol is written to be executed by whoever
+reads the file.
+
+### Files
+
+`SKILL.md`, `README.md`, `references/query_params.md` (+70 %),
+`references/field_reference.md` (+35 %), `references/surfaces.md`,
+`references/utilities.md`, `references/collections.md`,
+`docs/TESTING_PROCEDURE.md` (new Test Suite 12: five tests, four of them free),
+`docs/OPEN_QUESTION_LISTS_PRODUCERS_PAGINATION.md`, and new
+`.github/workflows/meta-docs-check.yml`, `.github/scripts/check_meta_docs.py`,
+`.github/meta-docs-baseline.json`.
+
 ## v1.12.0 (2026-08-25)
 
 Everything here came out of **one execution** — a top-10-by-views query over a union of
@@ -21,7 +211,8 @@ name hid completely.
 Nothing written against the documented names ever worked, and nothing ever said so:
 column selection goes through `intersect()`, which drops unmatched names silently. The
 symptom is a results table with every engagement column quietly missing.
-`mcl-agent`'s `top_n_by_views.R` template inherited the bug from this file and shipped it.
+A client that owns the browser automation surface inherited the bug from this file into
+its top-N-by-views template and shipped it.
 
 ### Corrected: `async/jobs` wraps its payload in `jobs`, not `data`
 
@@ -836,3 +1027,7 @@ When updating this skill:
 4. Check that any new fact has exactly one owner (see `SKILL.md` § References);
    add a pointer elsewhere rather than a second copy.
 5. Update `docs/TESTING_PROCEDURE.md` if behavior changed.
+6. If the change came from reading Meta's documentation, update the **baseline**
+   in `SKILL.md` § "Staying Current" — both the check date and the newest dated
+   changelog entry it saw. A documentation check that found *nothing* also gets
+   recorded: bump the baseline and add a one-line note here, with no version bump.
