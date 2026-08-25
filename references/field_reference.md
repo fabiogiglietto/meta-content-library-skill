@@ -40,6 +40,60 @@ both their parameters and their fields.
 | `text` | string | Post body text |
 | `lang` | string | Detected language (ISO 639-1) |
 
+### The default projection — what you get without asking
+
+**[verified 2026-08-24]** A `facebook/posts/preview` with no `fields` parameter returns
+**exactly these 24 columns**:
+
+```
+id, creation_time, modified_time, multimedia, is_branded_content, content_type,
+statistics.like_count, statistics.love_count, statistics.wow_count,
+statistics.haha_count, statistics.sad_count, statistics.angry_count,
+statistics.care_count, statistics.comment_count, statistics.reaction_count,
+statistics.views, statistics.views_date_last_refreshed, statistics.share_count,
+post_owner.type, post_owner.id, post_owner.name,
+surface.type, surface.id, surface.name
+```
+
+Two things follow that are easy to get wrong:
+
+- **`text` is NOT in the default projection.** Post bodies must be requested explicitly
+  via `fields`. Code that assumes `text` is present will find it missing and can easily
+  misread that as an API fault rather than the default. (The incidental upside: post text
+  does not leave the API unless something asks for it.)
+- **`lang`, `media_type`, `has_media`, `image_text`, `link_url`, `is_reshare`,
+  `shared_post_id` and `location.country` are likewise absent by default**, though all are
+  documented below as retrievable. This table describes what the API *can* return, not
+  what it returns unasked.
+
+### There is no post permalink field — **[verified absent 2026-08-24]**
+
+Nothing in the response carries a link back to the post, and this is now checked rather
+than merely unstated: the 24-column projection above has no URL field, and a grep of
+`client$openapi_spec()` for `permalink|post_url|content_url|share_url` returned **zero**
+matches. `link_url` is the URL *shared in* a post, not a link *to* it.
+
+To point a reader at a post, construct a **Content Library GUI** URL:
+
+```
+https://www.facebook.com/transparency-tools/content-library/dataset/{DATASET_ID}/facebook/entity/{POST_ID}
+```
+
+**[verified 2026-08-24]**, with two controls, because "the page rendered" proves nothing
+against an SPA that returns its own chrome for any route:
+
+- A **bogus id** is rejected — a not-found signal appears, and the rendered text collapses
+  (7,828 → 386 characters). So the route validates the id.
+- **Two different posts by the same producer render differently** (fingerprints `c7e8fcb2`
+  at 508 chars vs `ab2f8b79` at 570). So `entity` resolves the **post**, not its owner —
+  which was the live risk, since a `/post/{id}/` URL redirects to `/entity/{id}` and
+  appends `time_preset=ALL_TIME&sort=most-recent`, parameters that read like a *listing*
+  view of a producer.
+
+**The `DATASET_ID` is account-scoped** (`1119037145491882` for the account tested) and is
+visible in the GUI's own navigation links. Whether such a link resolves for a reader with
+different dataset permissions is **[untested]** — do not present these as public URLs.
+
 ### Producer Fields
 
 These are the **flattened** names returned by `mcl_fromJSON()` (which parses with
@@ -100,12 +154,46 @@ resolve_originals <- function(ids) {
 ```
 
 ### Engagement Statistics
+
+**[verified 2026-08-24 against a live `facebook/posts/preview` projection]** — the names
+are `*_count`. Earlier versions of this table listed bare plurals
+(`statistics.reactions`, `.comments`, `.shares`); **those names are not returned by the
+API** and code written against them silently produces nothing, because the usual way to
+select columns is `intersect()`, which drops what it cannot match without complaint.
+
 | Field | Type | Description |
 |-------|------|-------------|
-| `statistics.reactions` | integer | Total reactions count |
-| `statistics.comments` | integer | Comment count |
-| `statistics.shares` | integer | Share count |
-| `statistics.views` | integer | View count (where available) |
+| `statistics.reaction_count` | integer | Total reactions |
+| `statistics.comment_count` | integer | Comment count |
+| `statistics.share_count` | integer | Share count |
+| `statistics.views` | integer | View count (where available — see below) |
+| `statistics.views_date_last_refreshed` | — | When the view count was last refreshed |
+
+Reactions are also broken out per emoji, which the bare `reactions` name obscured
+entirely:
+
+| Field | Field | Field |
+|---|---|---|
+| `statistics.like_count` | `statistics.love_count` | `statistics.wow_count` |
+| `statistics.haha_count` | `statistics.sad_count` | `statistics.angry_count` |
+| `statistics.care_count` | | |
+
+**`statistics.views_date_last_refreshed` matters for any views-based ranking**: it dates
+the number you are sorting on, so two posts' view counts are not necessarily current as
+of the same moment. Its exact type and semantics are **[untested]** — it was observed in
+the projection, not exercised.
+
+#### How much of a corpus carries `views` is not a property of the API
+
+"Where available" means video/reel. What fraction of a corpus that is depends entirely on
+the corpus, and two runs bracket a range wide enough to change what a ranking means:
+**5.5 %** on 2,854 posts from 830 ordinary profiles (2026-08-21), **88.8 %** on 7,935
+posts from 130 pages + 21 profiles (2026-08-24). Measure it per query rather than
+carrying either figure forward.
+
+**Distinguish absent from zero.** Both runs returned hundreds of `NA` and **exactly zero**
+real zeros (2,697/0 and 890/0). The field is *absent* on non-video posts, not
+measured-as-zero, so coercing `NA` to `0` before ranking invents a result.
 
 ### Media Fields
 | Field | Type | Description |
