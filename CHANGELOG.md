@@ -4,6 +4,47 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## Unreleased
+
+### The docs tripwire now watches the environment too
+
+`.github/workflows/meta-docs-check.yml` fetched one page — Meta's Content Library
+and API changelog. It now fetches two, adding
+[the Secure Research Environment changelog](https://developers.facebook.com/docs/researcher-platform/changelog).
+Half of what this skill asserts is about the environment rather than the API, and
+nothing was watching that half.
+
+Baseline for the new source, **observed 2026-08-25**: five dated entries, newest
+**2025-08-18** (the Researcher Platform → Secure Research Environment rename).
+
+Three things fell out of making it plural rather than adding a URL to a loop:
+
+- **Parse floors are per source.** The Content Library page carries 19 dated
+  entries and the new one carries 5. A single `MIN_PLAUSIBLE_ENTRIES = 10` would
+  have failed the new page on every clean run.
+- **Drift and breakage are now reported independently.** With one source they
+  were mutually exclusive, so a single exit code sufficed. With two they are not:
+  a 404 on one page must not swallow real drift on the other. The script still
+  exits 2-over-1 for a human at a shell, but the workflow gates its two issues on
+  separate outputs and can open both in one run.
+- **A pre-multi-source baseline is refused, not adapted.** Reading the old flat
+  shape would either report every entry as new or report clean; both are lies, so
+  it exits 2 and says to run `--update`.
+
+All four paths were exercised against the live pages before committing: clean,
+drift on the new source only, one source 404 while the other drifts (both flags
+set, exit 2), and a date-less page tripping the parse floor. `--update --only`
+was checked to leave the other source's block byte-identical.
+
+**What this still does not catch — recorded in the workflow, the baseline file
+and `SKILL.md`, because a green run is otherwise easy to over-read.** Changelogs
+carry *announced* changes. The two findings that prompted this work were both
+unannounced: the S3 upload page's "It is not supported for Meta Content Library"
+sentence, and the entire `guides/data-deletion` page. Neither appeared on either
+changelog, and this tripwire would not have caught either one. It narrows the
+window in which drift goes unnoticed; it does not close it, and it is not a
+substitute for `[verified DATE]` provenance.
+
 ## v1.13.0 (2026-08-25)
 
 A **documentation reconciliation** pass: Meta's
