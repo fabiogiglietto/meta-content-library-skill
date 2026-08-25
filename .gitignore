@@ -50,3 +50,6 @@ top_italian_politicians_week.R
 
 # Exported SRE notebooks (scrubbed test artifacts, not skill content)
 *-scrubbed.ipynb
+
+__pycache__/
+*.pyc

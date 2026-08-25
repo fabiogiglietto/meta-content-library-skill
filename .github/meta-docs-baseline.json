@@ -1,0 +1,27 @@
+{
+  "_comment": "Tripwire state for .github/workflows/meta-docs-check.yml. This is the raw set of dated entries observed on Meta's changelog, not a restatement of the human-readable baseline in SKILL.md section 'Staying Current' -- update both when a check finds drift.",
+  "source": "https://developers.facebook.com/docs/content-library-and-api/changelog",
+  "checked": "2026-08-25",
+  "newest_entry": "2026-04-30",
+  "entries": [
+    "2026-04-30",
+    "2026-03-12",
+    "2025-12-10",
+    "2025-11-10",
+    "2025-07-31",
+    "2025-07-15",
+    "2025-06-30",
+    "2025-06-20",
+    "2025-03-14",
+    "2025-02-27",
+    "2025-02-11",
+    "2025-02-06",
+    "2024-12-11",
+    "2024-11-11",
+    "2024-08-15",
+    "2024-07-25",
+    "2024-04-18",
+    "2024-01-30",
+    "2023-12-15"
+  ]
+}
