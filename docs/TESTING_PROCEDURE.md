@@ -1747,6 +1747,246 @@ cat("rows:", nrow(don), "vs donor_count:", fr$statistics.donor_count[1], "\n")
 
 ---
 
+## Test Suite 12: The 2026-08-25 Documentation Reconciliation
+
+This suite exists because v1.13.0 changed documented behaviour on the strength of
+Meta's own documentation rather than a live run. Each test settles one of those
+claims. **Tests 12.1–12.4 cost no async budget** — they are `estimate` calls and
+sync previews.
+
+Run 12.1 first. It is the one that changes what a query means.
+
+### Test 12.1: Which `q` operators does the API honour?
+
+**Location:** references/query_params.md § "Query Syntax (`q`)"
+
+**Why:** Meta documents `&` / space / `|` / `-` as the operators and never
+mentions the words `AND` / `OR` / `NOT`. Versions of this skill up to v1.12.0
+taught the words. If the words are ordinary keywords, `climate OR policy` has
+been silently returning the *intersection plus the literal word "or"* — a much
+smaller corpus than intended. `estimate` is free, so this costs nothing.
+
+**Code:**
+```r
+est <- function(q) {
+  r <- mcl_fromJSON(client$get(
+    path   = "facebook/posts/estimate",
+    params = list("q" = q, "since" = "2026-01-01", "until" = "2026-02-01")
+  )$text)
+  r$estimated_results
+}
+
+a <- est("climate")            # baseline, one term
+b <- est("policy")             # baseline, other term
+u <- est("climate | policy")   # documented OR
+i <- est("climate policy")     # documented AND (blank space)
+w <- est("climate OR policy")  # the word form this skill used to teach
+
+cat(sprintf("climate=%s policy=%s | OR(|)=%s AND(space)=%s | word-OR=%s\n",
+            a, b, u, i, w)); flush.console()
+```
+
+**Expected Outcome:**
+
+| Observation | Reading |
+|---|---|
+| `u` ≥ max(`a`, `b`) and `w` ≈ `u` | The word `OR` is honoured as an operator. The pre-v1.13.0 examples were fine; record it and soften the correction. |
+| `u` ≥ max(`a`, `b`) but `w` ≈ `i` | `OR` is dropped as a stopword — the word form silently gives you AND. |
+| `u` ≥ max(`a`, `b`) but `w` < `i` | `OR` is an ordinary keyword — the word form requires all three tokens. Worst case, and the one v1.13.0 assumes is likeliest. |
+| `u` ≈ `i` | `|` is *not* being honoured either. Stop and re-read the spec before drawing any conclusion. |
+
+**Validation Checklist:**
+- [ ] `climate | policy` returns at least as many results as either term alone
+- [ ] `climate policy` returns fewer than either term alone (it is an AND)
+- [ ] The word-form result recorded verbatim against one of the four readings
+- [ ] Repeat once with `-` (`climate -policy` should be < `climate`)
+
+**Screenshot Required:** Yes — CRITICAL. This settles a BREAKING change.
+
+---
+
+### Test 12.2: Pin the `until` boundary with an epoch second
+
+**Location:** references/query_params.md § "The `since` / `until` window is not a
+clean UTC day"
+
+**Why:** Two runs (2026-08-21, 2026-08-24) both saw the until-day contribute a
+sliver of rows past midnight and neither pinned the boundary. Meta documents that
+`since` / `until` accept a **UNIX timestamp**, which names an exact second — a
+lever neither earlier run had.
+
+**Code:**
+```r
+until_epoch <- as.integer(as.POSIXct("2026-08-24 00:00:00", tz = "UTC"))
+
+params <- list("since" = "2026-08-17", "until" = until_epoch,
+               "limit" = 100L, "mode" = "LIVE",
+               "name" = "boundary probe (epoch until)",
+               "description" = "TESTING_PROCEDURE 12.2")
+params[["surface_ids"]] <- as.list(known_ids)      # a small, busy producer list
+
+# ... submit, mcl_wait_for_job(), read results ...
+ct <- as.POSIXct(gsub("T", " ", sub("(\\+|Z).*$", "", posts$creation_time)), tz = "UTC")
+cat("requested until:", format(as.POSIXct(until_epoch, origin = "1970-01-01", tz = "UTC")),
+    "| max creation_time:", format(max(ct)), "\n")
+print(table(as.Date(ct)))
+```
+
+**Expected Outcome:**
+- If `max(ct)` lands at or before the requested instant, the timestamp form is
+  exact and **the date form is what is loose** — document the timestamp as the
+  fix and keep the widen-and-filter advice as the fallback.
+- If `max(ct)` still runs past it by the same ~25–60 minutes, the offset is
+  server-side and independent of how the boundary is expressed. Record the size
+  of the overshoot; two measurements at a known instant would pin it.
+- If the call is rejected, `until` does not accept an integer on this endpoint —
+  a documentation error worth filing.
+
+**Validation Checklist:**
+- [ ] Integer `until` accepted (no "Invalid parameter")
+- [ ] Requested instant and observed `max(creation_time)` both recorded
+- [ ] Result written back into `query_params.md`, closing or re-scoping the `[open]` marker
+
+**Screenshot Required:** Yes — this closes a long-standing open question.
+
+---
+
+### Test 12.3: Instagram post default projection
+
+**Location:** references/field_reference.md § "Instagram Posts"
+
+**Why:** The v1.13.0 Instagram table is transcribed from the data dictionary —
+and the dictionary was *wrong about Facebook* until a live projection corrected
+it on 2026-08-24. The same check, run once, settles Instagram.
+
+**Code:**
+```r
+resp <- client$get(path = "instagram/posts/preview",
+                   params = list("q" = "clima", "limit" = 10L))
+d <- mcl_fromJSON(resp$text)$data
+print(names(d))
+
+# The specific claims v1.13.0 makes:
+for (f in c("text", "post_owner.id", "post_owner.username", "post_owner.type",
+            "statistics.like_count", "statistics.comment_count",
+            "statistics.views", "hashtags", "match_type"))
+  cat(sprintf("%-28s %s\n", f, f %in% names(d)))
+
+# The names v1.12.0 wrongly claimed — all of these should be ABSENT:
+for (f in c("caption", "producer_id", "producer_username", "producer_name",
+            "statistics.likes", "statistics.comments", "statistics.plays",
+            "media_count"))
+  cat(sprintf("(should be absent) %-22s %s\n", f, f %in% names(d)))
+```
+
+**Expected Outcome:**
+- The documented names are present; none of the v1.12.0 names are.
+- Record where the view-refresh date actually lands — the dictionary says
+  `view_date_last_refreshed`, while Facebook was observed to return
+  `statistics.views_date_last_refreshed`. Either result resolves a row in
+  `field_reference.md` § "Where the docs and this file disagree".
+- Also record whether `post_owner.*` or `post_owner.data.*` appears, which tests
+  the `data`-envelope hypothesis in that same section.
+
+**Validation Checklist:**
+- [ ] Full `names()` output pasted into the report
+- [ ] Each of the nine documented fields marked present/absent
+- [ ] Each of the eight retired names confirmed absent
+- [ ] `field_reference.md` § "Instagram Posts" updated with `[verified DATE]`
+
+**Screenshot Required:** Yes - CRITICAL
+
+---
+
+### Test 12.4: Comment reply-pointer field name, and `fetch_all`
+
+**Location:** references/field_reference.md § "`parent_id` or `parent_comment_id`?"
+
+**Why:** This skill says `parent_id`, the dictionary says `parent_comment_id`,
+and neither has been checked. The dictionary also says the field is *absent*
+(not empty) on a top-level comment, which changes the correct test from `== ""`
+to a `names()` check.
+
+**Code:**
+```r
+post_id <- "PASTE_A_POST_ID_WITH_COMMENTS"   # quoted!
+
+sync <- mcl_fromJSON(client$get(
+  path   = paste0("facebook/posts/", post_id, "/comments/preview"),
+  params = list("limit" = 25L))$text)$data
+
+print(names(sync))
+cat("parent_id present:        ", "parent_id" %in% names(sync), "\n")
+cat("parent_comment_id present:", "parent_comment_id" %in% names(sync), "\n")
+
+# If present, is a top-level comment NA or ""?
+col <- intersect(c("parent_comment_id", "parent_id"), names(sync))[1]
+if (!is.na(col)) print(table(ifelse(is.na(sync[[col]]), "<NA>",
+                             ifelse(sync[[col]] == "", "<empty>", "<id>"))))
+
+# And does fetch_all change the row count?
+# (async, costs comment budget - run only when quota allows)
+```
+
+**Expected Outcome:**
+- Exactly one of the two names is present; record which.
+- Top-level rows are `NA` or `""` — record which, because the guard in any
+  reply-threading code depends on it.
+- With `fetch_all = TRUE` an async job returns strictly more rows than the same
+  job without it, on a post that has nested replies.
+
+**Validation Checklist:**
+- [ ] Field name settled and written into `field_reference.md`
+- [ ] Absent-vs-empty settled
+- [ ] `fetch_all = TRUE` accepted and row counts compared
+- [ ] Per-emoji comment reaction fields (`statistics.love_count`, …) confirmed present or absent
+
+**Screenshot Required:** Yes
+
+---
+
+### Test 12.5: API search ID round-trip
+
+**Location:** SKILL.md § "API Search IDs — run a UI search from R"
+
+**Prerequisites:** an alias created in the Content Library UI (*Create API search
+ID*). This is the only step that cannot be done from R.
+
+**Code:**
+```r
+alias <- "PASTE_ALIAS_FROM_UI"    # e.g. "2026-08-25-abcd"
+
+# What does it carry?
+filters <- mcl_fromJSON(client$get(path = paste0("lists/shared-searches/", alias))$text)
+str(filters)
+
+# Run it synchronously
+resp <- client$get(path = paste0("facebook/posts/preview/", alias))
+cat("rows:", NROW(safe_get_data(resp$text)), "\n")
+
+# Run it with one filter overridden
+resp2 <- client$get(path = paste0("facebook/posts/preview/", alias),
+                    params = list("limit" = 5L))
+cat("rows with limit override:", NROW(safe_get_data(resp2$text)), "\n")
+```
+
+**Expected Outcome:**
+- `lists/shared-searches/{alias}` returns `id`, `creation_time`, `platform`,
+  `filters_sync_search`, `filters_async_search`, `version`
+- The alias path runs without a `q` parameter of its own
+- The override changes only the overridden filter
+
+**Validation Checklist:**
+- [ ] Shared-search envelope keys recorded (this endpoint has never been read)
+- [ ] Alias runs on `preview`; note whether `job` also accepts it
+- [ ] Override semantics confirmed
+- [ ] `producer_lists.md` § "Related, from the same spec read" upgraded from
+      "parameters and response shape unread"
+
+**Screenshot Required:** Yes - CRITICAL (first read of this endpoint)
+
+---
+
 ## Testing Summary and Reporting
 
 ### After Completing All Tests
@@ -1836,8 +2076,8 @@ If a test fails:
 
 ## Test Completion Checklist
 
-- [ ] All 40 tests attempted
-- [ ] Critical tests (14) passed
+- [ ] All 45 tests attempted
+- [ ] Critical tests (17) passed
 - [ ] Screenshots captured and organized
 - [ ] Errors documented
 - [ ] Environment info recorded
@@ -1850,4 +2090,4 @@ If a test fails:
 
 **End of Testing Procedure**
 
-Version: 1.4 | Last Updated: 2026-08-21
+Version: 1.5 | Last Updated: 2026-08-25

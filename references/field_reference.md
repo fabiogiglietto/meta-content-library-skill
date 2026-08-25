@@ -19,12 +19,14 @@
 2. [Facebook Pages](#facebook-pages)
 3. [Facebook Groups](#facebook-groups)
 4. [Facebook Events](#facebook-events)
-5. [Facebook Comments](#facebook-comments)
-6. [Instagram Posts](#instagram-posts)
-7. [Instagram Accounts](#instagram-accounts)
-8. [Instagram Comments](#instagram-comments)
-9. [Threads Posts](#threads-posts)
-10. [Data Scope: Whose Posts Are Queryable](#data-scope-whose-posts-are-queryable)
+5. [Facebook Profiles](#facebook-profiles)
+6. [Facebook Comments](#facebook-comments)
+7. [Instagram Posts](#instagram-posts)
+8. [Instagram Accounts](#instagram-accounts)
+9. [Instagram Comments](#instagram-comments)
+10. [Threads — documented in the Library, absent from the API](#threads--documented-in-the-library-absent-from-the-api)
+11. [Data Scope: Whose Posts Are Queryable](#data-scope-whose-posts-are-queryable)
+12. [Where the docs and this file disagree](#where-the-docs-and-this-file-disagree)
 
 Channels (Facebook, Instagram, WhatsApp), Marketplace listings, fundraisers and
 donations are newer surfaces and live in `references/surfaces.md`, which owns
@@ -215,21 +217,51 @@ measured-as-zero, so coercing `NA` to `0` before ranking invents a result.
 | `is_reshare` | boolean | Is this a shared post |
 | `location.country` | string | Country code if geotagged |
 
+### `activities` — what the spec's mystery array holds
+
+**[added 2026-08-25 from Meta's data dictionary]** The `FacebookPost` schema
+lists an `activities` array (see § "The complete Facebook Post schema") but the
+spec says nothing about its contents. The dictionary does:
+
+| Field | Description |
+|-------|-------------|
+| `activities.type` | Type of activity in the post. Documented types: **`streaming`**, **`playing`** |
+| `activities.name` | Name of the activity — e.g. the title of what is being streamed or played |
+
+This is the gaming-video metadata added in v5.0. It is the only route to "what
+game / what stream" on a Facebook post, and it is absent from the default
+projection — request it explicitly.
+
+Also documented and easy to miss: **`is_verified` on a post** (whether the post
+came from a verified Facebook surface) and **`branded_content_page_id`** (the
+Page associated with a branded-content post). Neither is in the 24-column
+default projection.
+
 ## Facebook Pages
+
+**[corrected 2026-08-25 from Meta's data dictionary]** Two of the names this
+table used to carry are not the ones the API uses: the verification field is
+**`verification_status`**, not a boolean `verified`, and categories arrive as
+**`page_categories`**, a list of up to three, not a scalar `category`. `about`
+and `description` are *different* fields — the short and the long paragraph of
+the About section respectively — not synonyms.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | string | Unique Page ID |
 | `name` | string | Page name |
-| `category` | string | Page category |
-| `description` | string | Page description |
-| `verified` | boolean | Has verified badge |
+| `username` | string | Page username, if available |
+| `about` | string | The **short** paragraph from the About section |
+| `description` | string | The **long** paragraph from the About section |
+| `website` | string | External URL from the About section |
+| `verification_status` | string | Verification status of the Page |
+| `page_categories` | list | Up to **three** categories, chosen by the Page manager |
 | `follower_count` | integer | Number of followers |
-| `like_count` | integer | Number of likes |
-| `creation_date` | date | When Page was created |
-| `location.city` | string | City if listed |
-| `location.country` | string | Country if listed |
-| `website` | string | Listed website URL |
+| `creation_date` | date | When the Page was created |
+
+`like_count`, `location.city` and `location.country` appeared in earlier versions
+of this table and are **not** in Meta's Page dictionary. They may still be served
+— read `client$openapi_spec()` rather than assuming either way.
 
 ## Facebook Groups
 
@@ -238,26 +270,54 @@ measured-as-zero, so coercing `NA` to `0` before ranking invents a result.
 | `id` | string | Unique Group ID |
 | `name` | string | Group name |
 | `description` | string | Group description |
-| `privacy` | string | public (only public groups returned) |
 | `member_count` | integer | Number of members |
-| `creation_date` | date | When Group was created |
-| `admin_count` | integer | Number of admins |
+| `creation_date` | date | When the Group was created |
+
+`privacy` and `admin_count` were listed here previously and do **not** appear in
+Meta's group dictionary — treat them as unconfirmed. Only public groups indexed
+in the Content Library are returned at all, so a `privacy` column would have a
+single value even if it exists.
 
 ## Facebook Events
+
+**[corrected 2026-08-25]** The start and end times are **`event_start_time`** and
+**`event_end_time`** — this table previously said `start_time` / `end_time`.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | string | Unique Event ID |
-| `name` | string | Event title |
+| `name` | string | Event name |
 | `description` | string | Event description |
-| `start_time` | datetime | Event start time |
-| `end_time` | datetime | Event end time |
-| `location.name` | string | Venue name |
-| `location.city` | string | City |
-| `location.country` | string | Country |
-| `interested_count` | integer | Users marked interested |
-| `going_count` | integer | Users marked going |
-| `host_id` | string | Hosting Page/profile ID |
+| `event_start_time` | datetime | Event start time |
+| `event_end_time` | datetime | Event end time |
+| `going_count` | integer | Number of Going responses |
+| `interested_count` | integer | Number of Interested responses |
+
+`location.*` and `host_id` were listed here previously and are not in Meta's
+event dictionary — unconfirmed.
+
+## Facebook Profiles
+
+New in this file as of 2026-08-25 — profiles had a lookup endpoint in SKILL.md
+but no field table.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique profile ID |
+| `name` | string | Profile name, if the user meets eligibility criteria |
+| `username` | string | Profile username, if available and eligible |
+| `follower_count` | integer | Number of followers |
+| `verification_status` | string | **`not_verified`** or **`blue_verified`** |
+| `creation_date` | date | When the profile was created |
+
+`verification_status` is an enum, not a boolean — `if (profile$verification_status)`
+is a type error waiting to happen, and the string `"not_verified"` is truthy in
+most careless coercions. Compare explicitly:
+`profile$verification_status == "blue_verified"`.
+
+Note the asymmetry with the *filter*: you search with `is_verified` (a boolean)
+and you get back `verification_status` (a string). See `query_params.md` § "The
+Five Spellings of 'verified'".
 
 ## Facebook Comments
 
@@ -276,13 +336,79 @@ may be present but empty. Flattened names as returned by `mcl_fromJSON()`:
 | `owner.name` | string | Commenter display name |
 | `owner.type` | string | page, profile, … |
 | `author_id` | string | Present in some responses but **empty** — use `owner.id` |
+| `lang` | string | Comment language (ISO 639-1, 2-letter lowercase) |
+| `link_attachment.url` | string | URL of a link attached to the comment |
+| `link_attachment.name` | string | Name of the link attachment |
+| `link_attachment.caption` | string | Caption of the link attachment |
+| `link_attachment.description` | string | Description of the link attachment |
+
+`owner.type` on a comment takes a value the post surfaces do not: **`private`**,
+alongside `page` and `profile`. A private commenter is a real row with a real
+comment and an unusable identity — count it, don't try to resolve it.
+
+### Comment statistics — a fuller set than this file used to list
+
+**[added 2026-08-25 from Meta's data dictionary]** Comments carry the same
+per-emoji reaction breakdown as posts, plus **two different reply counts**:
+
+| Field | Type | Description |
+|-------|------|-------------|
 | `statistics.reaction_count` | integer | Total reactions on the comment |
-| `statistics.top_level_reply_count` | integer | Number of replies to this comment |
+| `statistics.like_count` … `statistics.care_count` | integer | Per-emoji breakdown: `like`, `love`, `wow`, `haha`, `sad`, `angry`, `care` |
+| `statistics.comment_count` | integer | **All** replies to this comment, including replies to replies |
+| `statistics.top_level_reply_count` | integer | **Top-level** replies only |
 
-### Replies Require a Second Pull
+**`comment_count` and `top_level_reply_count` are not interchangeable.** The
+first counts a whole subtree, the second one level. Reporting "replies" from
+whichever happens to be present changes the number without changing the label.
 
-A comments query with `parent_ids` = **post** IDs returns **top-level comments
-only** (their `parent_id` is empty). Replies are a separate fetch, keyed on the
+Instagram comments carry a narrower set — `statistics.like_count`,
+`statistics.comment_count` and `statistics.top_level_reply_count` only, with no
+per-emoji breakdown and only `link_attachment.url` for attachments.
+
+### ⚠ `parent_id` or `parent_comment_id`? — **[unresolved 2026-08-25]**
+
+This file has always named the reply pointer **`parent_id`**. Meta's data
+dictionary names it **`parent_comment_id`**, for both Facebook and Instagram
+comments, and describes it as a *"non-existing field if comment has no parent
+comment"*.
+
+Two claims are in conflict and **neither has been verified against a live
+comments response** — the v1.7.0 verification covered `owner.*`, not this field.
+The difference is load-bearing twice over:
+
+- **The name.** Selecting `parent_id` when the API sends `parent_comment_id`
+  silently yields no column, exactly the failure mode that produced the
+  `statistics.reactions` bug.
+- **Absent vs empty.** "Non-existing field" is not the same as "empty string".
+  If the field is *absent* on top-level comments, then `df$parent_id == ""` is a
+  test against a `NULL` column, and `is.na()` / `%in% names(df)` is the correct
+  test. Under `flatten = TRUE` an absent-on-some-rows field usually arrives as
+  `NA`, not `""` — so code written for `""` fails either way.
+
+**Settle it before relying on either**: pull one post's comments and run
+`names(mcl_fromJSON(resp$text)$data)`. Procedure in
+`docs/TESTING_PROCEDURE.md` § "Comment reply-pointer field name".
+
+### Replies: one job with `fetch_all`, or a second pull
+
+**[added 2026-08-25]** A comments job accepts **`fetch_all = TRUE`**, which
+returns every reply level in one pass. The parameter is documented in
+`references/query_params.md` § "Bulk-comment parameters", which owns it; what
+belongs here is **which of the two routes to take**:
+
+| | One job, `fetch_all = TRUE` | Two pulls |
+|---|---|---|
+| Gets | Every reply level, everywhere | Only the replies you ask for |
+| Budget | Whole threads, including subtrees nobody will read | Top-level comments, then replies for the comments that report having any |
+| Use when | The thread structure *is* the object of study | The corpus is large, or replies matter only for a subset |
+
+The comment budget is its own 500,000-record pool, so on a large corpus the
+second route is materially cheaper. The default is `fetch_all = FALSE`, which
+means the behaviour described below is what you get unasked:
+
+A comments query with `parent_ids` = **post** IDs and no `fetch_all` returns
+**top-level comments only**. Replies are then a separate fetch, keyed on the
 comment IDs that report replies:
 
 ```r
@@ -305,37 +431,78 @@ replies <- safe_get_data(client$post(
 
 ## Instagram Posts
 
+**[corrected 2026-08-25 from Meta's data dictionary]** Earlier versions of this
+file listed `caption`, `producer_id` / `producer_username` / `producer_name` /
+`producer_type` / `producer_verified`, `statistics.likes`,
+`statistics.comments`, `statistics.plays`, `media_count` and `image_text`.
+**None of those names appear in Meta's Instagram post dictionary.** They were a
+guess at symmetry with a Facebook table that itself turned out to be wrong (see
+§ "Engagement Statistics" above, corrected against a live response on
+2026-08-24). The documented shape is the *same* shape Facebook was verified to
+return: `*_count` statistics and a `post_owner.*` block.
+
+The correction runs the same way the Facebook one did: `intersect()`-style column
+selection drops unmatched names in silence, so code written against
+`producer_username` or `statistics.likes` yields a results table with the author
+and the engagement columns quietly missing.
+
 ### Core Fields
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | string | Unique post identifier |
-| `creation_time` | datetime | When posted (UTC) |
-| `caption` | string | Post caption |
-| `lang` | string | Detected language |
+| `text` | string | Post text — **`text`, not `caption`**. Tags excluded. Not applicable to stories |
+| `creation_time` | datetime | When posted |
+| `modified_time` | datetime | Most recent modification |
+| `lang` | string | Detected language (ISO 639-1) |
+| `hashtags` | list | Hashtags in the post — a real field, with no Facebook equivalent |
+| `match_type` | list | Match types for text searches in text, images and stories |
+| `is_verified` | boolean | Whether the post was made from a verified account |
+| `is_branded_content` | boolean | Branded content or not |
+| `media_type` | string | albums, photos, videos, reels |
+| `content_type` | string | Media type included in the post |
 
-### Producer Fields
+### Producer Fields — `post_owner.*`, not `producer_*`
 | Field | Type | Description |
 |-------|------|-------------|
-| `producer_id` | string | Account ID |
-| `producer_username` | string | Instagram handle |
-| `producer_name` | string | Display name |
-| `producer_type` | string | business, creator |
-| `producer_verified` | boolean | Has verified badge |
+| `post_owner.id` | string | Account ID of the post owner |
+| `post_owner.username` | string | Username of the post owner |
+| `post_owner.name` | string | Display name of the post owner |
+| `post_owner.type` | string | Account type — creator, business, personal |
+
+**Meta's dictionary lists no `surface.*` fields for Instagram posts** — which
+would mean the `post_owner` / `surface` split that matters so much on Facebook
+(see § "`post_owner` vs `surface`") has no Instagram analogue, and that a
+producer-list pull with `account_ids` returns what those accounts published with
+no reshare-amplification to filter out.
+
+**Do not build a study design on that.** It is an inference from an omission, in
+the same dictionary that was wrong about Facebook's engagement names, wrong about
+`post_owner.data.*` and wrong about where the view-refresh date lands. Run
+`names()` on a real response and look for a `surface.*` column before concluding
+you do not need an owner filter — Test 12.3 checks exactly this.
 
 ### Engagement Statistics
 | Field | Type | Description |
 |-------|------|-------------|
-| `statistics.likes` | integer | Like count |
-| `statistics.comments` | integer | Comment count |
-| `statistics.views` | integer | View count (video/reel) |
-| `statistics.plays` | integer | Play count (reels) |
+| `statistics.like_count` | integer | Like reactions. Not applicable to stories |
+| `statistics.comment_count` | integer | Comments. Not applicable to stories |
+| `statistics.views` | integer | Times on screen, excluding the owner's own screen |
+| `view_date_last_refreshed` | — | When the view count was last refreshed — **see the note below on where this actually lands** |
 
-### Media Fields
-| Field | Type | Description |
-|-------|------|-------------|
-| `media_type` | string | image, video, carousel, reel |
-| `media_count` | integer | Items in carousel |
-| `image_text` | string | OCR text from images |
+Meta's dictionary lists **no per-emoji breakdown for Instagram** (Facebook's
+`love/wow/haha/sad/angry/care_count` have no counterpart there), and **no
+`statistics.plays` or `statistics.share_count`** — again an absence in a source
+with a track record of omissions, so treat it as "not documented", not as
+"confirmed absent". `statistics.views` carries the
+same "absent, not zero" hazard documented for Facebook — do not coerce `NA` to
+`0` before ranking.
+
+> **Unverified against a live response.** This table is transcribed from the
+> documentation, and the documentation was wrong about Facebook until a live
+> projection corrected it. Confirm the Instagram shape the same way — run a
+> `instagram/posts/preview` with no `fields` and read `names()` off the result —
+> before building on it. `docs/TESTING_PROCEDURE.md` § "Instagram post default
+> projection" has the procedure.
 
 ## Instagram Accounts
 
@@ -371,27 +538,35 @@ Engagement fields on Instagram comments (like and reply counts) are unconfirmed
 `str(mcl_fromJSON(resp$text)$data)`, or read the endpoint's entry from
 `client$openapi_spec()`.
 
-## Threads Posts
+## Threads — documented in the Library, absent from the API
 
-> **Unverified.** No Threads endpoint path has been confirmed for this API
-> version, and this table has not been checked against a live Threads query.
-> Discover the available paths with `client$openapi_spec()` before relying on it.
+**[corrected 2026-08-25]** Earlier versions of this file carried a speculative
+Threads field table (`statistics.likes`, `statistics.replies`,
+`statistics.reposts`, `statistics.quotes`, `is_reply`, `parent_id`). **Delete
+any code written against it.** Those names were invented by analogy; Meta's data
+dictionary does not list them.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Unique post ID |
-| `creation_time` | datetime | When posted (UTC) |
-| `text` | string | Post text |
-| `producer_id` | string | Author account ID |
-| `producer_username` | string | Threads handle |
-| `producer_verified` | boolean | Has verified badge |
-| `statistics.likes` | integer | Like count |
-| `statistics.replies` | integer | Reply count |
-| `statistics.reposts` | integer | Repost count |
-| `statistics.quotes` | integer | Quote count |
-| `media_type` | string | text, image, video |
-| `is_reply` | boolean | Is this a reply |
-| `parent_id` | string | Parent post if reply |
+What the documentation actually shows:
+
+- The data dictionary **does** have Threads sections — Threads post, Threads
+  profile, Threads reply — describing the concepts (likes, replies, reposts,
+  views, post owner, content type, view-count refresh date, and so on).
+- **Their "API field" column reads `N/A` for every row but one.** The single
+  exception is `is_account_verified` on a Threads post. So the dictionary
+  documents Threads as *Content Library* data, and declines to name API
+  properties for it.
+- **None of the 25 API guide pages covers Threads.** There are guides for
+  Facebook, Instagram and WhatsApp surfaces; there is no `th-posts`.
+- Threads *is* named in the API's own policy text: *"Downloading of Facebook,
+  Instagram, Threads and WhatsApp data from the Content Library API by any means
+  is not permitted."* So it is not that Threads is outside the product.
+
+**Operationally:** no Threads endpoint is documented and no Threads API field
+name is published. If you need Threads, read the paths out of
+`client$openapi_spec()` first — that is the authority for what this deployment
+actually serves — and treat anything you find there as a discovery worth
+recording here. Threads data is subject to the same verified-or-100-followers
+rule as Facebook and Instagram profiles.
 
 ## The data dictionary is segmented by product — check the anchor
 
@@ -431,7 +606,14 @@ will never show it. Do not conclude a sub-field is absent from one sample.
 ### `image_text` is a match_type VALUE, not a field — but it IS usable
 
 **[verified 2026-08-22]** There is **no OCR text column** on any Content Library API post
-surface. `image_text` is a *value* of `match_type`, and it works:
+surface. `image_text` is a *value* of `match_type`, and it works.
+
+**`match_type` has three documented values, not two** — `post_text`, `image_text`
+and **`multimedia_text`** (added here 2026-08-25 from Meta's dictionary). The run
+below observed only the first two, which is what a corpus of photos and text
+posts would produce; `multimedia_text` presumably reports a match inside video or
+other multimedia and has **not** been observed. Do not write a two-way `switch`
+on this field.
 
 ```r
 client$get(path = "facebook/posts/preview",
@@ -632,6 +814,37 @@ concluding the query is wrong.
 For profiles, only posts made to their **own** profile are returned; their
 comments and posts on other surfaces are not part of that producer's posts.
 
+### Geography and audience restrictions — **[added 2026-08-25]**
+
+Producer type is not the only thing that removes content from the dataset. From
+the API overview:
+
+- **Four countries are excluded outright.** *"Public data/content will be
+  excluded from these countries: China, North Korea, South Korea, Togo."* A
+  comparative study that includes any of them will find them empty, and that is
+  the product, not the query.
+- **Age-restricted content is excluded**, on the grounds that it is not
+  publicly accessible.
+- **Location-restricted content** is excluded on **Instagram and WhatsApp**. On
+  **Facebook** it depends on the location the query is run from — so two
+  researchers running the identical query from different countries can get
+  different Facebook corpora. Record where a corpus was collected; it is part of
+  the method.
+
+### Downloading is not permitted — **[added 2026-08-25]**
+
+*(This file owns this fact; `surfaces.md` points here.)*
+
+Verbatim from the overview: *"Downloading of Facebook, Instagram, Threads and
+WhatsApp data from the Content Library API by any means is not permitted."*
+
+This is the policy behind several practical facts documented elsewhere in this
+skill: the scrubbed notebook export, the enclave-owned S3 bucket that is not an
+exit (`utilities.md` § "Getting Results Out"), and the presigned `multimedia{url}`
+links that are retrievable *in principle* (§ "`multimedia{url}` DOES work"). Read
+that section with this sentence next to it — the constraint on taking media out
+is a rule, not merely a missing capability.
+
 ## Field Availability Notes
 
 **ID fields**: Documented as `string`, but not always quoted in the JSON payload. Always load them as character (`mcl_fromJSON()`); never compare, join, or deduplicate on a numeric ID.
@@ -644,6 +857,51 @@ comments and posts on other surfaces are not part of that producer's posts.
 
 ## Requesting Fields
 
-Field selection is not documented here because it has not been verified against
-a live response. To check whether an endpoint accepts a field-selection
-parameter, read its entry in the OpenAPI spec — see SKILL.md § "OpenAPI Spec".
+Field selection **is** verified and documented — it lives in
+`references/query_params.md` § "Field expansion: the `fields` parameter uses
+BRACE syntax, not dots" (verified 2026-08-22). Two things to carry into any
+reading of the tables above:
+
+- The request syntax is `statistics{like_count}`; the dots in this file and in
+  Meta's dictionary are *naming*, and the flattened response, not request syntax.
+- **`fields` drops unknown names silently.** Always send a known-good field as a
+  positive control alongside anything you are testing, or you cannot tell "not
+  served" from "misspelled".
+
+*(This section previously said field selection had not been verified. That was
+stale as of v1.11.)*
+
+## Where the docs and this file disagree
+
+**[recorded 2026-08-25]** Reconciling this skill against Meta's documentation
+turned up four places where the published field name differs from what a live
+response actually returned. **The live observation is operative in every case**
+— this table exists so that a reader who finds the documented name is not left
+wondering which to trust.
+
+| Concept | Meta's data dictionary | Observed live | Status |
+|---|---|---|---|
+| Facebook post owner | `post_owner.data.id`, `.data.type`, `.data.name`, `.data.username` | `post_owner.id`, `.type`, `.name` | **[verified 2026-08-24]** — use the observed form |
+| View-count refresh date | `view_date_last_refreshed` (top level, FB **and** IG) | `statistics.views_date_last_refreshed` | **[verified 2026-08-24]** — use the observed form |
+| Facebook post link attachment | `link_attachment_fields.{link,name,caption,description}` | `link_attachment` (`LinkAttachment` in the spec) | **[verified 2026-08-22]** — the documented name returns nothing |
+| Producer list payload | `producers.data[].{id,type,name}` | `$producers` data.frame (id, name, type) | **[verified]** — see `producer_lists.md` |
+
+**A hypothesis that ties three of them together:** the dictionary appears to
+describe the *unflattened graph envelope*, in which an expanded sub-entity sits
+under a `data` key — `post_owner.data.id`, `producers.data[].id`. `mcl_fromJSON()`
+parses with `flatten = TRUE`, and the client appears to unwrap that envelope, so
+the `data` level never reaches R. That would make the dictionary and the
+observations descriptions of the same payload at different stages rather than a
+contradiction. It is **a hypothesis, not a finding** — nothing has been tested —
+but it predicts that any `X.data.y` in the dictionary reaches R as `X.y`, which
+is a cheap thing to check next time one appears.
+
+It does **not** explain `view_date_last_refreshed` (which moves *into*
+`statistics`, not out of a `data` wrapper) or `link_attachment_fields` (which
+`field_reference.md` § "THE RULE" already attributes to the dictionary printing
+human-readable display labels rather than property names).
+
+**The rule this leaves you with is unchanged: `client$openapi_spec()` is the
+authority for what this deployment serves.** It is free, in-session, and specific
+to your version. The dictionary tells you what a field *means*; the spec tells
+you what it is *called*.
