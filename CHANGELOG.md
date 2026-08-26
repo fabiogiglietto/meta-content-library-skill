@@ -4,6 +4,122 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v1.13.2 (2026-08-26)
+
+A support reply closed the last ML-models question — and collecting the evidence
+for the follow-up caught a wrong repo id in this skill.
+
+### Correction: entry #12 was not the repo this skill said it was
+
+`references/ml_models_approved.md` recorded Meta's entry #12 ("Hugging Face
+mDeBERTa v3 multilingual") as `microsoft/mdeberta-v3-base`, marked ✔ 9 files.
+Meta's page links that entry to
+**`MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7`** — an XNLI-finetuned
+zero-shot classifier, not a base model.
+
+**How a verified-looking claim was wrong.** The id was guessed from the entry's
+*name*, and the guess resolved, earning a checkmark. But a successful
+`hf_list_files()` proves an id is downloadable; it never proves the id belongs to
+that row. The check and the claim were about different things. A researcher
+following the skill for #12 got a base model where Meta's row points at a
+classifier with an NLI head — different tools, and plausible enough in an MCL
+pipeline that the substitution stayed silent.
+
+**[verified by listing 2026-08-26: 13 files]** That repo does pass the allow-list.
+It was worth probing rather than assuming — it is the only third-party repo on the
+list, and being linked from Meta's page is not evidence the proxy accepts an id.
+So the list is now **fully resolved: 13 entries, 13 repositories, every id matched
+to Meta's own href and confirmed downloadable.**
+
+### Meta's page carries the canonical repo ids in its hrefs
+
+Every one of the thirteen entries links to its Hugging Face repository, even
+though the visible text prints a bare, unprefixed name. The full mapping, read off
+the live DOM on 2026-08-26, is now the baseline in
+`references/ml_models_approved.md` — better evidence than prose summaries of the
+page, and better than probing, which can confirm that a guessed id resolves but
+never that it is the id Meta meant.
+
+That reframes documentation issue 1 from a request into a one-line fix: **the page
+already knows the org-qualified ids; it just doesn't show them.**
+
+### #11 DeBERTaV3: mis-titled, not missing
+
+Meta Support: *"the approved repository is `microsoft/mdeberta-v3-base`"* — which
+is exactly what the page's own #11 href says. Support was consistent with the docs
+all along. The entry is titled with the DeBERTaV3 paper and links to mDeBERTa, so
+reading the name and trying `microsoft/deberta-v3-base` yields a 400. That is the
+whole bug, and the path that produced the ticket.
+
+**13 entries, 13 repositories.** The previous pass's reading — twelve repos behind
+thirteen entries — is withdrawn. It was correctly tagged as an inference rather
+than as Meta's word, and it was still wrong: it rested on this file's own bad #12.
+Labelling uncertainty does not resolve it when the resolving evidence is one DOM
+query away.
+
+### The follow-up to Meta was rewritten before sending
+
+The drafted reply had asked "is #11 a duplicate of #12, or is DeBERTaV3 meant to be
+available?" — false on both branches. It was caught only because capturing the
+screenshot Meta requested meant opening the page itself. Gathering evidence for a
+claim is a chance to falsify it. `docs/SUPPORT_TICKET_DRAFT.md` now carries the
+corrected follow-up, still marked **not yet sent**, plus
+`docs/evidence/ml-models-page-2026-08-26.png`.
+
+### Open / unresolved
+
+Nothing this skill can settle by probing — question 8 of the ML-models inventory
+closes completely. What remains is Meta's:
+
+- **Documentation issues 1–3** (bare names as visible text; `400` for both
+  unapproved and mistyped ids; the `huggingface.py` return annotations and
+  `ZeroDivisionError`) — deferred by Meta: "we will let you know".
+- **The `sentence-transformers` install request** — not acknowledged in the reply.
+
+## v1.13.1 (2026-08-25)
+
+Two promotions from **read** to **observed**, both from a single live researcher run
+(top posts by views from a 211-page Facebook producer list, 7-day window, 583 rows
+returned). No behaviour changes, no corrections — v1.13.0 was right about both. What
+this release adds is the thing v1.13.0 could not supply, because it was a reading pass:
+evidence.
+
+### `fields` brace expansion verified on the ASYNC JOB endpoint
+
+v1.13.0 established brace syntax against `facebook/posts/preview`
+(`query_params.md` § "Field expansion", verified 2026-08-22). It behaves identically on
+**`facebook/posts/job`** — confirmed with a nine-field projection
+(`text,lang,surface{id,name,type},statistics{...}`) that came back complete on both the
+preview and the 583-row job result, brace expansion and response flattening included.
+
+**Why this one was worth verifying rather than assuming.** `text` is not in the
+24-column default projection, so a job submitted without `fields` returns no post
+bodies — and unlike a bad parameter, that failure is *silent and expensive*: it only
+surfaces once the job has completed and been paid for, and a second job costs full
+budget with no refund. The generalisation from `preview` to `job` was the plausible
+one, but "plausible" and "the budget is already spent" are a bad pairing.
+
+The habit that follows is now written down beside it: **`preview` the exact `fields`
+string before submitting the job that uses it.** Previews are free, unknown field names
+are dropped silently, and this converts an expensive post-hoc discovery into a free
+pre-flight one.
+
+### `estimated_results` given a magnitude
+
+"Approximate count" now carries an observed number: an estimate of **700** preceded a
+job returning **583** — **~20 % high**. One observation is not a bound and is not
+presented as one, but it is enough to stop `estimated_results` being used as a
+denominator for reported rates (use `nrow()`), and enough to treat an estimate sitting
+just under a cap as *near* it. `expected_complete` was `TRUE` and honest: the job did
+return everything.
+
+### Also confirmed, no change needed
+
+Job `status` returned **`COMPLETE`**, uppercase — the fifth live confirmation, against
+Meta's 2025-11-10 "all enums now lowercase" changelog entry. `field_reference.md`
+§ "Where the docs and this file disagree" already records this; the observation is
+logged here rather than restated there.
+
 ## v1.13.0 (2026-08-25)
 
 A **documentation reconciliation** pass: Meta's
