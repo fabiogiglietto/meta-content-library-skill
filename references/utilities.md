@@ -298,8 +298,11 @@ proxy does not follow that redirect.**
 | `xlm-roberta-large` | `FacebookAI/xlm-roberta-large` |
 | `all-MiniLM-L6-v2` (owner given as "UKP Lab") | `sentence-transformers/all-MiniLM-L6-v2` |
 
-The full table of twelve verified ids is `references/ml_models_approved.md`.
-When in doubt, `hf_list_files()` settles it in one free call.
+The full table — thirteen entries, thirteen ids, taken from the page's own link
+targets — is `references/ml_models_approved.md`. **The page carries the canonical
+id in each entry's href**, even though it prints the bare name as text; the link is
+the reliable source, and `hf_list_files()` then confirms in one free call that the
+id is downloadable.
 
 ### Downloading from R
 
@@ -379,19 +382,37 @@ not affected.
 ### Approved models
 
 Only models on Meta's approved list can be downloaded. As fetched 2026-08-22 the
-list covers three families (still 13 models; entry #11's on-page name grew a
-subtitle since the 2026-08-21 fetch — see `references/ml_models_approved.md`):
+list covers three families — 13 entries, one repository each (entry #11's on-page
+name grew a subtitle since the 2026-08-21 fetch — see
+`references/ml_models_approved.md`):
 
-**Repo ids below are the ones that work**, not the names Meta prints — 12 of 13
-were resolved by probing on 2026-08-22 (see § "Always use the org-qualified repo
-id" above for why the difference matters):
+**Repo ids below are the ones Meta's page actually links to** — read off its hrefs
+on 2026-08-26, which is the authoritative mapping, and **all thirteen are
+probe-verified** (twelve on 2026-08-22, #12 on 2026-08-26). See § "Always use the
+org-qualified repo id" above for why the visible names differ:
 
 | Use | Repo id |
 |-----|---------|
 | Translation | `facebook/nllb-200-3.3B`, `facebook/nllb-200-distilled-600M`, `facebook/mbart-large-50`, `facebook/mbart-large-50-many-to-many-mmt`, `google-t5/t5-base`, `google-t5/t5-small` |
 | Embeddings | `sentence-transformers/all-MiniLM-L6-v2`, `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` |
 | Classification / NLU | `google-bert/bert-base-uncased`, `distilbert/distilbert-base-uncased-finetuned-sst-2-english`, `FacebookAI/xlm-roberta-large`, `microsoft/mdeberta-v3-base` |
-| **Unresolved** | **DeBERTaV3** — listed by Meta, but `microsoft/deberta-v3-base` and `-large` both 400. See `references/ml_models_approved.md` |
+| Zero-shot classification | `MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7` (13 files) |
+
+**Entry #11 is mis-titled on Meta's page.** It carries the *DeBERTaV3* paper title
+but links to `microsoft/mdeberta-v3-base` — **[link target read from the page
+2026-08-26]**, and Meta Support confirmed the same repo. The English-only
+`microsoft/deberta-v3-base` / `-large` are not approved and return 400
+**[verified by probing 2026-08-22]**. Reading the entry's name and trying the
+English repo is the trap; use `microsoft/mdeberta-v3-base`.
+
+⚠ **Entry #12 is *not* `microsoft/mdeberta-v3-base`** — an earlier version of this
+skill said it was. Meta links it to
+`MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7` **[verified by listing
+2026-08-26, 13 files]** — an XNLI-finetuned **zero-shot classifier**, not a base
+model. If you want a plain mDeBERTa encoder to fine-tune, that is
+`microsoft/mdeberta-v3-base` (entry #11); if you want zero-shot topic labelling
+off the shelf, entry #12 is the one with the NLI head already trained. See
+`references/ml_models_approved.md` § "Correction 2026-08-26".
 
 `references/ml_models_approved.md` holds the verbatim list as Meta prints it,
 alongside these ids. The list grows — check the
