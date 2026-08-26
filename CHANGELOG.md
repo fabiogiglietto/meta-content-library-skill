@@ -4,6 +4,16 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## Housekeeping (2026-08-26, no version bump)
+
+- `README.md` now says v1.13.2 — the v1.13.2 release missed checklist rule 1's
+  third place.
+- `docs/SUPPORT_TICKET_DRAFT.md` → `docs/SUPPORT_TICKET_ML_MODELS.md`: the
+  ticket is filed and answered, so "draft" was misleading. Live references in
+  `SKILL.md` and `docs/OPEN_QUESTION_ASYNC_QUERIES_502.md` updated; entries
+  below keep the old name as history.
+- `references/ml_models_approved.md` added to the README key-files table.
+
 ## v1.13.2 (2026-08-26)
 
 A support reply closed the last ML-models question — and collecting the evidence
