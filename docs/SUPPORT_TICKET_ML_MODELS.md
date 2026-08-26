@@ -1,4 +1,7 @@
-# Support ticket draft — ML models in the SRE
+# Support ticket — ML models in the SRE
+
+> Filed under the name `SUPPORT_TICKET_DRAFT.md`; renamed once the ticket was
+> filed and answered. Older CHANGELOG entries use the old name.
 
 Drafted 2026-08-22 from the Phase A/B findings in `ML_MODELS_OPEN_QUESTIONS.md`.
 The blocking question was #11 DeBERTaV3, which probing could not settle because a
