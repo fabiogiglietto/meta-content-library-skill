@@ -33,7 +33,7 @@ time.
 | 5 | What does `output_dir` replace — the whole path, or the parent? | **[verified 2026-08-22] the WHOLE path.** When set, the `huggingface/<repo>/<revision>` nesting is skipped entirely and files land at `os.path.join(output_dir, filename)` | **Collision hazard:** two models sharing one `output_dir` overwrite each other's like-named files (`config.json`…) | **A done** |
 | 6 | What do the helpers **return**? | **[verified 2026-08-22] `None`, both — the docstrings are WRONG.** Full source now read: neither function has a `return` statement, while both docstrings promise "str: The path" | Do not assign the return value — build the path yourself | **A done** |
 | 7 | How does an **unapproved** model fail, and is that error distinguishable from a typo'd repo id? | **[verified 2026-08-22] NO — they are IDENTICAL.** Both `gpt2` (real, unapproved) and a nonexistent repo return `HTTPError: 400 Client Error: Bad Request`. No 403, no 404, no message naming approval | A 400 means *either* wrong id *or* unapproved. The reader must disambiguate by hand against the list | **B done** |
-| 8 | The **canonical repo ids** of approved models | **[verified 2026-08-22] 12 of 13 resolved** by listing; only #11 DeBERTaV3 resists. **The org prefix is mandatory** — every bare legacy alias (`t5-small`, `bert-base-uncased`, `xlm-roberta-large`, …) returns 400 because the proxy does not follow Hugging Face's rename redirects | Meta's page prints the bare names, so copying its own text produces a 400 | **B done bar #11** |
+| 8 | The **canonical repo ids** of approved models | **[link targets read from the page 2026-08-26 — authoritative] 13 entries, 13 repos.** Meta's page carries each canonical id in the entry's **href** while printing a bare name as text. **All 13 probe-verified** (12 on 2026-08-22, #12 on 2026-08-26 — 13 files). **#12 was recorded wrong** (`microsoft/mdeberta-v3-base`, guessed from the name) and is really `MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7`. **The org prefix is mandatory** — every bare legacy alias (`t5-small`, `bert-base-uncased`, `xlm-roberta-large`, …) returns 400 because the proxy does not follow Hugging Face's rename redirects | Meta's page prints the bare names, so copying its own text produces a 400 | **B done** |
 | 9 | Is the approved list available **programmatically**? | **[verified 2026-08-22] no list function** — but the module exports an **undocumented third function, `hf_list_files(repo, revision)`**, plus the constant `HF_ENDPOINT` | `hf_list_files` probes a repo without downloading it; `HF_ENDPOINT` is where gating must live | **A done** |
 | 10 | Are any models **pre-downloaded** in the image? | **[verified 2026-08-22] NO** — `~/huggingface` does not exist on a fresh server. Home is `/home/jovyan`, as documented | First step really is download | **A done** |
 | 11 | Does `revision` accept a **commit SHA / branch** other than `main`, and is it validated? | **[verified 2026-08-22] YES, fully.** Full 40-char SHA *and* 7-char short SHA both accepted; a pinned revision gets its **own directory** beside `main/`. An absent revision returns **404**, not 400 | Pinning is genuinely reproducible, and its failure mode is distinguishable | **D done** |
@@ -266,6 +266,62 @@ lists fine while `microsoft/deberta-v3-base` and `-large` do not, so the org is
 right and the gate is per-model. Either an unguessed variant is the approved one,
 or the page lists something the allow-list lacks. Since a 400 cannot separate
 those, **probing cannot settle it** — this one needs a support ticket.
+
+> **Answered 2026-08-26.** Meta Support: *"the approved repository is
+> `microsoft/mdeberta-v3-base`"* — and the page's own href for #11 says the same.
+> Entry #11 is simply **mis-titled**: DeBERTaV3's paper title over a link to
+> mDeBERTa. See the Phase B3 entry below.
+
+### Phase B3, 2026-08-26 — the page's hrefs settle it, and catch an error here
+
+Two inputs arrived: Meta Support's reply, and — while capturing a screenshot they
+asked for — the page's **link targets**, read off the live DOM.
+
+> "We can confirm that the approved repository is `microsoft/mdeberta-v3-base`."
+
+**Question 8 closes at 13 of 13, with 13 distinct repositories.** Every entry links
+to its Hugging Face repo; the full mapping is in `references/ml_models_approved.md`.
+
+**#11 is mis-titled, not missing.** Its title is the DeBERTaV3 paper, its href is
+`microsoft/mdeberta-v3-base`. Support and the page agree — they always did. The
+`400` from `microsoft/deberta-v3-base` was the allow-list, and the reason anyone
+tried that id is Meta's title.
+
+**#12 was wrong in this skill.** Recorded as `microsoft/mdeberta-v3-base`; actually
+`MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7` — an XNLI-finetuned
+zero-shot classifier, not a base model. **[verified by listing 2026-08-26: 13
+files]**, so it does pass the allow-list; the only third-party repo on the list,
+and worth checking rather than assuming, since a link is not an approval.
+
+**What this run actually teaches:**
+
+1. **A probe confirms an id is downloadable; it never confirms the id belongs to
+   that row.** #12's id was guessed from the entry's name, resolved, and earned a
+   ✔ — for the wrong repo. The check and the claim were about different things,
+   and the ✔ hid the gap for four days. When a claim is "X is the id for row N",
+   the evidence has to come from row N, not from X responding.
+2. **Prefer the source's structured form over its prose.** The hrefs carried the
+   canonical ids the whole time, while the visible text carried bare names. Two
+   fetches and a probing campaign read the prose; one DOM read settled it. Ask
+   what machine-readable form the source already publishes before reconstructing
+   it — the same instinct that makes `client$openapi_spec()` beat the guides.
+3. **A wrong premise nearly went outward.** The follow-up drafted for Meta asked
+   "is #11 a duplicate of #12, or is DeBERTaV3 unreachable?" — false on both
+   branches, and built on this file's own bad #12. It was caught only because
+   collecting the screenshot meant opening the actual page. **Gathering the
+   evidence for a claim is a chance to falsify it**, not a formality after the
+   conclusion is written.
+4. **An inference tagged as an inference was still wrong.** The previous pass
+   correctly demoted "thirteen entries, twelve repos" from *confirmed* to
+   *our reading*. Good provenance hygiene — and it did not make the reading true.
+   Labelling uncertainty is not a substitute for resolving it when the resolving
+   evidence is one DOM query away.
+
+**Nothing left open.** The probe ran the same day: 13 files, approved. Question 8
+now closes completely — **13 entries, 13 repositories, every id both matched to
+Meta's own href and confirmed downloadable.** The inventory's remaining open items
+are Meta's to answer (documentation issues 1–3 and the `sentence-transformers`
+request), not questions this skill can settle by probing.
 
 ### Phase C, run 2026-08-22 — everything worked, and one recommendation was wrong
 
