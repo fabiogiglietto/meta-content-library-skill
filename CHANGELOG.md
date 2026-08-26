@@ -44,6 +44,17 @@ sentence, and the entire `guides/data-deletion` page. Neither appeared on either
 changelog, and this tripwire would not have caught either one. It narrows the
 window in which drift goes unnoticed; it does not close it, and it is not a
 substitute for `[verified DATE]` provenance.
+
+## Housekeeping (2026-08-26, no version bump)
+
+- `README.md` now says v1.13.2 — the v1.13.2 release missed checklist rule 1's
+  third place.
+- `docs/SUPPORT_TICKET_DRAFT.md` → `docs/SUPPORT_TICKET_ML_MODELS.md`: the
+  ticket is filed and answered, so "draft" was misleading. Live references in
+  `SKILL.md` and `docs/OPEN_QUESTION_ASYNC_QUERIES_502.md` updated; entries
+  below keep the old name as history.
+- `references/ml_models_approved.md` added to the README key-files table.
+
 ## v1.13.2 (2026-08-26)
 
 A support reply closed the last ML-models question — and collecting the evidence
