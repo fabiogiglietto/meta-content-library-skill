@@ -1,12 +1,18 @@
 name: Meta docs drift check
 
-# The tripwire behind SKILL.md section "Staying Current". Fetches ONE page --
-# Meta's Content Library and API changelog -- and opens an issue when it grows a
-# dated entry this skill has not been reconciled against.
+# The tripwire behind SKILL.md section "Staying Current". Fetches the changelog
+# of each documentation tree this skill transcribes -- Content Library and API,
+# and the Secure Research Environment -- and opens an issue when one grows a
+# dated entry the skill has not been reconciled against.
 #
 # It deliberately does NOT commit an updated baseline. The open issue is the
 # signal, and it should survive until a human has actually reconciled the
 # affected guides and followed the release checklist in CHANGELOG.md.
+#
+# KNOWN LIMIT, worth remembering before trusting a green run: this catches
+# *announced* changes only. Meta has shipped at least two unannounced ones -- the
+# S3 upload page's "not supported for Meta Content Library" sentence, and the
+# monthly data-deletion guide -- and neither appeared on either changelog.
 
 on:
   schedule:
@@ -35,14 +41,15 @@ jobs:
           gh label create docs-check-broken --color D93F0B \
             --description "The docs tripwire itself failed" --force
 
-      # Exit 0 = clean, 1 = new changelog entries, 2 = the check itself failed.
-      # Captured explicitly rather than via continue-on-error, which collapses
-      # 1 and 2 into a single "failure" and loses the distinction that matters.
-      - name: Compare Meta's changelog against the committed baseline
+      # The script reports drift and failure INDEPENDENTLY, because with more
+      # than one source they are no longer mutually exclusive: a 404 on one page
+      # must not swallow real drift on the other. The process exit code still
+      # collapses them (2 dominates 1), so gate on the outputs, not on the code.
+      - name: Compare Meta's changelogs against the committed baseline
         id: drift
         run: |
           set +e
-          python3 .github/scripts/check_meta_docs.py --check
+          python3 .github/scripts/check_meta_docs.py --check --drift-body drift_tables.md
           code=$?
           set -e
           echo "code=$code" >> "$GITHUB_OUTPUT"
@@ -60,91 +67,98 @@ jobs:
           echo "open: drift=$drift broken=$broken"
 
       - name: Open a drift issue
-        if: steps.drift.outputs.code == '1' && steps.open.outputs.drift == '0'
+        if: steps.drift.outputs.drift == 'true' && steps.open.outputs.drift == '0'
         env:
           GH_TOKEN: ${{ github.token }}
-          NEW: ${{ steps.drift.outputs.new_entries }}
-          GONE: ${{ steps.drift.outputs.gone_entries }}
-          NEWEST: ${{ steps.drift.outputs.newest }}
-          BASE_NEWEST: ${{ steps.drift.outputs.baseline_newest }}
-          BASE_CHECKED: ${{ steps.drift.outputs.baseline_checked }}
+          SOURCES: ${{ steps.drift.outputs.drifted_sources }}
         run: |
-          cat > body.md <<EOF
-          Meta's [Content Library and API changelog](https://developers.facebook.com/docs/content-library-and-api/changelog)
-          carries entries this skill has not been reconciled against.
+          {
+            echo "Meta's documentation carries changelog entries this skill has not"
+            echo "been reconciled against."
+            echo
+            cat drift_tables.md
+            cat <<'EOF'
 
-          | | |
-          |---|---|
-          | Baseline last checked | \`${BASE_CHECKED}\` |
-          | Baseline newest entry | \`${BASE_NEWEST}\` |
-          | Newest entry now | \`${NEWEST}\` |
-          | **New entries** | \`${NEW}\` |
-          | Entries no longer present | \`${GONE:-none}\` |
+          ### What to do
+
+          1. Read **only the guides the new entries name**. Reconciling every page
+             is a day's work and is not what this alert is for.
+          2. Route each change by the **Owns** line under its table above. Entries on
+             the Secure Research Environment changelog are environment facts, and the
+             ones about *driving* the SRE belong in the client repo, not this one.
+          3. **A documented name never overrides a `[verified DATE]` observation in
+             this repo.** Where they conflict, record both and keep the observation
+             operative -- see `references/field_reference.md` section "Where the docs
+             and this file disagree".
+          4. Update the baseline in **two** places: the human-readable one in
+             `SKILL.md` section "Staying Current", and the machine one with
+             `python3 .github/scripts/check_meta_docs.py --update`
+             (add `--only <source>` to refresh just one).
+          5. Follow the release checklist at the end of `CHANGELOG.md`.
+
+          Closing this without step 4 means it reopens next month.
 
           An entry disappearing is usually a reworded page rather than a retraction,
           but it is worth a look -- this parse keys on dates alone.
 
-          ### What to do
-
-          1. Read **only the guides the new entries name**. Reconciling all 25 guide
-             pages is a day's work and is not what this alert is for.
-          2. Route each change with the page-to-file map in \`SKILL.md\` section
-             "Staying Current" -- it says which file owns which page.
-          3. **A documented name never overrides a \`[verified DATE]\` observation in
-             this repo.** Where they conflict, record both and keep the observation
-             operative -- see \`references/field_reference.md\` section "Where the docs
-             and this file disagree".
-          4. Update the baseline in **two** places: the human-readable one in
-             \`SKILL.md\` section "Staying Current", and the machine one with
-             \`python3 .github/scripts/check_meta_docs.py --update\`.
-          5. Follow the release checklist at the end of \`CHANGELOG.md\`.
-
-          Closing this without step 4 means it reopens next month.
-
-          <sub>Opened by \`.github/workflows/meta-docs-check.yml\`. Run it by hand from the Actions tab.</sub>
+          <sub>Opened by `.github/workflows/meta-docs-check.yml`. Run it by hand from the Actions tab.</sub>
           EOF
+          } > body.md
           gh issue create --label docs-drift \
-            --title "Meta docs changed: new changelog entry ${NEWEST}" \
+            --title "Meta docs changed: ${SOURCES}" \
             --body-file body.md
 
       # A tripwire that breaks and reports "no change" is worse than no tripwire,
-      # so a failed check gets its own alert rather than a silent green run.
+      # so a failed check gets its own alert rather than a silent green run. Note
+      # this can fire in the same run as the drift issue above -- one source can
+      # break while another legitimately drifts.
       - name: Open a check-broken issue
-        if: steps.drift.outputs.code == '2' && steps.open.outputs.broken == '0'
+        if: steps.drift.outputs.broken == 'true' && steps.open.outputs.broken == '0'
         env:
           GH_TOKEN: ${{ github.token }}
+          FAILED: ${{ steps.drift.outputs.failed_sources }}
+          DETAIL: ${{ steps.drift.outputs.failure_detail }}
         run: |
-          cat > broken.md <<'EOF'
-          `.github/scripts/check_meta_docs.py` could not fetch or parse Meta's
-          changelog, so **this skill is currently unmonitored**. Until it is fixed,
-          treat `SKILL.md` section "Staying Current" as the only baseline and check
-          by hand.
+          cat > broken.md <<EOF
+          \`.github/scripts/check_meta_docs.py\` could not fetch or parse one or more
+          watched changelogs, so **that part of this skill is currently unmonitored**.
+          Until it is fixed, treat \`SKILL.md\` section "Staying Current" as the only
+          baseline for the affected tree and check it by hand.
+
+          | | |
+          |---|---|
+          | Failed sources | \`${FAILED}\` |
+          | Detail | ${DETAIL} |
 
           Likely causes, cheapest first:
 
-          - **The request is being rejected.** `developers.facebook.com` answers a
+          - **The request is being rejected.** \`developers.facebook.com\` answers a
             bare request with HTTP 400; it needs browser-shaped headers, including
-            `Sec-Fetch-*`. Those are in `HEADERS` in the script -- Meta may have
+            \`Sec-Fetch-*\`. Those are in \`HEADERS\` in the script -- Meta may have
             tightened them further.
-          - **The page moved.** Check `CHANGELOG_URL`.
-          - **The date format changed**, so `DATE_RE` no longer matches -- or the
-            entry count fell below `MIN_PLAUSIBLE_ENTRIES`, which is the guard that
-            stops a half-parsed page from reading as "no drift".
+          - **The page moved.** Check the \`url\` for that source in \`SOURCES\`.
+          - **The date format changed**, so \`DATE_RE\` no longer matches -- or the
+            entry count fell below that source's \`min_entries\`, which is the guard
+            that stops a half-parsed page from reading as "no drift". The floors are
+            per-source on purpose: the Content Library changelog carried 19 entries
+            and the Researcher Platform one only 5, so a single global floor would
+            be wrong for one of them.
 
           Reproduce locally:
 
-          ```
+          \`\`\`
           python3 .github/scripts/check_meta_docs.py --check
-          ```
+          python3 .github/scripts/check_meta_docs.py --check --only ${FAILED%% *}
+          \`\`\`
 
           Exit 2 = this failure, 1 = real drift, 0 = clean.
           EOF
           gh issue create --label docs-check-broken \
-            --title "Meta docs check is broken -- the tripwire is not firing" \
+            --title "Meta docs check is broken -- ${FAILED} is not being watched" \
             --body-file broken.md
 
       - name: Fail the run if the check itself broke
-        if: steps.drift.outputs.code == '2'
+        if: steps.drift.outputs.broken == 'true'
         run: |
-          echo "::error::The Meta docs tripwire could not run. See the docs-check-broken issue."
+          echo "::error::The Meta docs tripwire could not read ${{ steps.drift.outputs.failed_sources }}. See the docs-check-broken issue."
           exit 1

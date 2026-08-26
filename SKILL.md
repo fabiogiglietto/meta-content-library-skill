@@ -592,10 +592,15 @@ mode is why this section exists: nothing will tell you the skill is out of date.
 
 ### Baseline — what the last check found
 
-> **Documentation checked: 2026-08-25.** At that date the newest **dated** entry
-> on Meta's changelog was **2026-04-30 (WhatsApp channels data)**, which this
-> skill covers. Everything below v6.0 in Meta's version list was already
-> reconciled.
+> **Documentation checked: 2026-08-25.** Two changelogs are watched, and at that
+> date the newest **dated** entry on each was:
+>
+> | Tree | Newest entry |
+> |---|---|
+> | [Content Library and API](https://developers.facebook.com/docs/content-library-and-api/changelog) | **2026-04-30** — WhatsApp channels data, which this skill covers |
+> | [Secure Research Environment](https://developers.facebook.com/docs/researcher-platform/changelog) | **2025-08-18** — the Researcher Platform → Secure Research Environment rename |
+>
+> Everything below v6.0 in Meta's version list was already reconciled.
 
 State the baseline as a *finding*, not just a date: the next checker compares one
 entry against another rather than doing arithmetic on when someone last looked.
@@ -616,20 +621,34 @@ entry against another rather than doing arithmetic on when someone last looked.
    kind of claim that a docs change invalidates. A `[verified]` observation is
    safer, because it was true of a real response.
 
-### The check: one page, then stop
+### The check: two pages, then stop
 
-**The changelog is the tripwire.** Fetch only this:
+**The changelogs are the tripwire.** Fetch only these:
 
-<https://developers.facebook.com/docs/content-library-and-api/changelog>
+| Page | Covers |
+|---|---|
+| <https://developers.facebook.com/docs/content-library-and-api/changelog> | the API — endpoints, fields, parameters, caps |
+| <https://developers.facebook.com/docs/researcher-platform/changelog> | the environment — access, portals, storage, export |
 
-Compare its topmost **dated** entry against the baseline above.
+Compare each one's topmost **dated** entry against the baseline above. The second
+page is quiet — it had five entries in twenty months — but the environment is
+half of what this skill asserts, and until 2026-08-25 nothing watched it at all.
+
+> **What this does not catch, and it matters.** Changelog-watching sees
+> *announced* changes. Meta ships unannounced ones: the S3 upload page's
+> "It is not supported for Meta Content Library" sentence and the whole
+> `guides/data-deletion` page were both live and correct while **neither
+> changelog mentioned them**. A clean run means "nothing was announced", not
+> "nothing changed" — so a `[verified DATE]` observation still outranks any
+> documented name, and a documentation-sourced claim is still the one to
+> re-check before asserting it.
 
 - **Same entry, nothing newer → done.** Total cost: one fetch.
 - **Newer entries exist → read only the guides those entries name**, using the
   map below. A full reconciliation of all 25 guides is a day's work and is not
   what a monthly check is for.
 
-Two things about that page that will otherwise waste a fetch: it interleaves
+Two things about the **Content Library** page that will otherwise waste a fetch: it interleaves
 **dated** entries (no version number — the 2026 and 2025 changes) with
 **versioned** ones (v5.0, v4.0…), and **v6.0 itself shipped as the undated
 2025-11-10 "REST-ful API updates" entry**. So "is there a new version?" is the
@@ -661,6 +680,7 @@ a change is recorded once rather than in three places.
 | `content-library-api/quick-start`, `get-access` | SKILL.md § "Environment" and § "Setup" |
 | `citations` | SKILL.md § "Citing the Data" |
 | `support` | `docs/SUPPORT_TICKET_ML_MODELS.md` |
+| `researcher-platform/features/*`, `secure-research-environment/*` | `references/utilities.md` — export, packages, GPU, the monthly wipe. **Anything about *driving* the SRE is the client's, not this skill's** |
 
 ### Record the result — including "nothing changed"
 
@@ -683,15 +703,22 @@ section exists to prevent.
 
 ### Who actually runs it
 
-**In the source repo**, a monthly GitHub Action does the fetch and opens an issue
-when the changelog grows an entry — `.github/workflows/meta-docs-check.yml`, with
-its state in `.github/meta-docs-baseline.json`. Run it by hand from the Actions
-tab, or locally:
+**In the source repo**, a monthly GitHub Action fetches both pages and opens an
+issue when either changelog grows an entry — `.github/workflows/meta-docs-check.yml`,
+with its state in `.github/meta-docs-baseline.json`. Drift and a broken fetch are
+reported independently, so a 404 on one page cannot swallow real drift on the
+other. Run it by hand from the Actions tab, or locally:
 
 ```
 python3 .github/scripts/check_meta_docs.py --check    # 0 clean · 1 drift · 2 broken
 python3 .github/scripts/check_meta_docs.py --update   # after reconciling
+python3 .github/scripts/check_meta_docs.py --check --only researcher-platform
 ```
+
+Sources are declared in `SOURCES` at the top of that script — one dict per page,
+each with its own `min_entries` parse floor, because the two pages differ by a
+factor of four in how many entries they carry and a single global floor would be
+wrong for one of them.
 
 **That Action does not travel with the skill.** A copy installed by zip upload,
 or symlinked from a clone that never syncs, has the protocol above and no

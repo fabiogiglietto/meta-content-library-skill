@@ -56,8 +56,8 @@ Clone once, then symlink the clone into your personal skills directory. The
 command name comes from the *directory* name, so link it as `mcl-api-r`:
 
 ```bash
-git clone https://github.com/fabiogiglietto/mcl-api-r-skil.git ~/skills/mcl-api-r-skil
-ln -s ~/skills/mcl-api-r-skil ~/.claude/skills/mcl-api-r
+git clone https://github.com/fabiogiglietto/mcl-api-r.git ~/skills/mcl-api-r
+ln -s ~/skills/mcl-api-r ~/.claude/skills/mcl-api-r
 ```
 
 For a project-local install, symlink into that project's `.claude/skills/`
@@ -83,7 +83,7 @@ mcl-api-r.zip
 ```
 
 ```bash
-git clone https://github.com/fabiogiglietto/mcl-api-r-skil.git mcl-api-r
+git clone https://github.com/fabiogiglietto/mcl-api-r.git mcl-api-r
 zip -r mcl-api-r.zip mcl-api-r -x 'mcl-api-r/.git/*'
 ```
 
