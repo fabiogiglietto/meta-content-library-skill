@@ -679,7 +679,7 @@ a change is recorded once rather than in three places.
 | `content-library-api/overview` | `field_reference.md` § "Data Scope" — geography, audience limits, the download prohibition |
 | `content-library-api/quick-start`, `get-access` | SKILL.md § "Environment" and § "Setup" |
 | `citations` | SKILL.md § "Citing the Data" |
-| `support` | `docs/SUPPORT_TICKET_DRAFT.md` |
+| `support` | `docs/SUPPORT_TICKET_ML_MODELS.md` |
 | `researcher-platform/features/*`, `secure-research-environment/*` | `references/utilities.md` — export, packages, GPU, the monthly wipe. **Anything about *driving* the SRE is the client's, not this skill's** |
 
 ### Record the result — including "nothing changed"

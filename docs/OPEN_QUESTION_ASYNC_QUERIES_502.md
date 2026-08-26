@@ -56,7 +56,7 @@ cat(substr(r$text, 1, 120), "\n")
 | Outcome | Action |
 |---|---|
 | Valid JSON | Transient. Record the date, delete this file, and note in `collections.md` that a 502 was seen once. |
-| 502 again | Persistent. Promote to a documented limitation in `collections.md`, mark the query-management block **[broken]**, and file a support ticket (`docs/SUPPORT_TICKET_DRAFT.md`). |
+| 502 again | Persistent. Promote to a documented limitation in `collections.md`, mark the query-management block **[broken]**, and file a support ticket (`docs/SUPPORT_TICKET_ML_MODELS.md` shows the format of a filed one). |
 | A different error | New information; reopen with both observations. |
 
 ## Correct regardless of the answer
