@@ -4,7 +4,7 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
-## Unreleased
+## v1.14.0 (2026-08-26)
 
 ### The docs tripwire now watches the environment too
 
