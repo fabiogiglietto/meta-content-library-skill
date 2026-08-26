@@ -66,6 +66,16 @@ claim is a chance to falsify it. `docs/SUPPORT_TICKET_DRAFT.md` now carries the
 corrected follow-up, still marked **not yet sent**, plus
 `docs/evidence/ml-models-page-2026-08-26.png`.
 
+### Fixed: the frontmatter did not parse as YAML
+
+`SKILL.md`'s `description:` was an unquoted scalar containing `VDE: ` — and a
+colon-space inside a plain YAML scalar starts a nested mapping, so GitHub's web
+view refused the whole block with *"mapping values are not allowed in this
+context"*. Latent since the description was shortened in `1281aa0`; the loader
+here was lenient enough to hide it, GitHub was not. The value is now quoted, with
+its 198 characters unchanged. `SKILL.md` is the only file in the repo with
+frontmatter, and it parses.
+
 ### Open / unresolved
 
 Nothing this skill can settle by probing — question 8 of the ML-models inventory
