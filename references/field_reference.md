@@ -1,7 +1,7 @@
 # Field Reference by Endpoint
 
 > **Every field typed `string` below that holds an ID** (`id`, `post_owner.id`,
-> `owner.id`, `surface.id`, `producer_id`, `post_id`, `parent_id`,
+> `owner.id`, `surface.id`, `producer_id`, `post_id`, `parent_comment_id`,
 > `shared_post_id`, `host_id`, …) must end up
 > as a **character** vector in R. Some endpoints send these as unquoted JSON
 > numbers, so `fromJSON()` types them `numeric` — losing digits above 2^53 and
@@ -328,7 +328,7 @@ may be present but empty. Flattened names as returned by `mcl_fromJSON()`:
 |-------|------|-------------|
 | `id` | string | Unique comment ID |
 | `post_id` | string | Parent post ID |
-| `parent_id` | string | Parent **comment** ID; empty on top-level comments |
+| `parent_comment_id` | string | Parent **comment** ID. **Present only when `fetch_all = TRUE`; absent entirely on a top-level-only pull** — [verified 2026-08-27] |
 | `text` | string | Comment text |
 | `creation_time` | datetime | When comment was posted |
 | `owner.id` | string | Commenter ID |
@@ -337,10 +337,20 @@ may be present but empty. Flattened names as returned by `mcl_fromJSON()`:
 | `owner.type` | string | page, profile, … |
 | `author_id` | string | Present in some responses but **empty** — use `owner.id` |
 | `lang` | string | Comment language (ISO 639-1, 2-letter lowercase) |
-| `link_attachment.url` | string | URL of a link attached to the comment |
+| `link_attachment.link` | string | **URL of a link attached to the comment — the field is `link`, exactly as on posts** [verified 2026-08-27] |
 | `link_attachment.name` | string | Name of the link attachment |
 | `link_attachment.caption` | string | Caption of the link attachment |
-| `link_attachment.description` | string | Description of the link attachment |
+
+> **⚠ Corrected 2026-08-27 — `link_attachment.url` does not exist on comments.**
+> This table previously said `url` for comments and `link` for posts, and the
+> distinction was load-bearing in downstream study code. Live check on
+> `facebook/posts/{id}/comments/preview`: the **default projection** returns
+> `link_attachment.link`, `.name`, `.caption` — no `url`. Requesting
+> `link_attachment{url,link,name,caption,description}` returned only `link`,
+> `name`, `caption`; `url` and `description` were silently dropped while the
+> positive control `statistics{like_count}` survived, which is the
+> discriminating evidence. **Comment attachments have no `description`
+> either.** Code selecting `link_attachment.url` gets no column, silently.
 
 `owner.type` on a comment takes a value the post surfaces do not: **`private`**,
 alongside `page` and `profile`. A private commenter is a real row with a real
@@ -364,31 +374,35 @@ whichever happens to be present changes the number without changing the label.
 
 Instagram comments carry a narrower set — `statistics.like_count`,
 `statistics.comment_count` and `statistics.top_level_reply_count` only, with no
-per-emoji breakdown and only `link_attachment.url` for attachments.
+per-emoji breakdown and only `link_attachment.link` for attachments.
 
-### ⚠ `parent_id` or `parent_comment_id`? — **[unresolved 2026-08-25]**
+### ✅ `parent_id` or `parent_comment_id`? — **[settled 2026-08-27]**
 
-This file has always named the reply pointer **`parent_id`**. Meta's data
-dictionary names it **`parent_comment_id`**, for both Facebook and Instagram
-comments, and describes it as a *"non-existing field if comment has no parent
-comment"*.
+**The field is `parent_comment_id`. `parent_id` does not exist.** Meta's data
+dictionary was right and this file was wrong.
 
-Two claims are in conflict and **neither has been verified against a live
-comments response** — the v1.7.0 verification covered `owner.*`, not this field.
-The difference is load-bearing twice over:
+Verified live against `facebook/posts/{id}/comments/preview` on an Italian
+page post with 25,616 comments:
 
-- **The name.** Selecting `parent_id` when the API sends `parent_comment_id`
-  silently yields no column, exactly the failure mode that produced the
-  `statistics.reactions` bug.
-- **Absent vs empty.** "Non-existing field" is not the same as "empty string".
-  If the field is *absent* on top-level comments, then `df$parent_id == ""` is a
-  test against a `NULL` column, and `is.na()` / `%in% names(df)` is the correct
-  test. Under `flatten = TRUE` an absent-on-some-rows field usually arrives as
-  `NA`, not `""` — so code written for `""` fails either way.
+| Request | `parent_id` | `parent_comment_id` |
+|---|---|---|
+| default projection, `fetch_all` unset (top-level only) | absent | **absent** |
+| named explicitly in `fields` | absent | absent (silently dropped) |
+| `fetch_all = TRUE` | absent | **present** |
 
-**Settle it before relying on either**: pull one post's comments and run
-`names(mcl_fromJSON(resp$text)$data)`. Procedure in
-`docs/TESTING_PROCEDURE.md` § "Comment reply-pointer field name".
+Both halves of the old question are answered:
+
+- **The name** is `parent_comment_id`, for Facebook comments as the data
+  dictionary said.
+- **Absent, not empty.** On a top-level-only pull the column is not in the
+  data frame at all, so `df$parent_comment_id == ""` tests a `NULL` and
+  `"parent_comment_id" %in% names(df)` is the correct guard. The column
+  materialises only when replies can be in the result set — i.e. under
+  `fetch_all = TRUE`.
+
+Consequence for the two-pull route: replies fetched through
+`/facebook/comments/{id}/replies/preview` come back with **no parent field**,
+so the caller must carry the linkage (it knows which comment it asked for).
 
 ### Replies: one job with `fetch_all`, or a second pull
 
