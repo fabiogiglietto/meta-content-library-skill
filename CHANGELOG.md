@@ -4,6 +4,46 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v1.15.0 (2026-08-27)
+
+### Two comment fields were wrong, and both are now verified against live data
+
+Settled during Stage 0b of the links-in-comments pilot, on
+`facebook/posts/{id}/comments/preview` against an Italian page post with
+25,616 comments. Both corrections share a failure mode: a wrong field name
+yields **no column**, silently, because `fields` drops unknown names without
+complaint.
+
+- **`link_attachment.url` does not exist on comments — the field is
+  `link_attachment.link`, exactly as on posts.** This file had asserted a
+  posts/comments split (`link` vs `url`) that isn't real. The default
+  projection returns `link_attachment.link`, `.name`, `.caption`; requesting
+  `link_attachment{url,link,name,caption,description}` returned only `link`,
+  `name`, `caption`, with the positive control `statistics{like_count}`
+  surviving — which is what makes this a fact about the API rather than about
+  the request. **Comment attachments have no `description` either.**
+- **The reply pointer is `parent_comment_id`, not `parent_id`** — resolving
+  the ⚠ section carried as unresolved since 2026-08-25. Meta's data dictionary
+  was right and this file was wrong. It is also **conditional**: the column
+  appears only when `fetch_all = TRUE`, and is **absent entirely** (not empty)
+  on a top-level-only pull, so `"parent_comment_id" %in% names(df)` is the
+  correct guard while `== ""` tests a `NULL`. Replies fetched through
+  `/facebook/comments/{id}/replies/preview` carry **no** parent field at all —
+  the caller must keep the linkage it already knows.
+
+Also recorded from the same session:
+
+- **`fields` is undeclared in the OpenAPI spec yet honoured.** Neither
+  `/facebook/posts/preview` nor the comments preview declares a `fields`
+  parameter at operation or path level, and the string is absent from the
+  path subtree — but sending it returns exactly the requested projection.
+  The positive-control discipline is not belt-and-braces; it is the only way
+  to tell "field dropped" from "field empty".
+- **`surface_countries` requires `surface_types`.** Sending
+  `surface_countries` alone returns HTTP 400, *"Surface country filter can
+  only be used when surface_types is set to page and/or profile"*,
+  `error_subcode 3790191`.
+
 ## v1.14.0 (2026-08-26)
 
 ### The docs tripwire now watches the environment too
