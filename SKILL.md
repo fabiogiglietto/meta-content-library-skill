@@ -223,10 +223,19 @@ repeat {
 }
 ```
 
-**A `limit = 100` preview is the top of a sort order, not a sample.** The v5.0+
-default is `most_to_least_views`, so one page is the most-viewed 100 — a 100-post
-preview once showed 0 link posts on a frame where links were the single largest
-content type. Paginate, or set `sort` deliberately, before generalising.
+**A preview is the top of a sort order, not a sample — at any depth.** The v5.0+
+default is `most_to_least_views`, so one page is the most-viewed 100, and
+**paginating does not fix it**: 1,000 rows is still the most-viewed 1,000.
+
+Measured 2026-08-29: 500 links harvested from one producer list found **0** URLs
+from two long-tail domains that the same frame's census records 206 and 158 post
+links for. Re-running the **same** producers and window with `newest_to_oldest`
+and `oldest_to_newest` and pooling gave 1,228 links, **79** of them from one of
+those domains. Zero to 79 on a sort change alone.
+
+**Set `sort` deliberately, and pool across sort orders when you need the tail.**
+Any long-tail, low-credibility or small-publisher analysis built on a default
+preview is measuring the head and calling it the distribution.
 
 ## Nested Endpoints
 

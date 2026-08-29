@@ -32,6 +32,11 @@ budget spent**.
   them the bare canonical, and the base query found all 43.
 - **`n = 0` is ambiguous** — "not a known key", not "nobody shared it". False
   zeros: 1/9 mainstream, 1/18 problematic, 0/5 publisher-canonical.
+- **⚠ Strip only *tracking* parameters, never *identity* ones.** `voxnews.org`
+  (NewsGuard 7.5) publishes as `https://voxnews.org/?p=482077` — the path is `/`
+  and the article *is* the query string. "Use the base URL" would collapse every
+  article to the homepage. `utm_*`/`fbclid`/`smid`/`ref` are tracking; `?p=`,
+  `?id=`, `?page_id=`, `?story_fbid=` are identity.
 - **Recall ceiling: text-carried URLs are invisible to `link`** — 4 of 4
   excluded while the index demonstrably held the URL. `link_attachment` is never
   populated on a non-link `content_type` (0 of 300).
@@ -67,8 +72,14 @@ budget spent**.
 - **New subcode 3790079**, "Invalid time range": `until` must be strictly before
   the current epoch time. A window ending today or later fails outright.
 - **`preview` pagination documented** — `paging$cursors$after`, fed back as
-  `after`. Undocumented here until now, with a warning that a `limit = 100`
-  preview is the top of a sort order, not a sample.
+  `after`. Undocumented here until now.
+- **⚠ The sort-order warning now covers *any* depth, not just `limit = 100`.**
+  Paginating does not turn a view-ranked preview into a sample: 500 links from
+  one producer list found **0** URLs from two long-tail domains the same frame's
+  census records 206 and 158 post links for. Re-running the same producers and
+  window under `newest_to_oldest` + `oldest_to_newest` gave 1,228 links, **79**
+  from one of those domains. Any long-tail or low-credibility analysis built on
+  a default preview measures the head and calls it the distribution.
 - `surfaces.md` `link_attachment.url` for channel messages **flagged as suspect**
   (posts and comments both use `.link`) but *not* corrected — that surface has
   still never been run.
