@@ -86,8 +86,18 @@ syntactically.
 | **a fabricated `?utm_…&fbclid=…`** | ❌ |
 | bare domain | matches the **homepage only** — a different set |
 
-**So query the parameter-free base URL.** It is normally a key Meta has seen,
-and one query then gathers every variant. Il Fatto Quotidiano publishes through
+**So query the parameter-free base URL — but only strip *tracking* parameters.**
+It is normally a key Meta has seen, and one query then gathers every variant.
+
+> **⚠ Never strip an *identity* parameter.** `utm_*`, `fbclid`, `smid` and `ref`
+> are tracking. `?p=`, `?id=`, `?page_id=` and `?story_fbid=` are **identity**.
+> `voxnews.org` (NewsGuard 7.5) publishes articles as
+> `https://voxnews.org/?p=482077` — the path is `/` and the article *is* the
+> query string. Stripping it turns every article into the **homepage**, a
+> different content entity. Same trap, milder, on `abcnews.com/…/story?id=…`,
+> where dropping `?id=` returned 0 while keeping it returned 90.
+> **Rule of thumb: if the path carries no article slug, the query string is the
+> URL — keep it whole.** Il Fatto Quotidiano publishes through
 Echobox, stamping a **per-share unique** `utm_id`: one article was shared **43
 times under 30 distinct URL strings**, the bare canonical form appearing among
 them **not once**. The base-URL query found all 43.
