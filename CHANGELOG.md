@@ -37,9 +37,15 @@ budget spent**.
   and the article *is* the query string. "Use the base URL" would collapse every
   article to the homepage. `utm_*`/`fbclid`/`smid`/`ref` are tracking; `?p=`,
   `?id=`, `?page_id=`, `?story_fbid=` are identity.
+- **Recall within attachments measured at 1.00** against the
+  `mcl-links-comments` Stage 2 census (43,285 posts): 12 URLs, **51 of 51**
+  known posts recovered, shorteners included, `link` returning more than the
+  census every time. A consistency check between two query paths, not absolute
+  truth, on low-frequency URLs.
 - **Recall ceiling: text-carried URLs are invisible to `link`** — 4 of 4
   excluded while the index demonstrably held the URL. `link_attachment` is never
-  populated on a non-link `content_type` (0 of 300).
+  populated on a non-link `content_type` (0 of 300). This, not the mechanism, is
+  where a link-based census loses posts.
 - **Meta's `q=url` domain recipe does not work.** Its own example shape
   (`q="abcnews.com/Politics"`) returns 0; `q="nyti.ms"` returns 100 posts of
   which none link there. `q` searches post text and does not index URLs.
