@@ -63,9 +63,10 @@ Two things follow that are easy to get wrong:
   via `fields`. Code that assumes `text` is present will find it missing and can easily
   misread that as an API fault rather than the default. (The incidental upside: post text
   does not leave the API unless something asks for it.)
-- **`lang`, `media_type`, `has_media`, `image_text`, `link_url`, `is_reshare`,
+- **`lang`, `media_type`, `has_media`, `image_text`, `link_attachment`, `is_reshare`,
   `shared_post_id` and `location.country` are likewise absent by default**, though all are
-  documented below as retrievable. This table describes what the API *can* return, not
+  documented below as retrievable. (`link_url` was listed here until 2026-08-29 and does
+  not exist — see § Link Fields.) This table describes what the API *can* return, not
   what it returns unasked.
 
 ### There is no post permalink field — **[verified absent 2026-08-24]**
@@ -73,7 +74,7 @@ Two things follow that are easy to get wrong:
 Nothing in the response carries a link back to the post, and this is now checked rather
 than merely unstated: the 24-column projection above has no URL field, and a grep of
 `client$openapi_spec()` for `permalink|post_url|content_url|share_url` returned **zero**
-matches. `link_url` is the URL *shared in* a post, not a link *to* it.
+matches. `link_attachment.link` is the URL *shared in* a post, not a link *to* it.
 
 To point a reader at a post, construct a **Content Library GUI** URL:
 
@@ -204,12 +205,26 @@ measured-as-zero, so coercing `NA` to `0` before ranking invents a result.
 | `has_media` | boolean | Contains media attachment |
 | `image_text` | string | OCR text from images (last 180 days) |
 
-### Link Fields
-| Field | Type | Description |
-|-------|------|-------------|
-| `link_url` | string | Shared link URL |
-| `link_title` | string | Link preview title |
-| `link_description` | string | Link preview description |
+### Link Fields — **[corrected 2026-08-29]**
+
+This section used to list `link_url`, `link_title` and `link_description` as
+retrievable. **None of them exists.** Checked against the spec:
+`c("link_url","link_title","link_description") %in% names(FacebookPost$properties)`
+returns **FALSE FALSE FALSE**. `CHANGELOG.md` was right to call `link_url` an
+invented name; this table was the surviving copy of the error.
+
+The only post-side link field is **`link_attachment`** (see § "THE RULE" and the
+comment-side note above). Its spec properties are `description`, `link`, `name`.
+
+> **`caption` is served but undeclared.** `link_attachment.caption` is not in the
+> spec's `LinkAttachment` schema, yet it is returned and carries the **resolved
+> destination domain** — the only shortener-resolution route inside the SRE
+> (`mcl-links-comments/SHORTENER_RESOLUTION.md`). Same undeclared-but-honoured
+> state as `fields`. Do not drop it because the spec omits it.
+
+> **`match_type` is declared but not served.** It *is* in the `FacebookPost`
+> schema (16 properties), yet requesting it returns no column — a third state,
+> distinct from both of the above.
 
 ### Context Fields
 | Field | Type | Description |
@@ -745,10 +760,16 @@ whether the same image in two posts shares an id is **untested**.
 
 ### `fields` is not in the spec's parameter list, but it works
 
-**[verified 2026-08-22]** `/facebook/posts/preview` declares:
-`lang, q, since, until, is_branded_content, is_surface_verified, content_types,
+**[verified 2026-08-22, corrected 2026-08-29]** `/facebook/posts/preview` declares:
+`link, lang, q, since, until, is_branded_content, is_surface_verified, content_types,
 views_bucket_start, views_bucket_end, post_ids, surface_ids, surface_ids_to_exclude,
 surface_types, surface_countries, search_scope, limit, sort, after, X-API-Version`.
+
+> **`link` was missing from this list until 2026-08-29.** It is declared, and is in
+> fact the *first* parameter returned, on `preview`, `estimate` **and** `job`. Its
+> schema is `type: "string"` — not an array, which settles from the spec side that
+> multiple URLs are unsupported. `instagram/posts/preview` genuinely does not declare
+> it. There is **no `search_type` parameter** anywhere in the spec.
 
 **`fields` is absent from that list yet is honoured by the server.** So the spec is authoritative
 for *schemas* but not exhaustive for *parameters* — do not conclude a parameter is unsupported
