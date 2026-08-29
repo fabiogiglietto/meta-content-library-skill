@@ -29,12 +29,121 @@
 | `sort` | enum | `most_to_least_views` (the v5.0 default), `newest_to_oldest`, `oldest_to_newest`. Versions before 5.0 defaulted to newest-first — a query that used to return recent posts now returns the most-viewed ones |
 | `is_surface_verified` | boolean | Restrict to posts whose Page or profile is verified |
 | `is_branded_content` | boolean | Include or exclude branded-content posts |
-| `link` | string | Filter on a URL in the post. Only usable **together with** `q` |
+| `link` | string | Filter on a URL in the post. **Do NOT pair with `q`** — see § The `link` parameter below |
 | `surface_types` | list | `page`, `profile`, `group`, `event` |
 | `surface_countries` | list | ISO 3166-1 alpha-2, uppercase |
 | `views_bucket_start` / `views_bucket_end` | integer | View-count bounds |
 | `post_ids` | list | Specific posts, max 250 |
 | `fields` | list | Field selection |
+
+### The `link` parameter — **[verified 2026-08-29]**
+
+Meta's guide is wrong in both directions here. Measured on
+`facebook/posts/preview`, US and Italian publishers, 33 URLs.
+
+**Use it without `q`.** The guide says `link` "cannot be used without the q
+parameter". It can, and it must: `link` alone returned **90** posts where
+`q="trump"` + the same `link` returned **16** (a verified subset). `q` only
+narrows.
+
+```r
+# right
+client$get(path = "facebook/posts/preview",
+           params = list(link = URL, since = S, until = U, limit = 100L, fields = F))
+```
+
+**⚠ With `q` present, an unmatched `link` is silently ignored.** `q` + a URL
+nobody shared returned the *identical* 100 rows as `q` alone (Jaccard 1.0), HTTP
+200, no warning — while that URL **alone** correctly returned 0. `estimate`
+reproduces it: **3,000,000** for the mistyped link versus **20** for the real
+one. A typo'd URL therefore reports millions of rows instead of zero. Dropping
+`q` removes the failure mode entirely.
+
+**It matches a content entity, not a string.** Querying one URL returns every
+form Meta has seen for the same content — including **shortener → destination**
+(`nyti.ms/3TP0f5I` returned 100 posts, only 5 still in shortener form, 49 in the
+`nytimes.com/...` form) and **reshares** (62 of 90 baseline hits were
+`content_type = reshare` with no `link_attachment` at all).
+
+**But it is an index lookup, not parameter stripping.** A *fabricated* parameter
+form matches nothing — 0 posts in **33 of 33** tests — while a really-posted one
+matches everything. Meta indexes URL strings it has seen and groups them by
+content; only host case, `www.`, and percent-encoding are canonicalised
+syntactically.
+
+| query form | matches? |
+|---|---|
+| `www.` added or removed | ✅ |
+| host upper-cased | ✅ |
+| path char percent-encoded | ✅ |
+| a different **really-posted** parameter form | ✅ |
+| `http://` for `https://` | ❌ scheme is significant |
+| no scheme at all | ❌ |
+| trailing slash added | ❌ |
+| `#fragment` appended | ❌ |
+| `m.` subdomain | ❌ |
+| path segment truncated | ❌ no prefix matching |
+| **a fabricated `?utm_…&fbclid=…`** | ❌ |
+| bare domain | matches the **homepage only** — a different set |
+
+**So query the parameter-free base URL — but only strip *tracking* parameters.**
+It is normally a key Meta has seen, and one query then gathers every variant.
+
+> **⚠ Never strip an *identity* parameter.** `utm_*`, `fbclid`, `smid` and `ref`
+> are tracking. `?p=`, `?id=`, `?page_id=` and `?story_fbid=` are **identity**.
+> `voxnews.org` (NewsGuard 7.5) publishes articles as
+> `https://voxnews.org/?p=482077` — the path is `/` and the article *is* the
+> query string. Stripping it turns every article into the **homepage**, a
+> different content entity. Same trap, milder, on `abcnews.com/…/story?id=…`,
+> where dropping `?id=` returned 0 while keeping it returned 90.
+> **Rule of thumb: if the path carries no article slug, the query string is the
+> URL — keep it whole.** Il Fatto Quotidiano publishes through
+Echobox, stamping a **per-share unique** `utm_id`: one article was shared **43
+times under 30 distinct URL strings**, the bare canonical form appearing among
+them **not once**. The base-URL query found all 43.
+
+**⚠ `n = 0` is ambiguous** — "this exact string is not a known key", not "nobody
+shared it". False-zero rate on URLs derived by *stripping* parameters off an
+observed URL: **1 of 9** mainstream, **1 of 18** problematic (NewsGuard < 60),
+**0 of 5** on publisher-canonical URLs. Prefer canonical URLs from the
+publisher; never report a bare 0 as a count.
+
+**There is no domain-wide link search.** Bare-domain `link` returns homepage
+posts only, and `q` cannot reach URLs at all (see § "`q` does not search URLs").
+
+**Recall within attachments is complete — [verified 2026-08-29].** Measured
+against the `mcl-links-comments` Stage 2 census (43,285 posts, 16,786 distinct
+URLs): 12 URLs sampled, **51 of 51** known census posts recovered, every URL at
+recall **1.00**, shorteners included. `link` returned *more* than the census
+each time (up to 116 vs 3) because the census saw only its frame's producers
+while `link` searches all queryable surfaces. Caveat: this is a consistency
+check between two API query paths, not absolute truth — a post the index never
+held is invisible to both. Sample was low-frequency URLs (3–8 posts each).
+
+**But the carrier ceiling stands: `link` matches the attachment only.** A URL appearing solely
+in post *text* is invisible to it — 4 of 4 such posts were excluded even though
+the index demonstrably held the URL (38/15/14/6 other posts carrying it were
+returned). `link_attachment` is **never** populated on a non-link
+`content_type` (0 of 300 `status`/`photos`/`videos` posts), so text carriers are
+a real and separate class. On the `mcl-links-comments` frame they are **15.8%**
+of link-bearing posts. Pair `link` with a text-URL regex pass for any count that
+claims completeness.
+
+### `q` does not search URLs — **[verified 2026-08-29]**
+
+The Facebook-posts guide recommends, for domain-level search, "use the q
+parameter where q=url … posts from cnn.com/entertainment would be included in a
+search for cnn.com". **This does not work.**
+
+| probe | result |
+|---|---|
+| `q = "abcnews.com/Politics"` (the guide's own shape) | **0** |
+| `q = "abcnews.co"` (partial token) | **0** — no substring matching |
+| `q = "nyti.ms"` | 100 posts, of which **0** link to `nyti.ms` |
+
+`q` searches post text. Of 100 rows for `q="abcnews.com"`, **none** carried the
+domain in the attachment URL without also carrying it in the text. Treat the
+guide's `q=url` recipe as incorrect.
 
 ### The v4.0 deprecations are scoped to `facebook/posts` — **[corrected 2026-08-25]**
 
@@ -232,6 +341,11 @@ copy-pasted code:
 | `lang`, `since`, `until`, `fields` | | as for Facebook posts |
 
 There is no `link` filter and no `surface_countries` equivalent on Instagram.
+
+> **⚠ Instagram accepts `link` and silently ignores it — [verified 2026-08-29].**
+> `instagram/posts/preview` with `q` alone and with `q` + `link` returned
+> **identical** 100-row sets. No error, no warning. An Instagram "link search"
+> is an unfiltered keyword search that looks like it worked.
 
 ## Facebook Events Has Four Date Parameters
 

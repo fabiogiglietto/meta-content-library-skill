@@ -4,6 +4,95 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v1.16.0 (2026-08-29)
+
+### The `link` parameter, run for the first time — and the guide is wrong both ways
+
+`references/query_params.md` had carried one line about `link` since 2026-08-21,
+tagged documented-not-tested. It has now been measured on 33 URLs across US
+mainstream, Italian mainstream and Italian NewsGuard-problematic (score < 60)
+publishers, entirely on `preview` / `estimate` / `openapi_spec` — **no async
+budget spent**.
+
+- **`link` works without `q`, and should be used that way.** Meta's guide says it
+  "cannot be used without the q parameter". It can: `link` alone returned 90
+  posts where `q` + the same link returned 16, a verified subset.
+- **⚠ With `q` present, an unmatched `link` is silently ignored** — identical
+  rows to `q` alone (J = 1.0), HTTP 200. `estimate` reproduces it: 3,000,000 for
+  a mistyped URL vs 20 for the real one. Filed in `common_errors.md` under a new
+  section, **"Failures that return HTTP 200"**.
+- **⚠ Instagram accepts `link` and ignores it** — identical result sets with and
+  without. Previously documented only as "there is no link filter".
+- **It is an index lookup, not parameter stripping.** A *fabricated* parameter
+  form matched nothing in **33 of 33** tests, while a really-posted one matched
+  everything. Only host case, `www.` and percent-encoding are canonicalised;
+  `http://`, trailing slash, `#fragment`, `m.` and truncated paths all fail.
+  Querying the **parameter-free base URL** gathers every posted variant —
+  one Il Fatto article was shared 43 times under 30 distinct strings, none of
+  them the bare canonical, and the base query found all 43.
+- **`n = 0` is ambiguous** — "not a known key", not "nobody shared it". False
+  zeros: 1/9 mainstream, 1/18 problematic, 0/5 publisher-canonical.
+- **⚠ Strip only *tracking* parameters, never *identity* ones.** `voxnews.org`
+  (NewsGuard 7.5) publishes as `https://voxnews.org/?p=482077` — the path is `/`
+  and the article *is* the query string. "Use the base URL" would collapse every
+  article to the homepage. `utm_*`/`fbclid`/`smid`/`ref` are tracking; `?p=`,
+  `?id=`, `?page_id=`, `?story_fbid=` are identity.
+- **Recall within attachments measured at 1.00** against the
+  `mcl-links-comments` Stage 2 census (43,285 posts): 12 URLs, **51 of 51**
+  known posts recovered, shorteners included, `link` returning more than the
+  census every time. A consistency check between two query paths, not absolute
+  truth, on low-frequency URLs.
+- **Recall ceiling: text-carried URLs are invisible to `link`** — 4 of 4
+  excluded while the index demonstrably held the URL. `link_attachment` is never
+  populated on a non-link `content_type` (0 of 300). This, not the mechanism, is
+  where a link-based census loses posts.
+- **Meta's `q=url` domain recipe does not work.** Its own example shape
+  (`q="abcnews.com/Politics"`) returns 0; `q="nyti.ms"` returns 100 posts of
+  which none link there. `q` searches post text and does not index URLs.
+
+### Three facts this repo had wrong
+
+- **`link` IS declared in the OpenAPI spec.** `field_reference.md` § "`fields` is
+  not in the spec's parameter list" asserted it was absent from
+  `/facebook/posts/preview`; it is the **first** parameter declared, on
+  `preview`, `estimate` and `job`, typed `string` (settling that multiple URLs
+  are unsupported). `fields` remains genuinely absent — that part stands.
+- **`link_url` / `link_title` / `link_description` do not exist.**
+  `field_reference.md` § "Link Fields" listed all three as retrievable; the spec
+  returns FALSE for all three. v1.13.0 had already called `link_url` invented —
+  this table was the surviving copy, exactly the second-copy failure the
+  one-owner rule exists to prevent. Section replaced.
+- **There is no `search_type` parameter** anywhere in the spec.
+
+### Two more field states worth distinguishing
+
+- **`link_attachment.caption` is served but undeclared** — absent from the spec's
+  `LinkAttachment`, yet returned, carrying the resolved destination domain. It is
+  the only shortener-resolution route inside the SRE.
+- **`match_type` is declared but not served** — in the `FacebookPost` schema, no
+  column returned. Distinct from both "declared and served" and "undeclared but
+  served".
+
+### Also
+
+- **New subcode 3790079**, "Invalid time range": `until` must be strictly before
+  the current epoch time. A window ending today or later fails outright.
+- **`preview` pagination documented** — `paging$cursors$after`, fed back as
+  `after`. Undocumented here until now.
+- **⚠ The sort-order warning now covers *any* depth, not just `limit = 100`.**
+  Paginating does not turn a view-ranked preview into a sample: 500 links from
+  one producer list found **0** URLs from two long-tail domains the same frame's
+  census records 206 and 158 post links for. Re-running the same producers and
+  window under `newest_to_oldest` + `oldest_to_newest` gave 1,228 links, **79**
+  from one of those domains. Any long-tail or low-credibility analysis built on
+  a default preview measures the head and calls it the distribution.
+- `surfaces.md` `link_attachment.url` for channel messages **flagged as suspect**
+  (posts and comments both use `.link`) but *not* corrected — that surface has
+  still never been run.
+- `docs/TESTING_PROCEDURE.md` gains **Test Suite 13**, including the
+  null-filter control and the saturated-Jaccard trap that made the earlier
+  scoring invalid.
+
 ## v1.15.0 (2026-08-27)
 
 ### Two comment fields were wrong, and both are now verified against live data

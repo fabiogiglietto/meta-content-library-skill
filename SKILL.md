@@ -1,13 +1,13 @@
 ---
 name: mcl-api-r
 description: "Meta Content Library (MCL) API v6.0 in R. Use when querying Facebook, Instagram or WhatsApp content via reticulate in the SRE or SOMAR VDE: async queries, producer lists, SNAPSHOT mode, IDs, quotas."
-version: 1.15.0
-updated: 2026-08-26
+version: 1.16.0
+updated: 2026-08-29
 ---
 
 # Meta Content Library API v6.0 for R
 
-> **Skill Version:** 1.15.0 | **Updated:** 2026-08-27 | [Changelog](CHANGELOG.md)
+> **Skill Version:** 1.16.0 | **Updated:** 2026-08-29 | [Changelog](CHANGELOG.md)
 
 ## Environment
 
@@ -207,6 +207,35 @@ Two different caps hide behind "1000": a sync search pages through **1000
 results in total**, and each page is capped by `limit`, whose maximum was cut
 from 500 to **100** on 2025-07-15. Channel message and update previews are
 tighter still — `limit` is 0-50, default 10.
+
+**Paging a `preview`** — **[verified 2026-08-29]**: the response carries
+`paging$cursors$after` (an opaque ~100-char string). Pass it back as the `after`
+parameter for the next page; it is absent or empty on the last one.
+
+```r
+acc <- list(); after <- NULL
+repeat {
+  p <- c(base_params, if (!is.null(after)) list(after = after))
+  pg <- mcl_fromJSON(client$get(path = "facebook/posts/preview", params = p)$text)
+  acc <- c(acc, list(pg$data))
+  after <- pg$paging$cursors$after
+  if (is.null(after) || !nzchar(after)) break
+}
+```
+
+**A preview is the top of a sort order, not a sample — at any depth.** The v5.0+
+default is `most_to_least_views`, so one page is the most-viewed 100, and
+**paginating does not fix it**: 1,000 rows is still the most-viewed 1,000.
+
+Measured 2026-08-29: 500 links harvested from one producer list found **0** URLs
+from two long-tail domains that the same frame's census records 206 and 158 post
+links for. Re-running the **same** producers and window with `newest_to_oldest`
+and `oldest_to_newest` and pooling gave 1,228 links, **79** of them from one of
+those domains. Zero to 79 on a sort change alone.
+
+**Set `sort` deliberately, and pool across sort orders when you need the tail.**
+Any long-tail, low-credibility or small-publisher analysis built on a default
+preview is measuring the head and calling it the distribution.
 
 ## Nested Endpoints
 
