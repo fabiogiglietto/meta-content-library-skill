@@ -111,7 +111,16 @@ publisher; never report a bare 0 as a count.
 **There is no domain-wide link search.** Bare-domain `link` returns homepage
 posts only, and `q` cannot reach URLs at all (see § "`q` does not search URLs").
 
-**Recall ceiling: `link` matches the attachment only.** A URL appearing solely
+**Recall within attachments is complete — [verified 2026-08-29].** Measured
+against the `mcl-links-comments` Stage 2 census (43,285 posts, 16,786 distinct
+URLs): 12 URLs sampled, **51 of 51** known census posts recovered, every URL at
+recall **1.00**, shorteners included. `link` returned *more* than the census
+each time (up to 116 vs 3) because the census saw only its frame's producers
+while `link` searches all queryable surfaces. Caveat: this is a consistency
+check between two API query paths, not absolute truth — a post the index never
+held is invisible to both. Sample was low-frequency URLs (3–8 posts each).
+
+**But the carrier ceiling stands: `link` matches the attachment only.** A URL appearing solely
 in post *text* is invisible to it — 4 of 4 such posts were excluded even though
 the index demonstrably held the URL (38/15/14/6 other posts carrying it were
 returned). `link_attachment` is **never** populated on a non-link
