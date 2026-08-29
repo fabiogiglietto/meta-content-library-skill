@@ -1987,6 +1987,161 @@ cat("rows with limit override:", NROW(safe_get_data(resp2$text)), "\n")
 
 ---
 
+## Test Suite 13: The `link` parameter — **[all verified 2026-08-29]**
+
+Settled on 2026-08-29 across 33 URLs (US mainstream, Italian mainstream, Italian
+NewsGuard < 60). Every test is a sync `preview` or `estimate` call and costs
+**no async budget**. Re-run this suite when the API version changes.
+
+**The scoring rule that makes this suite valid.** A row count is not evidence a
+filter ran — see `references/common_errors.md` § "Failures that return HTTP 200".
+Define once:
+
+```r
+U_NULL <- "https://example.com/definitely-not-shared-9f3a2b7c"
+```
+
+Any probe whose result set equals the `U_NULL` probe's is **ignored**, not
+working. Also: **Jaccard between two saturated pages is meaningless** — if both
+return exactly `limit`, compare them to *each other*, never to a small set.
+
+---
+
+### Test 13.1: `link` is declared, and `search_type` does not exist
+
+```r
+sp <- client$openapi_spec()
+ps <- sp$paths[["/facebook/posts/preview"]]$get$parameters
+nm <- vapply(ps, function(x) x$name, "")
+stopifnot("link" %in% nm)
+str(Filter(function(x) identical(x$name, "link"), ps)[[1]])
+grepl("search_type", jsonlite::toJSON(sp))          # expect FALSE
+c("link_url","link_title","link_description") %in%
+  names(sp$components$schemas$FacebookPost$properties)   # expect FALSE FALSE FALSE
+names(sp$components$schemas$LinkAttachment$properties)   # description, link, name
+```
+
+**Expected:** `link` declared on `preview`/`estimate`/`job`, absent on
+`instagram/posts/preview`; schema `type: "string"` (not array); `search_type`
+FALSE; the three `link_*` fields FALSE.
+
+**Validation Checklist:**
+- [ ] `link` present in the declared list (it is the first entry)
+- [ ] schema type is `string` — confirms multiple URLs unsupported
+- [ ] no `search_type` anywhere in the spec
+- [ ] `caption` **absent** from `LinkAttachment` yet returned in practice (13.3)
+
+**Screenshot Required:** Yes
+
+---
+
+### Test 13.2: The q-coupling gate — run this before anything else
+
+```r
+probe("q_only",     q = Q)
+probe("q_unull",    q = Q, link = U_NULL)
+probe("q_link",     q = Q, link = U_EXACT)
+probe("link_noq",   link = U_EXACT)
+probe("unull_noq",  link = U_NULL)
+identical(sort(RES$q_unull$ids), sort(RES$q_only$ids))   # expect TRUE = the bug
+```
+
+**Expected:** `link` alone works and returns **more** than with `q`
+(90 vs 16 when measured). `q` + `U_NULL` is **identical** to `q` alone — the
+silent-ignore bug. `U_NULL` alone returns 0.
+
+**Validation Checklist:**
+- [ ] `link` without `q` succeeds — the guide says it cannot
+- [ ] q+link ⊂ link-only
+- [ ] q + unmatched link == q-only (bug reproduced)
+- [ ] unmatched link **alone** == 0 (filter correct without `q`)
+- [ ] `estimate` shows the same asymmetry (~3,000,000 vs ~20)
+
+**Screenshot Required:** Yes — CRITICAL
+
+---
+
+### Test 13.3: Normalization matrix — run link-only
+
+Because of 13.2, the matrix **must** run without `q`, where 0 is unambiguous.
+
+```r
+for (nm in names(V)) probe(nm, link = V[[nm]])   # NO q
+```
+
+**Expected:** match for `www.` ±, host upper-case, percent-encoded path, and any
+**really-posted** parameter form. No match for `http://`, no scheme, trailing
+slash, `#fragment`, `m.`, truncated path, or a **fabricated** parameter form.
+Bare domain returns the homepage set, not the domain.
+
+**Validation Checklist:**
+- [ ] a fabricated `?utm_…&fbclid=…` returns **0** (33/33 when measured)
+- [ ] a really-posted variant returns the identical id set (J = 1.0)
+- [ ] degenerate variants (identical strings) dropped before scoring
+- [ ] shortener query returns destination-form rows
+
+**Screenshot Required:** Yes — CRITICAL
+
+---
+
+### Test 13.4: Text carriers are NOT matched
+
+```r
+# harvest content_types status/photos/videos, find rows with a URL in text
+# and NO link_attachment, then:
+probe(lab, link = U_TEXT)
+pid %in% RES[[lab]]$ids        # expect FALSE
+```
+
+**Expected:** `n > 0` (other posts carry the URL as an attachment — the positive
+control) but **that post absent**. `link_attachment` is never populated on a
+non-link `content_type`.
+
+**Validation Checklist:**
+- [ ] `n = 0` is reported **inconclusive**, not as a negative
+- [ ] the URL is proven indexed by the attachment-carrying rows returned
+- [ ] 0 attachments across `status`/`photos`/`videos`
+
+**Screenshot Required:** Yes — CRITICAL
+
+---
+
+### Test 13.5: `q` does not search URLs
+
+```r
+probe("q_dompath", q = "abcnews.com/Politics")   # expect 0
+probe("q_partial", q = "abcnews.co")             # expect 0
+probe("q_shorthost", q = "nyti.ms")              # rows, but none linking there
+```
+
+**Expected:** all three refute Meta's documented `q=url` domain recipe.
+
+**Validation Checklist:**
+- [ ] the guide's own example shape returns 0
+- [ ] no substring matching
+- [ ] of the `nyti.ms` rows, **0** carry `nyti.ms` in `link_attachment.link`
+
+**Screenshot Required:** Yes
+
+---
+
+### Test 13.6: Instagram silently ignores `link`
+
+```r
+a <- ig(q = "trump"); b <- ig(q = "trump", link = U_EXACT)
+identical(sort(a$ids), sort(b$ids))   # expect TRUE
+```
+
+**Expected:** identical sets, no error. Record it as a footgun, not a feature.
+
+**Validation Checklist:**
+- [ ] no error is raised
+- [ ] the id sets are identical
+
+**Screenshot Required:** Yes
+
+---
+
 ## Testing Summary and Reporting
 
 ### After Completing All Tests

@@ -203,9 +203,17 @@ Message and update fields:
 | `statistics.reactions_count`, `statistics.top_reactions[]` | yes | yes | yes |
 | `statistics.replies_count` | — | yes | — |
 | `statistics.forward_count` | — | — | yes |
-| `link_attachment.name` / `.url` | yes | — | `link_attachment.url` |
+| `link_attachment.name` / `.url` ⚠ | yes | — | `link_attachment.url` ⚠ |
 | `poll_attachment.question`, `poll_attachment.options[].text` / `.vote_count` | yes | — | yes |
 | `quiz_attachment.question`, `quiz_attachment.options[].is_correct_answer` | — | — | yes |
+
+> **⚠ `link_attachment.url` is suspect here — [flagged 2026-08-29].** On both
+> **posts** and **comments** the property is `link_attachment.link`; `.url` does
+> not exist and is dropped silently (`CHANGELOG.md` v1.15.0,
+> `field_reference.md` § Link Fields). The rows above are transcribed from Meta's
+> docs and **have not been run** against a channel-message response, so they are
+> left as documented rather than corrected. Verify with `client$openapi_spec()`
+> before relying on `.url` — one call settles it.
 | `shared_instagram_post_id`, `message_replied_to_id` | — | yes | — |
 
 `multimedia` on Facebook channel messages carries type, MCL ID, duration and
