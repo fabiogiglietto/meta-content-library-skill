@@ -432,7 +432,7 @@ belongs here is **which of the two routes to take**:
 | Budget | Whole threads, including subtrees nobody will read | Top-level comments, then replies for the comments that report having any |
 | Use when | The thread structure *is* the object of study | The corpus is large, or replies matter only for a subset |
 
-The comment budget is its own 500,000-record pool, so on a large corpus the
+The comment budget is its own pool (500,000 records by default), so on a large corpus the
 second route is materially cheaper. The default is `fetch_all = FALSE`, which
 means the behaviour described below is what you get unasked:
 
