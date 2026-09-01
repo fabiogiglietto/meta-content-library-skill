@@ -4,6 +4,31 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v1.17.0 (2026-09-01)
+
+### The budget ceiling is a per-account setting, not an API constant
+
+The skill had carried `500,000 records / 7-day rolling` as a flat fact since the
+first release, in three places. It is the **default**, and Meta support raises it
+on request — so any code or threshold that compares against a literal 500,000 is
+wrong on a raised account, and wrong again the day the increase lapses.
+
+- **Read `max_usage_limit` from `budgets`; never hard-code the ceiling.** Stated
+  in SKILL.md § "Rate Limits & Budget" and `references/utilities.md` § "Quota
+  increases".
+- **Quota thresholds are now fractions of the limit** (40% / 20% / 10% / 2%),
+  with the 500k default worked out alongside. The old table's absolute record
+  counts silently under-reported headroom on a raised account.
+- **The comment pool's 500,000 is likewise a default**
+  (`references/field_reference.md`).
+- **How increases are granted**: a doubling, three months at a time, applied to
+  the Content Library UI and the API together, with an expiry date after which
+  the limit reverts — no notification, so re-read the endpoint.
+
+Sourcing: Meta support, not a run. Tagged [documented] — confirming the mechanics
+against the `budgets` endpoint in the SRE is a zero-budget call and still
+outstanding.
+
 ## v1.16.0 (2026-08-29)
 
 ### The `link` parameter, run for the first time — and the guide is wrong both ways

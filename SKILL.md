@@ -1,13 +1,13 @@
 ---
 name: mcl-api-r
 description: "Meta Content Library (MCL) API v6.0 in R. Use when querying Facebook, Instagram or WhatsApp content via reticulate in the SRE or SOMAR VDE: async queries, producer lists, SNAPSHOT mode, IDs, quotas."
-version: 1.16.0
-updated: 2026-08-29
+version: 1.17.0
+updated: 2026-09-01
 ---
 
 # Meta Content Library API v6.0 for R
 
-> **Skill Version:** 1.16.0 | **Updated:** 2026-08-29 | [Changelog](CHANGELOG.md)
+> **Skill Version:** 1.17.0 | **Updated:** 2026-09-01 | [Changelog](CHANGELOG.md)
 
 ## Environment
 
@@ -439,8 +439,8 @@ posts <- mcl_fromJSON(file.path("results", "climate_2024.json"))
 |----------|-------|
 | Sync queries | 60/minute |
 | Async queries | 1/minute |
-| Query budget | 500,000 records/7-day rolling |
-| Comment budget | 500,000 comments/7-day rolling (separate) |
+| Query budget | 500,000 records/7-day rolling (default — per-account, raisable) |
+| Comment budget | 500,000 comments/7-day rolling (default, separate pool) |
 | Max async results | ~100,000 per query |
 | Snapshots | 100 concurrent per user (subcode 3790172; LIVE jobs are exempt) |
 | Comment estimate | Reports "1 million or more" above 1,000,000 |
@@ -448,6 +448,17 @@ posts <- mcl_fromJSON(file.path("results", "climate_2024.json"))
 
 The 7-day window is rolling *"to the second"*, not to the day: each query's usage
 expires exactly seven days after it was submitted.
+
+**The two 500,000 figures are defaults, not API constants.** The ceiling is a
+per-account setting that Meta support will raise on request, so **never hard-code
+it** — read `max_usage_limit` from `budgets` (below) and compute headroom from
+that. Any code or threshold that assumes 500,000 is wrong on a raised account,
+and wrong again when the increase lapses.
+
+Increases are granted as a **doubling, for three months at a time**, applied to
+the Content Library UI and the API together, and they **expire** — the limit
+reverts with no notification. `references/utilities.md` § "Quota increases".
+[documented — from Meta support, 2026-08-31; not measured]
 
 **Check budget:**
 ```r
