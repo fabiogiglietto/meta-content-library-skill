@@ -617,8 +617,9 @@ Three further limits:
   response"*. Sort client-side.
 - The comments **estimate caps at 1,000,000**: a larger corpus reports "1 million
   or more" rather than a number.
-- Comments draw on their **own 500,000-record 7-day budget**, separate from the
-  query budget (SKILL.md § "Rate Limits & Budget").
+- Comments draw on their **own 7-day budget**, separate from the query budget —
+  500,000 records by default, but the ceiling is per-account and raisable
+  (SKILL.md § "Rate Limits & Budget").
 
 ## Estimate Response
 

@@ -43,19 +43,34 @@ cat(sprintf("\nComments Budget: %s available\n", format(comments_avail, big.mark
 
 ### Quota Thresholds
 
-| Available Records | Status | Recommendation |
-|-------------------|--------|----------------|
-| >= 200,000 | Excellent | Full analysis |
-| >= 100,000 | Good | Moderate analysis |
-| >= 50,000 | Fair | Reduced parameters |
-| >= 10,000 | Low | Minimal analysis |
-| < 10,000 | Critical | Wait for reset |
-| <= 0 | Over quota | Cannot run queries |
+Read as fractions of `max_usage_limit`, not as absolute counts — the ceiling is
+per-account (see "Quota increases" below). The record column is the 500,000
+default worked out.
+
+| Share of limit | At the 500k default | Status | Recommendation |
+|----------------|---------------------|--------|----------------|
+| >= 40% | >= 200,000 | Excellent | Full analysis |
+| >= 20% | >= 100,000 | Good | Moderate analysis |
+| >= 10% | >= 50,000 | Fair | Reduced parameters |
+| >= 2% | >= 10,000 | Low | Minimal analysis |
+| < 2% | < 10,000 | Critical | Wait for reset |
+| <= 0 | <= 0 | Over quota | Cannot run queries |
 
 ### Quota Reset
 - **Rolling window**: 7 days
 - Each query's usage expires exactly 7 days after submission
 - Check daily to see quota freeing up
+
+### Quota increases
+
+`max_usage_limit` is a per-account setting, not an API constant. Meta support
+raises it on request — as a **doubling, for three months at a time**, applied to
+the Content Library UI and the API together. The grant carries an expiry date,
+and the limit reverts silently when it passes: code that compared against a
+hard-coded 500,000 will not notice either the increase or the reversion. Always
+compute headroom from the endpoint.
+
+[documented — from Meta support, 2026-08-31; not measured]
 
 ## Install R Packages
 
