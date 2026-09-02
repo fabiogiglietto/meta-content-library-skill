@@ -110,6 +110,12 @@ cat(sprintf("\nComments Budget: %s available\n", format(comments_avail, big.mark
 - [ ] Comment budget displays correctly
 - [ ] Numbers are properly formatted
 - [ ] No error messages
+- [ ] `max_usage_limit` is **read from the response**, not assumed to be 500,000
+      — it is per-account and raisable (`utilities.md` § "Quota increases")
+- [ ] `max_usage_limit` is **recorded**, so a silent reversion to the default is
+      detectable on the next run: `budgets` exposes no expiry field
+- [ ] A `multimedia` pool and a top-level `timestamp` are present alongside
+      `queries` and `comments` (`utilities.md` § "Observed response shape")
 
 **Screenshot Required:** Yes - showing budget output
 
