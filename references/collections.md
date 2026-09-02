@@ -126,16 +126,30 @@ client$post(path = paste0("async/jobs/", job_id, "/snapshot"))
 client$delete(path = paste0("async/jobs/", job_id))
 ```
 
-### Your local copies do not survive the month
+### Nothing inside the SRE reliably survives the month — the job least of all
 
-A SNAPSHOT job's data is held by Meta for up to a year, but **every file you
-write inside the SRE — including a job's saved `.json` — is deleted in the
-monthly maintenance window**. Recovery is by re-reading the job, not by reading
-your file. `references/utilities.md` § "The monthly wipe" owns this.
+⚠ **This section previously said the opposite.** It advised recovering after a
+wipe by re-reading the job, on the strength of Meta's documented one-year
+SNAPSHOT retention. **Measured 2026-09-02: every job was `EXPIRED` after a wipe,
+SNAPSHOT included**, and ids from a week earlier resolved to `error_subcode
+3790112`. SKILL.md § "SNAPSHOT vs LIVE Mode" owns that finding.
 
-Because a re-run re-submits and budget is charged at submission, the recovery
-path after a wipe is to fetch results from the existing `query_id` / job IDs, not
-to re-execute the submission cells.
+So the recovery path this section used to recommend **does not exist**:
+
+| | documented | measured 2026-09-02 |
+|---|---|---|
+| Server-side job data | held up to a year, re-readable | **all jobs `EXPIRED`** |
+| Your files in the SRE | deleted monthly | **survived** on the account tested |
+
+The file survival is *probably* the documented exception for approved EU
+systemic-risk programmes, and it is **one observation on one account** — do not
+plan on it either. `references/utilities.md` § "The monthly wipe" owns the wipe.
+
+**The only durable artefact is one that has left the enclave, or lives in a
+notebook input/markdown cell.** Download a job's results the same calendar month
+you submit it, and export what the study needs before the boundary. Budget is
+charged at submission and never refunded, so a re-run after losing both the job
+and the file costs the full amount again.
 
 ### The 100-Snapshot Cap
 
