@@ -4,6 +4,62 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v1.18.0 (2026-09-02)
+
+### SNAPSHOT jobs do not survive the monthly wipe — the one-year retention is not usable
+
+Since v1.0.0 the skill has said SNAPSHOT data "is preserved up to a year". That
+is Meta's documented figure and it does not survive a month boundary.
+
+Measured the morning after a wipe: `async/jobs` returned **24 jobs, every one
+`EXPIRED`, every one `SNAPSHOT`**, created 2026-08-21 → 08-30 — the newest
+**three days old**. Older jobs were absent from the listing entirely and
+resolving one by id returned `error_subcode 3790112`, "ID is unavailable in MCL
+system or you don't have access." The likely mechanism is the wipe's third
+deletion clause, "All S3 bucket files", since job outputs live in S3.
+
+- **New rule, in SKILL.md § "SNAPSHOT vs LIVE Mode": download a job's results to
+  disk in the same calendar month you submit it.** A job id is not a durable
+  handle; only the downloaded data is.
+- This makes "echo job ids into a markdown cell so they outlive the wipe"
+  **necessary but not sufficient** — the id survives and the job behind it does
+  not.
+
+**The stale claim had reached three other files, and had turned into advice.**
+`collections.md` § "Your local copies do not survive the month" told researchers
+to recover after a wipe by re-fetching from job ids, and `utilities.md`
+concluded "a completed SNAPSHOT job is still there after the wipe and can be
+re-read; the CSV you wrote from it is not." **Both halves of that were wrong on
+the account measured** — the jobs were gone and the files were not. All three
+sites now carry the correction and point at the SKILL.md owner.
+
+Note the file-survival half is **one observation on one account**, plausibly the
+documented exception for approved EU systemic-risk programmes. The docs now say
+to treat *neither* the job nor the file as durable, rather than swapping one
+false guarantee for another.
+
+### The quota doubling reaches the API, and its expiry does not
+
+Following v1.17.0, which made the ceiling per-account on Meta support's word:
+
+- **Verified**: a raised account reads `max_usage_limit: 1000000` on both the
+  `queries` and `comments` pools. The doubling is not UI-only.
+- **`budgets` exposes no expiry, end-date or grant field.** The documented
+  silent reversion is undetectable except by watching `max_usage_limit` change
+  value, so `utilities.md` § "Quota increases" now requires **recording** it at
+  the start of every collection window.
+- Added § "Observed response shape" to `utilities.md`: a top-level `timestamp`,
+  a third **`multimedia`** pool with only two fields and a 1,000 ceiling
+  (cleanroom-only), and a note that `current_usage` vs `total_usage` diverge
+  only when a running job has reserved budget.
+- **The pool is per account, not per study.** On an account running two studies
+  concurrently, 85% of trailing-7-day query usage belonged to the other one.
+  Compute headroom from the endpoint at submission time.
+- `docs/TESTING_PROCEDURE.md` Test 1.1 gains checks for all three.
+
+Sourcing: measured in the SRE on 2026-09-02, not from a documentation sweep, so
+the § "Staying Current" baseline is unchanged.
+
 ## v1.17.0 (2026-09-01)
 
 ### The budget ceiling is a per-account setting, not an API constant
