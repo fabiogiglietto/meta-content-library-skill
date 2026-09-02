@@ -1,6 +1,6 @@
 # MCL API R Skill for Claude
 
-> **Version:** 1.17.0 — see [CHANGELOG.md](CHANGELOG.md)
+> **Version:** 1.18.0 — see [CHANGELOG.md](CHANGELOG.md)
 
 A Claude skill for working with the Meta Content Library (MCL) API v6.0 using R.
 

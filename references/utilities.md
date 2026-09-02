@@ -41,6 +41,38 @@ comments_avail <- as.numeric(comments$max_usage_limit) - as.numeric(comments$tot
 cat(sprintf("\nComments Budget: %s available\n", format(comments_avail, big.mark=",")))
 ```
 
+### Observed response shape
+
+[verified 2026-09-02]
+
+```json
+{
+  "timestamp": "Wednesday, September 02, 2026 12:48:07 PM CEST",
+  "queries":    { "current_usage": 309000, "preallocated_rows_for_running_queries": 0,
+                  "total_usage": 309000, "max_usage_limit": 1000000 },
+  "comments":   { "current_usage": 246000, "preallocated_rows_for_running_queries": 0,
+                  "total_usage": 246000, "max_usage_limit": 1000000 },
+  "multimedia": { "total_usage": 0, "max_usage_limit": 1000 }
+}
+```
+
+Three things the four-field description above does not cover:
+
+- There is a top-level **`timestamp`**, server-side, formatted in the account's
+  locale — useful for pinning a reading to a moment without trusting the client.
+- There is a **third pool, `multimedia`**, carrying only *two* fields and a
+  1,000 ceiling. It is not governed like the other two and is **cleanroom-only,
+  not available in the SRE** (SKILL.md § "Rate Limits & Budget").
+- `current_usage` equalled `total_usage` in this read, with
+  `preallocated_rows_for_running_queries` at 0 and nothing in flight — which is
+  what makes the pair worth reading together: a gap between them means budget is
+  reserved by a running job and is not coming back.
+
+**The pool is per *account*, not per study.** On an account running two studies
+concurrently, 85% of trailing-7-day query usage belonged to the other one.
+Compute headroom from the endpoint at submission time; never reason from what
+your own study has spent.
+
 ### Quota Thresholds
 
 Read as fractions of `max_usage_limit`, not as absolute counts — the ceiling is
@@ -70,7 +102,22 @@ and the limit reverts silently when it passes: code that compared against a
 hard-coded 500,000 will not notice either the increase or the reversion. Always
 compute headroom from the endpoint.
 
-[documented — from Meta support, 2026-08-31; not measured]
+**The doubling is real and reaches the API** — verified 2026-09-02 on a raised
+account, which read `max_usage_limit: 1000000` on **both** the `queries` and
+`comments` pools. It is not a UI-only change.
+
+**The expiry is not exposed.** `budgets` returns **no expiry, end-date or grant
+field of any kind**. The reversion is therefore undetectable from the API except
+by watching `max_usage_limit` itself change value. So:
+
+> **Record `max_usage_limit` at the start of every collection window** and treat
+> a drop as an event that forces re-planning, not as an anomaly. A window sized
+> against a raised ceiling and executed after reversion will overrun with no
+> error raised — the ceiling is enforced, but its change is not announced.
+
+[doubling, and that it reaches the API: **verified 2026-09-02** · three-month
+term and silent reversion: documented from Meta support 2026-08-31, not yet
+observed]
 
 ## Install R Packages
 
@@ -508,13 +555,20 @@ European Union are exempt.
 **Do not confuse this with SNAPSHOT retention.** They are two different
 thirty-days:
 
-| | What it is | Lives |
-|---|---|---|
-| **Server-side SNAPSHOT data** | Meta's copy of a job's results | Up to a **year**, refreshed every 30 days, shareable |
-| **Your files in the SRE** | Saved `.json`/`.csv`, S3 uploads, cell outputs | Wiped **monthly**, no exceptions |
+| | What it is | Documented | Measured 2026-09-02 |
+|---|---|---|---|
+| **Server-side SNAPSHOT data** | Meta's copy of a job's results | up to a **year**, refreshed every 30 days, shareable | **every job `EXPIRED` after the wipe** |
+| **Your files in the SRE** | Saved `.json`/`.csv`, S3 uploads, cell outputs | wiped **monthly**, no exceptions | **survived**, on the account tested |
 
-So a completed SNAPSHOT job is still there after the wipe and can be re-read; the
-CSV you wrote from it is not.
+⚠ **This block used to conclude: "a completed SNAPSHOT job is still there after
+the wipe and can be re-read; the CSV you wrote from it is not." Both halves were
+wrong on the account measured** — the jobs were gone and the files were not.
+SKILL.md § "SNAPSHOT vs LIVE Mode" owns the job-expiry finding.
+
+Treat **neither** as durable. The job expiry is measured and the file survival
+is a single observation, plausibly the documented EU systemic-risk exemption —
+so the safe reading is that a wipe may take either. **Download job results the
+same calendar month you submit them, and export anything the study needs.**
 
 **Three consequences for how you write notebooks:**
 
@@ -707,9 +761,13 @@ check_ids(posts)
 
 ## SNAPSHOT vs LIVE Data Retention
 
-SNAPSHOT data is kept up to a year and is shareable; LIVE data is kept ~30 days
-and is not. SNAPSHOT jobs refresh every 30 days with updated data, including
-`updated_fields` and `is_invalid_id` flags for redacted content.
+SNAPSHOT data is documented as kept up to a year and is shareable; LIVE data is
+kept ~30 days and is not. SNAPSHOT jobs refresh every 30 days with updated data,
+including `updated_fields` and `is_invalid_id` flags for redacted content.
+
+⚠ **The one-year figure does not survive a month boundary** — measured
+2026-09-02, every job was `EXPIRED` after a wipe. SKILL.md § "SNAPSHOT vs LIVE
+Mode" owns this; do not plan recovery around re-reading a job.
 
 Full comparison and the 100-snapshot cap: `references/collections.md` § "The
 100-Snapshot Cap". Note that this is **server-side** retention — your own files

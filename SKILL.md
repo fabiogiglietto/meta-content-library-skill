@@ -1,13 +1,13 @@
 ---
 name: mcl-api-r
 description: "Meta Content Library (MCL) API v6.0 in R. Use when querying Facebook, Instagram or WhatsApp content via reticulate in the SRE or SOMAR VDE: async queries, producer lists, SNAPSHOT mode, IDs, quotas."
-version: 1.17.0
-updated: 2026-09-01
+version: 1.18.0
+updated: 2026-09-02
 ---
 
 # Meta Content Library API v6.0 for R
 
-> **Skill Version:** 1.17.0 | **Updated:** 2026-09-01 | [Changelog](CHANGELOG.md)
+> **Skill Version:** 1.18.0 | **Updated:** 2026-09-02 | [Changelog](CHANGELOG.md)
 
 ## Environment
 
@@ -475,8 +475,9 @@ reads all four.
 
 ## SNAPSHOT vs LIVE Mode
 
-Use **SNAPSHOT** for anything you need to reproduce or share: data is preserved
-up to a year, refreshed every 30 days, and the job can be shared. **LIVE** data
+Use **SNAPSHOT** for anything you need to reproduce or share: it is refreshed
+every 30 days, the job can be shared, and Meta documents retention as up to a
+year. **Do not plan on that year — see the box below.** **LIVE** data
 is deleted after 30 days and cannot be shared — but LIVE jobs do **not** count
 against the 100-snapshot cap, so run exploration LIVE and save results to disk.
 **Deleting a job does NOT refund its budget charge** — confirmed by the researcher
@@ -487,6 +488,25 @@ permanently. **Guard every submission cell** so a re-run is a no-op:
 ```r
 if (file.exists("jobs.rds")) stop("already submitted - delete jobs.rds to resubmit")
 ```
+
+> ⚠ **Measured 2026-09-02: no job survives the monthly wipe, SNAPSHOT included.**
+>
+> `async/jobs`, read the morning after a wipe on an account that had been
+> submitting steadily, returned **24 jobs — every one `EXPIRED`, every one
+> `SNAPSHOT`**, created between 2026-08-21 and 2026-08-30. The newest was
+> **three days old**. Jobs from earlier were absent from the listing entirely,
+> and fetching one by id returned `error_subcode 3790112`, *"ID is unavailable
+> in MCL system or you don't have access."*
+>
+> The wipe deletes **"All S3 bucket files"** (`references/utilities.md`
+> § "The monthly wipe") and job outputs live in S3, which is the likely
+> mechanism. Either way **the documented one-year retention does not survive a
+> month boundary**, and no design may rely on it.
+>
+> **Consequence — download every job's results to disk in the same calendar
+> month you submit it.** A job id is not a durable handle; only the downloaded
+> data is. Echoing job ids into a markdown cell so they outlive the wipe is
+> necessary and **not sufficient**: the id survives, the job behind it does not.
 
 A LIVE job can be promoted later:
 
