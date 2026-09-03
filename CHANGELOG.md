@@ -4,6 +4,40 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v1.18.1 (2026-09-03)
+
+### README: Codex install, a worked first query, and a hosted walkthrough
+
+Documentation only; no API fact changed.
+
+- **Codex installation.** The README now covers Codex alongside Claude Code and
+  claude.ai: skills are read from `~/.agents/skills/` (personal) or
+  `.agents/skills/` in a repository, symlinks are followed, the skill is invoked
+  as `$mcl-api-r`, and `$skill-installer install <repo-url>` is the alternative
+  to clone-and-symlink. Older releases read `~/.codex/skills/`; the
+  `config.toml` stanza to disable a skill is shown. Checked against OpenAI's
+  skills documentation on 2026-09-03. Whether the installer accepts a repository
+  whose `SKILL.md` sits at the root is **not verified** — the docs only show
+  sub-directory URLs — which is why the symlink method is listed first.
+- **An install table** up front: where you work, where the folder goes, how the
+  skill triggers.
+- **"Your first query, end to end"**: the prompt to type, the R it should
+  produce, and what to do in the SRE. The R is the SKILL.md async template with
+  `mcl_fromJSON()` and `mcl_wait_for_job()` inlined so it runs as a single cell;
+  SKILL.md stays the owner of every rule it demonstrates (checklist rule 4).
+- **`docs/first-query.html`**, the same walkthrough as a standalone page, laid
+  out for GitHub Pages serving `main` from `/docs` (not enabled at release time:
+  the repository is private and the account's plan does not offer Pages for
+  private repositories):
+  the prompt with a copy button, the R with the four skill habits called out, and
+  a mock-up of the JupyterLab cell and its streamed poll output. Its R code and
+  the README's are the same text; change both together.
+  Until Pages is on, the README links the same page as a claude.ai artifact
+  (<https://claude.ai/code/artifact/d53e845a-facd-46e6-b391-c5f88e34f404>).
+- **Repository renamed** to `fabiogiglietto/meta-content-library-r-skill` (GitHub redirects the old
+  `mcl-api-r` URL). Clone URLs in the README now use the new name; the skill's
+  own name and directory stay `mcl-api-r`.
+
 ## v1.18.0 (2026-09-02)
 
 ### SNAPSHOT jobs do not survive the monthly wipe — the one-year retention is not usable
