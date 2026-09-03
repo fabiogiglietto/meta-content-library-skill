@@ -32,6 +32,8 @@ Documentation only; no API fact changed.
   the prompt with a copy button, the R with the four skill habits called out, and
   a mock-up of the JupyterLab cell and its streamed poll output. Its R code and
   the README's are the same text; change both together.
+  Until Pages is on, the README links the same page as a claude.ai artifact
+  (<https://claude.ai/code/artifact/d53e845a-facd-46e6-b391-c5f88e34f404>).
 - **Repository renamed** to `fabiogiglietto/meta-content-library-r-skill` (GitHub redirects the old
   `mcl-api-r` URL). Clone URLs in the README now use the new name; the skill's
   own name and directory stay `mcl-api-r`.
