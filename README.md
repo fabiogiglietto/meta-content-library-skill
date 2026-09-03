@@ -67,7 +67,7 @@ Clone once, then symlink the clone into your personal skills directory. The
 command name comes from the *directory* name, so link it as `mcl-api-r`:
 
 ```bash
-git clone https://github.com/fabiogiglietto/mcl-api-r.git ~/skills/mcl-api-r
+git clone https://github.com/fabiogiglietto/meta-content-library-r-skill.git ~/skills/mcl-api-r
 mkdir -p ~/.claude/skills
 ln -s ~/skills/mcl-api-r ~/.claude/skills/mcl-api-r
 ```
@@ -95,7 +95,7 @@ mcl-api-r.zip
 ```
 
 ```bash
-git clone https://github.com/fabiogiglietto/mcl-api-r.git mcl-api-r
+git clone https://github.com/fabiogiglietto/meta-content-library-r-skill.git mcl-api-r
 zip -r mcl-api-r.zip mcl-api-r -x 'mcl-api-r/.git/*'
 ```
 
@@ -112,7 +112,7 @@ Clone once and symlink it, exactly as for Claude Code; Codex follows symlinked
 skill folders:
 
 ```bash
-git clone https://github.com/fabiogiglietto/mcl-api-r.git ~/skills/mcl-api-r
+git clone https://github.com/fabiogiglietto/meta-content-library-r-skill.git ~/skills/mcl-api-r
 mkdir -p ~/.agents/skills
 ln -s ~/skills/mcl-api-r ~/.agents/skills/mcl-api-r
 ```
@@ -121,7 +121,7 @@ Or let Codex's built-in installer fetch it for you — type this in a Codex
 session:
 
 ```
-$skill-installer install https://github.com/fabiogiglietto/mcl-api-r
+$skill-installer install https://github.com/fabiogiglietto/meta-content-library-r-skill
 ```
 
 Either way, invoke it explicitly with `$mcl-api-r` at the start of a prompt, or
@@ -147,9 +147,11 @@ The skill is used from **outside** the SRE: you talk to Claude or Codex on your
 own machine, they write R against the skill, and you paste the result into a
 JupyterLab notebook inside the SRE, which has no internet access. Three steps:
 
-The same three steps, as a page with copy buttons and a mock-up of the SRE
-notebook: **<https://fabiogiglietto.github.io/mcl-api-r/first-query.html>**
-(source: [`docs/first-query.html`](docs/first-query.html)).
+The same three steps as a page with copy buttons and a mock-up of the SRE
+notebook: [`docs/first-query.html`](docs/first-query.html). Open it from a
+clone, or, once GitHub Pages is enabled for the repository (Settings → Pages →
+branch `main`, folder `/docs`), at
+<https://fabiogiglietto.github.io/meta-content-library-r-skill/first-query.html>.
 
 **1. Ask.** In claude.ai, Claude Code or Codex:
 
@@ -262,7 +264,7 @@ need to take out must be rendered as an image in a cell.
 | `references/utilities.md` | Quota checking, package and ML model installation, job retrieval |
 | `references/ml_models_approved.md` | The approved pre-trained ML model list, with canonical repo ids |
 | `docs/TESTING_PROCEDURE.md` | Manual verification procedure for the code examples |
-| `docs/first-query.html` | The visual walkthrough served by GitHub Pages: prompt, R code, SRE notebook |
+| `docs/first-query.html` | The visual walkthrough (prompt, R code, SRE notebook); GitHub Pages serves it from `/docs` when enabled |
 | `.github/workflows/meta-docs-check.yml` | Monthly check of Meta's changelog; opens an issue on drift |
 | `.github/scripts/check_meta_docs.py` | The checker — run `--check` locally, `--update` after reconciling |
 
