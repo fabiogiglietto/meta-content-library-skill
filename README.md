@@ -148,10 +148,9 @@ own machine, they write R against the skill, and you paste the result into a
 JupyterLab notebook inside the SRE, which has no internet access. Three steps:
 
 The same three steps as a page with copy buttons and a mock-up of the SRE
-notebook: [`docs/first-query.html`](docs/first-query.html). Open it from a
-clone, or, once GitHub Pages is enabled for the repository (Settings → Pages →
-branch `main`, folder `/docs`), at
-<https://fabiogiglietto.github.io/meta-content-library-r-skill/first-query.html>.
+notebook: **[visual walkthrough](https://claude.ai/code/artifact/d53e845a-facd-46e6-b391-c5f88e34f404)**
+(source: [`docs/first-query.html`](docs/first-query.html), which will move to
+GitHub Pages once the repository is public).
 
 **1. Ask.** In claude.ai, Claude Code or Codex:
 
