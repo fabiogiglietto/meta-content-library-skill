@@ -1,23 +1,25 @@
-# MCL API R Skill for Claude
+# MCL API R Skill
 
-> **Version:** 1.18.0 — see [CHANGELOG.md](CHANGELOG.md)
+> **Version:** 1.18.1 — see [CHANGELOG.md](CHANGELOG.md)
 
-A Claude skill for working with the Meta Content Library (MCL) API v6.0 using R.
+An [Agent Skill](https://agentskills.io) that teaches Claude and Codex how to
+query the **Meta Content Library (MCL) API v6.0 from R**. Install it once, then
+ask in plain language ("top posts from my producer list this week") and get R
+code that runs correctly inside Meta's Secure Research Environment (SRE) or the
+SOMAR Virtual Data Enclave (VDE) — with the integer suffixes, character IDs,
+SNAPSHOT mode and status polling that the API silently punishes you for
+forgetting.
+
+Everything the skill teaches is in **[SKILL.md](SKILL.md)** and the
+`references/` files it links. This README is the front door: what the skill
+covers, how to install it in each tool, and what a first query looks like end
+to end.
 
 Upstream documentation:
 <https://developers.facebook.com/docs/content-library-and-api>. Where this skill
 and Meta's docs disagree, the skill records both and keeps whichever claim was
 checked against a live response — see `references/field_reference.md` § "Where
 the docs and this file disagree".
-
-## Overview
-
-This skill helps researchers query Facebook, Instagram and WhatsApp public
-content using R via reticulate in Meta's Secure Research Environment (SRE) or the
-SOMAR Virtual Data Enclave (VDE).
-
-Everything the skill teaches is in **[SKILL.md](SKILL.md)** and the
-`references/` files it links. This README is just the front door.
 
 ## What it covers
 
@@ -46,9 +48,18 @@ Everything the skill teaches is in **[SKILL.md](SKILL.md)** and the
 
 ## Installation
 
+The skill is a folder with a `SKILL.md` at its root plus `references/`. Every
+tool below reads that same layout; only the location and the trigger differ.
+
+| Where you work | Where the skill goes | How you trigger it |
+|---|---|---|
+| Claude Code (CLI, IDE, desktop app) | `~/.claude/skills/mcl-api-r/` or `<project>/.claude/skills/mcl-api-r/` | automatic, or `/mcl-api-r` |
+| claude.ai and Claude Desktop | upload a zip under **Customize → Skills** | automatic |
+| Codex (CLI, IDE extension) | `~/.agents/skills/mcl-api-r/` or `<repo>/.agents/skills/mcl-api-r/` | automatic, or `$mcl-api-r` |
+
 Nothing here auto-updates. However you install it, you get a snapshot of the
 repository at that moment — watch [CHANGELOG.md](CHANGELOG.md) for new versions
-and re-run the update step below.
+and repeat the update step for your tool.
 
 ### Claude Code
 
@@ -57,6 +68,7 @@ command name comes from the *directory* name, so link it as `mcl-api-r`:
 
 ```bash
 git clone https://github.com/fabiogiglietto/mcl-api-r.git ~/skills/mcl-api-r
+mkdir -p ~/.claude/skills
 ln -s ~/skills/mcl-api-r ~/.claude/skills/mcl-api-r
 ```
 
@@ -64,7 +76,7 @@ For a project-local install, symlink into that project's `.claude/skills/`
 instead — or clone straight into `.claude/skills/mcl-api-r` if collaborators
 should get the skill with the repository.
 
-Update with `git pull` in the clone. Claude Code watches the skills directory,
+**Update:** `git pull` in the clone. Claude Code watches the skills directory,
 so a pulled `SKILL.md` is picked up without a restart — but a conversation that
 has already invoked the skill keeps the copy it loaded, so start a new session
 after pulling. Files under `references/` are read on demand and are current as
@@ -87,15 +99,145 @@ git clone https://github.com/fabiogiglietto/mcl-api-r.git mcl-api-r
 zip -r mcl-api-r.zip mcl-api-r -x 'mcl-api-r/.git/*'
 ```
 
-To update, build a fresh zip from a newer clone and upload it again.
+**Update:** build a fresh zip from a newer clone and upload it again.
 
-## Usage
+### Codex
 
-Claude uses this skill automatically when you ask about MCL API queries in R,
-Facebook/Instagram content library research, producer lists, or quota and budget
-monitoring.
+Codex reads skills from `~/.agents/skills/` (personal) and from `.agents/skills/`
+inside a repository (shared with collaborators). The `SKILL.md` frontmatter
+already carries the `name` and `description` Codex requires, so the clone is
+the skill — no packaging step.
 
-### Example prompts
+Clone once and symlink it, exactly as for Claude Code; Codex follows symlinked
+skill folders:
+
+```bash
+git clone https://github.com/fabiogiglietto/mcl-api-r.git ~/skills/mcl-api-r
+mkdir -p ~/.agents/skills
+ln -s ~/skills/mcl-api-r ~/.agents/skills/mcl-api-r
+```
+
+Or let Codex's built-in installer fetch it for you — type this in a Codex
+session:
+
+```
+$skill-installer install https://github.com/fabiogiglietto/mcl-api-r
+```
+
+Either way, invoke it explicitly with `$mcl-api-r` at the start of a prompt, or
+just describe the task — Codex picks the skill from its description when the
+question is about MCL queries in R. Codex detects new skills automatically; if
+`$mcl-api-r` does not autocomplete, restart Codex.
+
+Older Codex releases looked in `~/.codex/skills/` instead; if the skill is not
+found, symlink it there as well. To disable it without deleting it, add to
+`~/.codex/config.toml`:
+
+```toml
+[[skills.config]]
+path = "/home/you/skills/mcl-api-r/SKILL.md"
+enabled = false
+```
+
+**Update:** `git pull` in the clone (or re-run the installer command).
+
+## Your first query, end to end
+
+The skill is used from **outside** the SRE: you talk to Claude or Codex on your
+own machine, they write R against the skill, and you paste the result into a
+JupyterLab notebook inside the SRE, which has no internet access. Three steps:
+
+The same three steps, as a page with copy buttons and a mock-up of the SRE
+notebook: **<https://fabiogiglietto.github.io/mcl-api-r/first-query.html>**
+(source: [`docs/first-query.html`](docs/first-query.html)).
+
+**1. Ask.** In claude.ai, Claude Code or Codex:
+
+> Using the mcl-api-r skill, write R for the SRE that collects Facebook posts
+> mentioning "climate change" from January to March 2026 as a SNAPSHOT job,
+> waits for it, and tells me how many posts came back.
+
+**2. Read what comes back.** The code carries the skill's habits — the R kernel
+setup through reticulate, `mcl_fromJSON()` so IDs stay character, an estimate
+before the job, `limit = 100L`, `mode = "SNAPSHOT"`, a name and description, and
+a wait loop that cannot spin forever:
+
+```r
+library(reticulate)
+library(jsonlite)
+
+client <- import("metacontentlibraryapi")$MetaContentLibraryAPIClient
+client$set_default_version(client$LATEST_VERSION)
+
+# IDs are 15–19 digit numbers: parse them as character, always
+MCL_ID_PATTERN <- "(^|[._])ids?$"
+mcl_fix_ids <- function(x, name = "") {
+  if (is.data.frame(x)) { x[] <- Map(mcl_fix_ids, x, names(x)); return(x) }
+  if (is.list(x)) {
+    nms <- names(x); if (is.null(nms)) nms <- rep(name, length(x))
+    x[] <- Map(mcl_fix_ids, x, nms); return(x)
+  }
+  if (grepl(MCL_ID_PATTERN, name) && is.numeric(x)) {
+    out <- rep(NA_character_, length(x)); ok <- !is.na(x)
+    out[ok] <- sprintf("%.0f", x[ok]); return(out)
+  }
+  x
+}
+mcl_fromJSON <- function(txt) mcl_fix_ids(fromJSON(txt, flatten = TRUE, bigint_as_char = TRUE))
+
+# 1. Estimate before spending budget
+est <- mcl_fromJSON(client$get(
+  path = "facebook/posts/estimate",
+  params = list("q" = "climate change", "since" = "2026-01-01", "until" = "2026-03-31")
+)$text)
+cat("Estimated:", est$estimated_results, "| complete:", est$expected_complete, "\n"); flush.console()
+
+# 2. Submit the async job (SNAPSHOT = reproducible, citable)
+resp <- client$post(
+  path = "facebook/posts/job",
+  params = list(
+    "q" = "climate change", "since" = "2026-01-01", "until" = "2026-03-31",
+    "limit" = 100L, "mode" = "SNAPSHOT",
+    "name" = "Climate change FB posts 2026 Q1",
+    "description" = "First query. PI: your name, project id"
+  )
+)
+job_id <- mcl_fromJSON(resp$text)$id
+cat("Submitted job:", job_id, "\n"); flush.console()
+
+# 3. Wait — case-insensitive, with a timeout
+mcl_job_status  <- function(job) toupper(trimws(job$get_status()))
+mcl_wait_for_job <- function(job, poll = 5, timeout = 3600) {
+  deadline <- Sys.time() + timeout
+  repeat {
+    st <- mcl_job_status(job)
+    if (st == "COMPLETE") return(st)
+    if (st == "FAILED")   stop("Job failed (status: ", st, ")")
+    if (Sys.time() > deadline) stop("Timed out; last status: ", st)
+    cat("Status:", st, "\n"); flush.console(); Sys.sleep(poll)
+  }
+}
+job <- client$get_async_job(job_id = job_id)
+mcl_wait_for_job(job)
+
+# 4. Save and load with IDs as character
+dir.create("results", showWarnings = FALSE)
+job$write_data_to_file(directory = "results", filename = "climate_2026q1.json")
+posts <- mcl_fromJSON(file.path("results", "climate_2026q1.json"))
+cat("Retrieved", nrow(posts), "posts\n")
+```
+
+**3. Paste and run in the SRE.** Open JupyterLab in the Meta Research Platform
+(the US or Ireland portal your access was granted for), start a notebook on the
+**R** kernel, paste the code into a cell and run it. Poll output appears as it
+happens thanks to `flush.console()`; the job id looks like `2026-09-03-abc-xyz`.
+
+Two SRE rules the skill keeps reminding you of: download job results **the
+same calendar month** you submit them (the SRE wipes results and files on the
+1st), and remember that the exported notebook is **scrubbed** — anything you
+need to take out must be rendered as an image in a cell.
+
+### More prompts that trigger the skill
 
 - "Help me query Facebook posts about climate change using MCL API"
 - "How do I check my MCL quota?"
@@ -120,6 +262,7 @@ monitoring.
 | `references/utilities.md` | Quota checking, package and ML model installation, job retrieval |
 | `references/ml_models_approved.md` | The approved pre-trained ML model list, with canonical repo ids |
 | `docs/TESTING_PROCEDURE.md` | Manual verification procedure for the code examples |
+| `docs/first-query.html` | The visual walkthrough served by GitHub Pages: prompt, R code, SRE notebook |
 | `.github/workflows/meta-docs-check.yml` | Monthly check of Meta's changelog; opens an issue on drift |
 | `.github/scripts/check_meta_docs.py` | The checker — run `--check` locally, `--update` after reconciling |
 
