@@ -40,6 +40,8 @@ jobs:
             --description "Meta's documentation changed" --force
           gh label create docs-check-broken --color D93F0B \
             --description "The docs tripwire itself failed" --force
+          gh label create field-report --color 0E8A16 \
+            --description "A live response disagreed with or confirmed the skill" --force
 
       # The script reports drift and failure INDEPENDENTLY, because with more
       # than one source they are no longer mutually exclusive: a 404 on one page

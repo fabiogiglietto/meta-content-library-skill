@@ -1,0 +1,95 @@
+# Field report — one thing a live MCL response taught that the skill did not know.
+# The field list is owned by references/field_report.md; ids match its headings
+# so the form can be prefilled from a URL:
+#   issues/new?template=field-report.yml&kind=promotion&endpoint=POST%20facebook/posts/search
+name: Field report
+description: A live MCL API response disagreed with, or confirmed, something this skill states.
+title: "Field report: "
+labels: [field-report]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. Fill in what you observed — the shape follows
+        `references/field_report.md`. **No MCL content:** error messages,
+        subcodes, endpoints, parameters, field names and counts are fine;
+        post text, user names and result rows are not.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      description: See SKILL.md § "Contributing Back" for the four kinds.
+      options:
+        - correction — a stated fact was wrong live
+        - promotion — a documented-not-tested claim behaved as documented
+        - addition — a subcode, field, limit or behaviour the skill does not mention
+        - open — one observation, possibly transient or account-specific
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - SRE (Meta Secure Research Environment)
+        - SOMAR VDE
+        - other
+    validations:
+      required: true
+  - type: input
+    id: skill_version
+    attributes:
+      label: Skill version
+      description: From the `version:` line in the SKILL.md frontmatter, plus its `updated:` date.
+      placeholder: "1.19.0 (updated 2026-09-04)"
+    validations:
+      required: true
+  - type: input
+    id: observed_on
+    attributes:
+      label: Observed on
+      placeholder: "YYYY-MM-DD"
+    validations:
+      required: true
+  - type: input
+    id: endpoint
+    attributes:
+      label: Endpoint
+      description: Method and path.
+      placeholder: "POST facebook/posts/search"
+    validations:
+      required: true
+  - type: textarea
+    id: skill_says
+    attributes:
+      label: What the skill says
+      description: File § section, quoted.
+      placeholder: "`references/common_errors.md` § \"Query / Job Errors\": \"…\""
+    validations:
+      required: true
+  - type: textarea
+    id: api_returned
+    attributes:
+      label: What the API returned
+      description: The verbatim message and `error_subcode`, or the response shape (field names, counts). No rows.
+      render: markdown
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: The minimal request — parameters or the R call, IDs as placeholders. Budget cost if known.
+      render: markdown
+  - type: textarea
+    id: proposed_change
+    attributes:
+      label: Proposed change (optional)
+      description: The edited sentence or row, stamped `[verified YYYY-MM-DD]`, and the file that owns it.
+  - type: checkboxes
+    id: no_data
+    attributes:
+      label: Data check
+      options:
+        - label: This report contains no MCL content — no post text, user names or result rows.
+          required: true

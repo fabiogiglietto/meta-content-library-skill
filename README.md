@@ -1,6 +1,6 @@
 # MCL API R Skill
 
-> **Version:** 1.18.1 — see [CHANGELOG.md](CHANGELOG.md)
+> **Version:** 1.19.0 — see [CHANGELOG.md](CHANGELOG.md)
 
 An [Agent Skill](https://agentskills.io) that teaches Claude and Codex how to
 query the **Meta Content Library (MCL) API v6.0 from R**. Install it once, then
@@ -262,8 +262,10 @@ need to take out must be rendered as an image in a cell.
 | `references/common_errors.md` | Full error catalog and debugging patterns |
 | `references/utilities.md` | Quota checking, package and ML model installation, job retrieval |
 | `references/ml_models_approved.md` | The approved pre-trained ML model list, with canonical repo ids |
+| `references/field_report.md` | The field report template — how a session's findings travel back here |
 | `docs/TESTING_PROCEDURE.md` | Manual verification procedure for the code examples |
 | `docs/first-query.html` | The visual walkthrough (prompt, R code, SRE notebook); GitHub Pages serves it from `/docs` when enabled |
+| `.github/ISSUE_TEMPLATE/field-report.yml` | The Field report issue form; one field per template heading |
 | `.github/workflows/meta-docs-check.yml` | Monthly check of Meta's changelog; opens an issue on drift |
 | `.github/scripts/check_meta_docs.py` | The checker — run `--check` locally, `--update` after reconciling |
 
@@ -281,9 +283,23 @@ for notebooks that can be re-run rather than files that persist.
 
 ## Contributing
 
-Contributions are welcome. Please open an issue or pull request. When changing
-documented behavior, follow the release checklist at the end of
-[CHANGELOG.md](CHANGELOG.md).
+The contribution this skill wants most is a **field report**: one thing a live
+MCL response taught that the skill did not know — a documented claim that was
+wrong, a "documented, not tested" claim that held, an error subcode or field
+the skill does not mention. The skill asks for these itself: when a session
+ends with something learned, it offers once to write the report, and
+`SKILL.md` § "Contributing Back" says what counts and where it goes.
+
+- **Open a [Field report](https://github.com/fabiogiglietto/meta-content-library-r-skill/issues/new?template=field-report.yml)** —
+  the form's fields are the template's headings
+  (`references/field_report.md`), so a drafted report pastes in section by
+  section.
+- **Or open a pull request** with the report as its body and the edit at the
+  file that owns the fact, following the release checklist at the end of
+  [CHANGELOG.md](CHANGELOG.md).
+
+Reports carry error messages, subcodes, endpoints, parameters, field names
+and counts — never MCL content.
 
 ## License
 
