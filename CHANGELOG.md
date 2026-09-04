@@ -4,6 +4,15 @@ All notable changes to the `mcl-api` skill (named `mcl-api-r` through v1.19.0). 
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v2.0.1 (2026-09-09)
+
+- **`docs/first-query.html`** gains a fourth station: what the skill asks for
+  when the question is answered — the one-time offer, a drafted field report
+  with a copy button (now carrying the Language row and the current section
+  name), the no-data rule, and where the report goes. Written on the
+  contribute-back branch after PR #39 merged and stranded there; rebased onto
+  2.0.0. The hosted copy still needs republishing.
+
 ## v2.0.0 (2026-09-08) — one skill, two languages
 
 **No API fact changed in this release.** Every endpoint, parameter, subcode,

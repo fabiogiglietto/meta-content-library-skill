@@ -176,6 +176,8 @@
   .rule { border-left: 3px solid var(--mark); padding: 4px 0 4px 16px; display: grid; gap: 4px; }
   .rule b { font-weight: 600; }
   .rule span { font-size: 13.5px; color: var(--muted); line-height: 1.45; }
+  .rule a { color: var(--accent); text-decoration: none; }
+  .rule a:hover { text-decoration: underline; }
   footer { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 20px; }
   footer a { color: var(--accent); text-decoration: none; }
   footer a:hover { text-decoration: underline; }
@@ -197,7 +199,7 @@
   <header>
     <div class="eyebrow">mcl-api skill · Meta Content Library API v6.0 · R layer</div>
     <h1>From a question to a running SRE notebook</h1>
-    <p class="lede">The skill lives with Claude or Codex on your machine. The code runs inside Meta's Secure Research Environment, which has no internet. The bridge between them is a paste. Here is the whole round trip for a first query, shown in R — the skill’s verified layer. The Python mirror is <code>languages/python/jobs.md</code>, documented and not yet field-tested.</p>
+    <p class="lede">The skill lives with Claude or Codex on your machine. The code runs inside Meta's Secure Research Environment, which has no internet. The bridge between them is a paste. Here is the whole round trip for a first query, shown in R — the skill’s verified layer — and what the skill asks for when you are done. The Python mirror is <code>languages/python/jobs.md</code>, documented and not yet field-tested.</p>
   </header>
 
   <div class="flow">
@@ -308,6 +310,36 @@ Status: IN_PROGRESS
       </div>
     </section>
 
+    <!-- 4 -->
+    <section class="station">
+      <div class="rail">
+        <div class="num">4</div>
+        <div class="who claude"><i class="dot"></i>Claude</div>
+        <div class="where">when the question is answered</div>
+      </div>
+      <div class="body">
+        <h2>Send back what the session taught</h2>
+        <p>The skill is transcribed from Meta's documentation, and only a live response shows where the documentation is wrong. So whenever a response disagrees with the skill, or confirms something it had only read, Claude says so on the spot. When you are done, if it noted anything, it offers once:</p>
+        <div class="composer">
+          <div class="msg" id="offer-text">This session taught 1 thing this skill did not know: the API rejected the window with subcode 3790079 because <code>until</code> was today, and the skill only says <code>until</code> must be after <code>since</code>. Want me to write it up as a field report?</div>
+          <div class="bar">
+            <div class="hint">Say yes and the report is drafted in the skill's template. Say no and it is dropped; the offer is not repeated.</div>
+          </div>
+        </div>
+        <div class="codebox">
+          <div class="head">
+            <span class="file">field report · paste into the issue form</span>
+            <button class="btn" data-copy="report-src">Copy report</button>
+          </div>
+          <pre><code id="report-view"></code></pre>
+        </div>
+        <div class="rules">
+          <div class="rule"><b>Never any data.</b><span>A report carries error messages, subcodes, endpoints, parameters, field names and counts. Post text, user names and result rows stay in the SRE.</span></div>
+          <div class="rule"><b>Where it goes.</b><span>The <a href="https://github.com/fabiogiglietto/meta-content-library-skill/issues/new?template=field-report.yml">Field report form</a> on the skill's repository has one field per heading, so the draft pastes in section by section. With a clone, it becomes a pull request instead.</span></div>
+        </div>
+      </div>
+    </section>
+
   </div>
 
   <footer>
@@ -316,6 +348,35 @@ Status: IN_PROGRESS
   </footer>
 </div>
 
+<script type="text/plain" id="report-src"># Field report — "Invalid time range" (3790079) fires when until is today
+
+| | |
+|---|---|
+| Skill version | 1.19.0 (updated 2026-09-04) |
+| API version | v6.0 |
+| Environment | SRE |
+| Language | R |
+| Observed on | 2026-09-04 |
+| Endpoint | POST facebook/posts/estimate |
+| Kind | addition |
+
+## What the skill says
+references/common_errors.md § "Scope and Quota Errors" has no row for 3790079;
+nothing says `until` must be before now.
+
+## What the API returned
+HTTP 400, error_subcode 3790079, "Invalid time range". Verbatim: "The since
+time must come before the until time, and the until time must come before
+current_epoch_time."
+
+## How to reproduce
+since = "2026-08-28", until = "2026-09-04" (the day of the call), any
+surface_ids, any q. Estimate only; no budget spent.
+
+## Proposed change
+New row in references/common_errors.md § "Scope and Quota Errors", stamped
+[verified 2026-09-04]: until must be strictly before the current epoch time.
+</script>
 <script type="text/plain" id="rcode-src">library(reticulate)
 library(jsonlite)
 
@@ -406,6 +467,8 @@ cat("Retrieved", nrow(posts), "posts\n")</script>
   }
 
   document.getElementById('rcode-view').innerHTML = hl(src);
+  var rep = document.getElementById('report-src').textContent.trim();
+  document.getElementById('report-view').textContent = rep;
   var lines = src.split('\n');
   document.getElementById('rcode-cell').innerHTML = hl(lines.slice(0, 24).join('\n'));
   var fold = document.querySelector('.fold');
