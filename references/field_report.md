@@ -22,7 +22,7 @@ about a real response, not a reading of the documentation.
 
 | | |
 |---|---|
-| **Skill version** | <from the `SKILL.md` frontmatter, e.g. 2.0.0 (updated 2026-09-08)> |
+| **Skill version** | <from the `SKILL.md` frontmatter, e.g. 2.0.1 (updated 2026-09-09)> |
 | **API version** | v6.0 |
 | **Environment** | SRE / SOMAR VDE / other |
 | **Language** | R / Python / n.a. — the layer the call was made from; API facts themselves are language-neutral |
