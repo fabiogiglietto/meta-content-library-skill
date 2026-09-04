@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Meta changed the documentation?
+    url: https://developers.facebook.com/docs/content-library-and-api/changelog
+    about: Announced changes are caught by the monthly docs tripwire in this repository. Open a Field report for what you observed in a live response.

@@ -4,6 +4,50 @@ All notable changes to the `mcl-api-r` skill. This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v1.19.0 (2026-09-04)
+
+### The skill now asks to send what a session taught back upstream
+
+No API fact changed. This release adds the loop that was missing: "Staying
+Current" brings Meta's documentation *into* the skill, and until now nothing
+carried a session's findings *out* of it. The v1.18.0 entry above is the case
+for one — a documented "up to a year" that one live observation reduced to
+"not past the month boundary" — and it reached the repo only because the
+person who saw it was also the maintainer. A researcher on claude.ai with a
+zip of this skill had no trigger, no definition of what counts, no destination
+and no format. Now they have all four, and the protocol travels with the
+skill, because the repository's GitHub Action does not.
+
+- **`SKILL.md` § "Contributing Back"**, new. Two rules, both cheap: say it on
+  the spot when a live response disagrees with or confirms the skill, and keep
+  it as a one-line **field note**; at a natural close, if there are notes,
+  offer **once** to write them up. Four kinds keyed to the existing provenance
+  tags — **correction**, **promotion** (a `[documented]` claim that held, now
+  `[verified DATE]`; the cheapest and most under-filed contribution there is),
+  **addition**, **open**. A "what does not count" list: study-specific facts,
+  anything about driving the SRE surface, the SRE's daily state, and **never
+  MCL content** — messages, subcodes, endpoints, parameters, field names and
+  counts only. The source repository is named in the skill for the first time,
+  with three routes by capability: a pull request from a clone, the issue form,
+  or paste-ready markdown for a copy with no web access. A session with GitHub
+  tooling may file the issue itself only after showing the complete body and
+  getting an explicit yes. A client that runs unattended may replace the offer
+  with its own end-of-run step; notes and report shape are unchanged.
+- **`references/field_report.md`**, new: owns the template (a header table —
+  skill version, API version, environment, date, endpoint, kind — and four
+  headings: what the skill says, what the API returned, how to reproduce,
+  proposed change), a filled example from the real `3790079` observation, the
+  routes, the five-part `OPEN_QUESTION_<topic>.md` shape for the `open` kind,
+  and what the maintainer does with a report.
+- **`.github/ISSUE_TEMPLATE/field-report.yml`**, new: the *Field report* issue
+  form, labelled `field-report`. Field ids are the template's headings, so a
+  drafted report pastes in section by section and a tool can prefill the form
+  from a URL query. A required checkbox affirms the report carries no MCL
+  content. `config.yml` points announced documentation changes at the monthly
+  tripwire instead. The workflow's label step now creates `field-report` too.
+- **README** § "Contributing" rewritten around the field report; the key-files
+  table lists the two new files.
+
 ## v1.18.1 (2026-09-03)
 
 ### README: Codex install, a worked first query, and a hosted walkthrough

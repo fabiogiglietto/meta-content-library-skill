@@ -1,13 +1,13 @@
 ---
 name: mcl-api-r
 description: "Meta Content Library (MCL) API v6.0 in R. Use when querying Facebook, Instagram or WhatsApp content via reticulate in the SRE or SOMAR VDE: async queries, producer lists, SNAPSHOT mode, IDs, quotas."
-version: 1.18.1
-updated: 2026-09-03
+version: 1.19.0
+updated: 2026-09-04
 ---
 
 # Meta Content Library API v6.0 for R
 
-> **Skill Version:** 1.18.1 | **Updated:** 2026-09-03 | [Changelog](CHANGELOG.md)
+> **Skill Version:** 1.19.0 | **Updated:** 2026-09-04 | [Changelog](CHANGELOG.md)
 
 ## Environment
 
@@ -788,6 +788,98 @@ month past the baseline, the check is yours to offer.
 
 The SRE's own operational state is not this skill's business either.
 
+## Contributing Back
+
+"Staying Current" is the loop that brings Meta's documentation *into* this
+skill. This section is the loop in the other direction: what a session *taught*,
+carried back to the source. The skill is largely transcribed from documentation,
+and only execution catches the errors that matter — the v1.18.0 entry in
+`CHANGELOG.md`, where a "preserved up to a year" claim turned out not to survive
+a month boundary, is what one live observation is worth. The same principle as
+above applies: **a session that writes its findings nowhere did not happen.**
+
+### When — two rules, both cheap
+
+1. **On the spot.** The moment a live response disagrees with something this
+   skill states, or confirms a claim it marks as `[documented]` or "Documented,
+   not tested", say so to the researcher in one line and keep it as a **field
+   note** (shape below). Write the note when the finding is fresh, not at the
+   end — a note deferred to the end is a note that is usually never written.
+2. **At a natural close.** When the researcher's question is answered, they say
+   they are done, or the topic changes: if there is at least one field note,
+   offer **once** —
+
+   > "This session taught N things this skill did not know. Want me to write
+   > them up as a field report?"
+
+   Never block the researcher's question on it. Never repeat the offer. No
+   notes, no offer. *A client that runs unattended may replace the offer with
+   its own end-of-run step; the notes and the report shape are unchanged.*
+
+### The field note
+
+One line, five parts, written the moment the finding appears:
+
+```
+kind · file § section · what the skill says · what was observed · date
+```
+
+For example, the note that became the `3790079` row in `references/common_errors.md`:
+
+```
+addition · common_errors.md § Query / Job Errors · no row for 3790079 · "Invalid time range" (3790079) with until = today: "the until time must come before current_epoch_time" · 2026-08-29
+```
+
+### What counts
+
+Four kinds, keyed to the provenance tags this skill already uses:
+
+| Kind | You saw | It becomes |
+|---|---|---|
+| **correction** | a stated fact was wrong live — an endpoint 404s, a parameter is rejected, an enum's casing differs, a cap is not where stated | the fix, stamped `[verified DATE]`, and a changelog entry that says what the documentation said, what was observed, and which one won |
+| **promotion** | a claim marked `[documented]` or "Documented, not tested" behaved as documented | the same sentence with a `[verified DATE]` stamp. **The cheapest and most under-filed contribution there is**; it takes one successful call |
+| **addition** | an error subcode, field, limit or behaviour this skill does not mention | a new row or paragraph at the file that owns the topic — use the owner map in "Staying Current" |
+| **open** | one observation that could be transient or account-specific | `docs/OPEN_QUESTION_<topic>.md`, in the shape of the ones already there |
+
+**What does not count.** The triage question is always the same: *would this
+sentence still be true for a different research question on a different
+corpus?* If not, it belongs to the study, not here. Also not this skill's:
+anything about driving the SRE's notebook or browser surface (that is a
+client's concern), and the SRE's operational state on a given day. And **never
+any data** — no post text, no user names, no result rows. Error messages,
+subcodes, endpoint paths, parameter values, field names and counts are fine;
+MCL content is not, and it does not leave the SRE for any reason.
+
+### Where
+
+The source repository is
+**<https://github.com/fabiogiglietto/meta-content-library-r-skill>**. Three
+routes; take the first that applies:
+
+1. **You have a clone with git.** Branch (`fix/` or `docs/`, then a slug and
+   the date), edit at the file that owns the fact, follow the release checklist
+   at the end of `CHANGELOG.md`, and open a pull request whose body is the
+   field report.
+2. **GitHub is reachable but there is no clone.** Open an issue with the
+   *Field report* form:
+   <https://github.com/fabiogiglietto/meta-content-library-r-skill/issues/new?template=field-report.yml>.
+   Its fields are the report's headings, so a drafted report pastes in section
+   by section — or, if the session has GitHub tooling, it may file the issue
+   itself, **after showing the researcher the complete body and getting an
+   explicit yes**. Never silently.
+3. **Neither** — inside the SRE, or a copy of this skill with no web access.
+   Produce the report as markdown and hand it to the researcher to paste into
+   the form later. The report is the deliverable; the route is only how it
+   travels.
+
+### Format
+
+`references/field_report.md` owns the template and shows a filled example.
+Three things make a report actionable, and a report missing any of them is
+not: the **skill version** (from the frontmatter of this file), the **date
+observed**, and the **verbatim API response** — message and `error_subcode`,
+or the response's field names.
+
 ## References
 
 - `references/query_params.md` - Search parameters, filters, and `q` syntax
@@ -799,5 +891,6 @@ The SRE's own operational state is not this skill's business either.
 - `references/field_reference.md` - Available fields by entity type, reshare resolution, data scope
 - `references/common_patterns.md` - Reusable code patterns
 - `references/surfaces.md` - Channels (FB/IG/WhatsApp), Marketplace, fundraisers, donations
+- `references/field_report.md` - The field report template: how a session's findings travel back to this repository
 
 Version history: [CHANGELOG.md](CHANGELOG.md)
