@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="How the mcl-api-r skill is used: the prompt you type, the R code Claude or Codex returns, and pasting it into a JupyterLab notebook in Meta's Secure Research Environment.">
-<title>First MCL Query · mcl-api-r</title>
+<meta name="description" content="How the mcl-api skill is used: the prompt you type, the R code Claude or Codex returns, and pasting it into a JupyterLab notebook in Meta's Secure Research Environment.">
+<title>First MCL Query · mcl-api</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
   :root {
@@ -195,9 +195,9 @@
 
 <div class="wrap">
   <header>
-    <div class="eyebrow">mcl-api-r skill · Meta Content Library API v6.0 · R</div>
+    <div class="eyebrow">mcl-api skill · Meta Content Library API v6.0 · R layer</div>
     <h1>From a question to a running SRE notebook</h1>
-    <p class="lede">The skill lives with Claude or Codex on your machine. The code runs inside Meta's Secure Research Environment, which has no internet. The bridge between them is a paste. Here is the whole round trip for a first query.</p>
+    <p class="lede">The skill lives with Claude or Codex on your machine. The code runs inside Meta's Secure Research Environment, which has no internet. The bridge between them is a paste. Here is the whole round trip for a first query, shown in R — the skill’s verified layer. The Python mirror is <code>languages/python/jobs.md</code>, documented and not yet field-tested.</p>
   </header>
 
   <div class="flow">
@@ -213,9 +213,9 @@
         <h2>Ask for the query in plain language</h2>
         <p>Name the platform, the search, the date window, and what you want to know at the end. Say "SNAPSHOT" if you already know you want a citable, reproducible dataset. The skill triggers on its own when the question is about MCL in R.</p>
         <div class="composer">
-          <div class="msg" id="prompt-text">Using the mcl-api-r skill, write R for the SRE that collects Facebook posts mentioning "climate change" from January to March 2026 as a SNAPSHOT job, waits for it, and tells me how many posts came back.</div>
+          <div class="msg" id="prompt-text">Using the mcl-api skill, write R for the SRE that collects Facebook posts mentioning "climate change" from January to March 2026 as a SNAPSHOT job, waits for it, and tells me how many posts came back.</div>
           <div class="bar">
-            <div class="hint">In Codex, start with <code>$mcl-api-r</code> to invoke it explicitly.</div>
+            <div class="hint">In Codex, start with <code>$mcl-api</code> to invoke it explicitly.</div>
             <div style="display:flex; gap:8px; align-items:center;">
               <button class="btn" data-copy="prompt-text">Copy prompt</button>
               <span class="send" aria-hidden="true">
@@ -311,7 +311,7 @@ Status: IN_PROGRESS
   </div>
 
   <footer>
-    <span>Skill and full reference: <a href="https://github.com/fabiogiglietto/meta-content-library-r-skill">github.com/fabiogiglietto/meta-content-library-r-skill</a></span>
+    <span>Skill and full reference: <a href="https://github.com/fabiogiglietto/meta-content-library-skill">github.com/fabiogiglietto/meta-content-library-skill</a></span>
     <span>Upstream docs: <a href="https://developers.facebook.com/docs/content-library-and-api">developers.facebook.com</a></span>
   </footer>
 </div>
