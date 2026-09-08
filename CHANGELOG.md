@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the `mcl-api-r` skill. This file is the single home for
+All notable changes to the `mcl-api` skill (named `mcl-api-r` through v1.19.0). This file is the single home for
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 

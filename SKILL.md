@@ -1,11 +1,11 @@
 ---
-name: mcl-api-r
+name: mcl-api
 description: "Meta Content Library (MCL) API v6.0 in R. Use when querying Facebook, Instagram or WhatsApp content via reticulate in the SRE or SOMAR VDE: async queries, producer lists, SNAPSHOT mode, IDs, quotas."
 version: 1.19.0
 updated: 2026-09-04
 ---
 
-# Meta Content Library API v6.0 for R
+# Meta Content Library API v6.0 — R and Python
 
 > **Skill Version:** 1.19.0 | **Updated:** 2026-09-04 | [Changelog](CHANGELOG.md)
 
@@ -853,7 +853,7 @@ MCL content is not, and it does not leave the SRE for any reason.
 ### Where
 
 The source repository is
-**<https://github.com/fabiogiglietto/meta-content-library-r-skill>**. Three
+**<https://github.com/fabiogiglietto/meta-content-library-skill>**. Three
 routes; take the first that applies:
 
 1. **You have a clone with git.** Branch (`fix/` or `docs/`, then a slug and
@@ -862,7 +862,7 @@ routes; take the first that applies:
    field report.
 2. **GitHub is reachable but there is no clone.** Open an issue with the
    *Field report* form:
-   <https://github.com/fabiogiglietto/meta-content-library-r-skill/issues/new?template=field-report.yml>.
+   <https://github.com/fabiogiglietto/meta-content-library-skill/issues/new?template=field-report.yml>.
    Its fields are the report's headings, so a drafted report pastes in section
    by section — or, if the session has GitHub tooling, it may file the issue
    itself, **after showing the researcher the complete body and getting an

@@ -1,12 +1,12 @@
-# MCL API R Skill - Code Testing Procedure
+# MCL API Skill — R layer testing procedure
 
 > **Version:** 1.4
 > **Last Updated:** 2026-08-21
-> **Purpose:** Comprehensive testing procedure for all code examples in the MCL API R Skill repository
+> **Purpose:** Comprehensive testing procedure for all code examples in the MCL API Skill repository — the R layer (`languages/r/`); the Python layer has its own procedure in `TESTING_PROCEDURE_PYTHON.md`
 
 ## Overview
 
-This document provides a systematic procedure to test all code examples in the MCL API R Skill repository. Testing should be performed in the Meta Secure Research Environment (SRE) with access to the MCL API.
+This document provides a systematic procedure to test all code examples in the MCL API Skill repository (R layer). Testing should be performed in the Meta Secure Research Environment (SRE) with access to the MCL API.
 
 ### Testing Environment Requirements
 

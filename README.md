@@ -1,9 +1,9 @@
-# MCL API R Skill
+# MCL API Skill
 
 > **Version:** 1.19.0 — see [CHANGELOG.md](CHANGELOG.md)
 
 An [Agent Skill](https://agentskills.io) that teaches Claude and Codex how to
-query the **Meta Content Library (MCL) API v6.0 from R**. Install it once, then
+query the **Meta Content Library (MCL) API v6.0 from R or Python**. Install it once, then
 ask in plain language ("top posts from my producer list this week") and get R
 code that runs correctly inside Meta's Secure Research Environment (SRE) or the
 SOMAR Virtual Data Enclave (VDE) — with the integer suffixes, character IDs,
@@ -53,9 +53,9 @@ tool below reads that same layout; only the location and the trigger differ.
 
 | Where you work | Where the skill goes | How you trigger it |
 |---|---|---|
-| Claude Code (CLI, IDE, desktop app) | `~/.claude/skills/mcl-api-r/` or `<project>/.claude/skills/mcl-api-r/` | automatic, or `/mcl-api-r` |
+| Claude Code (CLI, IDE, desktop app) | `~/.claude/skills/mcl-api/` or `<project>/.claude/skills/mcl-api/` | automatic, or `/mcl-api` |
 | claude.ai and Claude Desktop | upload a zip under **Customize → Skills** | automatic |
-| Codex (CLI, IDE extension) | `~/.agents/skills/mcl-api-r/` or `<repo>/.agents/skills/mcl-api-r/` | automatic, or `$mcl-api-r` |
+| Codex (CLI, IDE extension) | `~/.agents/skills/mcl-api/` or `<repo>/.agents/skills/mcl-api/` | automatic, or `$mcl-api` |
 
 Nothing here auto-updates. However you install it, you get a snapshot of the
 repository at that moment — watch [CHANGELOG.md](CHANGELOG.md) for new versions
@@ -64,16 +64,16 @@ and repeat the update step for your tool.
 ### Claude Code
 
 Clone once, then symlink the clone into your personal skills directory. The
-command name comes from the *directory* name, so link it as `mcl-api-r`:
+command name comes from the *directory* name, so link it as `mcl-api`:
 
 ```bash
-git clone https://github.com/fabiogiglietto/meta-content-library-r-skill.git ~/skills/mcl-api-r
+git clone https://github.com/fabiogiglietto/meta-content-library-skill.git ~/skills/mcl-api
 mkdir -p ~/.claude/skills
-ln -s ~/skills/mcl-api-r ~/.claude/skills/mcl-api-r
+ln -s ~/skills/mcl-api ~/.claude/skills/mcl-api
 ```
 
 For a project-local install, symlink into that project's `.claude/skills/`
-instead — or clone straight into `.claude/skills/mcl-api-r` if collaborators
+instead — or clone straight into `.claude/skills/mcl-api` if collaborators
 should get the skill with the repository.
 
 **Update:** `git pull` in the clone. Claude Code watches the skills directory,
@@ -88,15 +88,15 @@ Upload the skill as a zip under **Customize → Skills → Add**. The zip must h
 the skill folder as its root, not the files loose at the top level:
 
 ```
-mcl-api-r.zip
-└── mcl-api-r/
+mcl-api.zip
+└── mcl-api/
     ├── SKILL.md
     └── references/
 ```
 
 ```bash
-git clone https://github.com/fabiogiglietto/meta-content-library-r-skill.git mcl-api-r
-zip -r mcl-api-r.zip mcl-api-r -x 'mcl-api-r/.git/*'
+git clone https://github.com/fabiogiglietto/meta-content-library-skill.git mcl-api
+zip -r mcl-api.zip mcl-api -x 'mcl-api/.git/*'
 ```
 
 **Update:** build a fresh zip from a newer clone and upload it again.
@@ -112,22 +112,22 @@ Clone once and symlink it, exactly as for Claude Code; Codex follows symlinked
 skill folders:
 
 ```bash
-git clone https://github.com/fabiogiglietto/meta-content-library-r-skill.git ~/skills/mcl-api-r
+git clone https://github.com/fabiogiglietto/meta-content-library-skill.git ~/skills/mcl-api
 mkdir -p ~/.agents/skills
-ln -s ~/skills/mcl-api-r ~/.agents/skills/mcl-api-r
+ln -s ~/skills/mcl-api ~/.agents/skills/mcl-api
 ```
 
 Or let Codex's built-in installer fetch it for you — type this in a Codex
 session:
 
 ```
-$skill-installer install https://github.com/fabiogiglietto/meta-content-library-r-skill
+$skill-installer install https://github.com/fabiogiglietto/meta-content-library-skill
 ```
 
-Either way, invoke it explicitly with `$mcl-api-r` at the start of a prompt, or
+Either way, invoke it explicitly with `$mcl-api` at the start of a prompt, or
 just describe the task — Codex picks the skill from its description when the
-question is about MCL queries in R. Codex detects new skills automatically; if
-`$mcl-api-r` does not autocomplete, restart Codex.
+question is about MCL queries in R or Python. Codex detects new skills automatically; if
+`$mcl-api` does not autocomplete, restart Codex.
 
 Older Codex releases looked in `~/.codex/skills/` instead; if the skill is not
 found, symlink it there as well. To disable it without deleting it, add to
@@ -135,11 +135,34 @@ found, symlink it there as well. To disable it without deleting it, add to
 
 ```toml
 [[skills.config]]
-path = "/home/you/skills/mcl-api-r/SKILL.md"
+path = "/home/you/skills/mcl-api/SKILL.md"
 enabled = false
 ```
 
 **Update:** `git pull` in the clone (or re-run the installer command).
+
+### Migrating from `mcl-api-r` (versions before 2.0.0)
+
+The skill was named `mcl-api-r` and the repository
+`meta-content-library-r-skill` through v1.19.0. Both names changed in 2.0.0,
+when the skill gained a Python layer. The command name follows the directory
+name, so the migration is a rename plus a pull:
+
+```bash
+# Claude Code
+mv ~/.claude/skills/mcl-api-r ~/.claude/skills/mcl-api
+git -C ~/skills/mcl-api-r remote set-url origin git@github.com:fabiogiglietto/meta-content-library-skill.git
+git -C ~/skills/mcl-api-r pull
+# Codex: same two steps against ~/.agents/skills/, then update the path in
+# ~/.codex/config.toml if you had one
+```
+
+GitHub redirects the old repository URL, so a clone that never updates its
+remote keeps working; update it anyway. On claude.ai and Claude Desktop, build
+`mcl-api.zip` as above, upload it, and **delete the old `mcl-api-r` skill** —
+two installed copies with different names both trigger, and the older one wins
+often enough to be confusing. Invoke the skill as `/mcl-api` or `$mcl-api` from
+then on.
 
 ## Your first query, end to end
 
@@ -154,7 +177,7 @@ GitHub Pages once the repository is public).
 
 **1. Ask.** In claude.ai, Claude Code or Codex:
 
-> Using the mcl-api-r skill, write R for the SRE that collects Facebook posts
+> Using the mcl-api skill, write R for the SRE that collects Facebook posts
 > mentioning "climate change" from January to March 2026 as a SNAPSHOT job,
 > waits for it, and tells me how many posts came back.
 
@@ -290,7 +313,7 @@ the skill does not mention. The skill asks for these itself: when a session
 ends with something learned, it offers once to write the report, and
 `SKILL.md` § "Contributing Back" says what counts and where it goes.
 
-- **Open a [Field report](https://github.com/fabiogiglietto/meta-content-library-r-skill/issues/new?template=field-report.yml)** —
+- **Open a [Field report](https://github.com/fabiogiglietto/meta-content-library-skill/issues/new?template=field-report.yml)** —
   the form's fields are the template's headings
   (`references/field_report.md`), so a drafted report pastes in section by
   section.
