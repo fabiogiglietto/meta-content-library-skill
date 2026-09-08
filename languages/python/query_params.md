@@ -197,7 +197,7 @@ from datetime import datetime, timezone
 
 # 2026-08-24 00:00:00 UTC, exactly
 until_epoch = int(datetime(2026, 8, 24, tzinfo=timezone.utc).timestamp())
-params = {"since": "2026-08-17", "until": until_epoch, ...}
+params = {"since": "2026-08-17", "until": until_epoch}   # plus the rest of the query
 ```
 
 ## Query operators — [documented; mirrors languages/r/query_params.md]

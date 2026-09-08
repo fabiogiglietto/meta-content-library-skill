@@ -51,7 +51,7 @@ the docs and this file disagree".
 - **Quota monitoring**, collections, and job management
 - **`q` search syntax** — the symbol operators (`&`, `|`, `-`), precedence, exact
   tokenization, and which fields each endpoint actually searches
-- **API search IDs** — replay a Content Library UI search from R, and read its
+- **API search IDs** — replay a Content Library UI search from code, and read its
   filters before running it
 - **Verified error subcodes** (3790088, 3790184, 3790057, 3790172) with fixes
 - **Citation DOIs** for the API and the Library, and why they are version-specific
