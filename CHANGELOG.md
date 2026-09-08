@@ -4,6 +4,61 @@ All notable changes to the `mcl-api` skill (named `mcl-api-r` through v1.19.0). 
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v2.0.0 (2026-09-08) — one skill, two languages
+
+**No API fact changed in this release.** Every endpoint, parameter, subcode,
+cap, date and `[verified]` stamp is where it was, or moved whole; the
+inventory of code fences on `main` was checked against the new tree before
+tagging.
+
+- **Renamed.** The skill is `mcl-api` (was `mcl-api-r`) and the repository is
+  `meta-content-library-skill` (was `meta-content-library-r-skill`). The
+  command name follows the directory name, so an existing install is a rename
+  plus a pull — README § "Migrating from `mcl-api-r`" has the three-tool
+  recipe. GitHub redirects the old repository URL. On claude.ai, upload the
+  new zip and delete the old skill; two copies with different names both fire.
+- **Layout.** `SKILL.md` and `references/` are now language-neutral: they
+  hold the facts. Runnable code lives in `languages/r/` (the **verified**
+  layer) and `languages/python/` (**documented**, not yet run from a Python
+  kernel), one file per topic, mirroring `references/` by basename and each
+  other by section title. A neutral section that lost code ends with a
+  `Code:` line naming both mirrors; a language section opens with a `Facts:`
+  line naming its owner. Every helper is defined exactly once, under
+  `languages/`.
+- **`SKILL.md`** went from 896 to about 700 lines. New § "Choosing the
+  language": infer from context (project files, kernel, phrasing), else write
+  R and say so. § "References" is a table with one column per language. The
+  owner map gained rows for Meta's quick-start (R and Python tabs), the
+  install-r and pip pages, and the ML-models page, plus the rule that a page
+  owns a *fact* here and the code that exercises it lives under the same
+  basename in each language directory. The long-form documentation-check
+  procedure moved to `references/staying_current.md`; the report routes moved
+  to `references/field_report.md`.
+- **Python layer.** Setup transcribed from Meta's quick-start Python tab;
+  everything else mirrored from verified R calls against the same client,
+  whose keyword names pass through reticulate unchanged and are therefore the
+  only thing asserted with confidence. What R never needed is marked **open**
+  rather than guessed: the response object beyond `.text`, the exception
+  class, `params=None`, whether an empty result carries `"data": []`, whether
+  an integral float is rejected. The reticulate hazards (`L` suffix,
+  length-1 vectors, empty `list()`) do not exist in Python and say so; the
+  pandas hazards (an `int64` ID column turning `float64` on one null, `"nan"`
+  strings from `astype(str)`, `read_csv` re-inference) are new and documented
+  as pandas facts, not MCL facts.
+- **Fixed on the way.** `safe_get_data()` was defined twice (`SKILL.md` and
+  `references/common_errors.md`); it has one owner now,
+  `languages/r/jobs.md`.
+- **Testing.** `docs/TESTING_PROCEDURE.md` is the R-layer procedure, with
+  its Location lines pointing at the language files that now hold the code.
+  `docs/TESTING_PROCEDURE_PYTHON.md` runs the same suites, with the same
+  numbering, against the Python layer; a passing test is the promotion path
+  from `[documented]` to `[verified]`.
+- **Field reports** carry a **Language** (R / Python / n.a.): the issue form
+  has the dropdown, the template has the row, and
+  `references/field_report.md` says where a stamp lands — a Python promotion
+  stamps only the Python mirror; a correction whose cause is the API edits the
+  neutral owner and both mirrors.
+
 ## v1.19.0 (2026-09-04)
 
 ### The skill now asks to send what a session taught back upstream
@@ -1486,13 +1541,28 @@ reticulate pitfall.
 When updating this skill:
 
 1. Bump the version in **three** places: `SKILL.md` frontmatter `version:`, the
-   `> **Skill Version:**` line below the `SKILL.md` title, and `README.md`.
+   `> **Skill Version:**` line below the `SKILL.md` title, and `README.md` —
+   and the two placeholders that quote it, `skill_version` in
+   `.github/ISSUE_TEMPLATE/field-report.yml` and the header example in
+   `references/field_report.md`.
 2. Update the `updated:` date in the `SKILL.md` frontmatter.
 3. Add an entry here — and only here.
 4. Check that any new fact has exactly one owner (see `SKILL.md` § References);
-   add a pointer elsewhere rather than a second copy.
-5. Update `docs/TESTING_PROCEDURE.md` if behavior changed.
+   add a pointer elsewhere rather than a second copy. Code has one owner too:
+   a helper is defined once, under `languages/`, never in `references/`.
+   - If code moved or was added: the R and Python mirrors carry the same
+     section titles in the same order; a section present in one and absent
+     from the other says why. A neutral section that lost code ends with a
+     `Code:` line naming both mirrors.
+   - If a fact moved files: update the owner map in `SKILL.md` § "Staying
+     Current".
+5. Update `docs/TESTING_PROCEDURE.md` (R) and `docs/TESTING_PROCEDURE_PYTHON.md`
+   (Python) if behavior changed; keep their test numbering aligned.
 6. If the change came from reading Meta's documentation, update the **baseline**
    in `SKILL.md` § "Staying Current" — both the check date and the newest dated
    changelog entry it saw. A documentation check that found *nothing* also gets
    recorded: bump the baseline and add a one-line note here, with no version bump.
+7. Before tagging, check every `file.md § "Heading"` reference and every
+   `Code:` line resolves to an existing heading, and that no helper is defined
+   twice — `docs/TESTING_PROCEDURE_PYTHON.md` § "Before release" names the
+   checks.

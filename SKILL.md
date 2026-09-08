@@ -644,7 +644,7 @@ kind · language · file § section · what the skill says · what was observed 
 For example, the note that became the `3790079` row in `references/common_errors.md`:
 
 ```
-addition · R · common_errors.md § Query / Job Errors · no row for 3790079 · "Invalid time range" (3790079) with until = today: "the until time must come before current_epoch_time" · 2026-08-29
+addition · R · common_errors.md § Scope and Quota Errors · no row for 3790079 · "Invalid time range" (3790079) with until = today: "the until time must come before current_epoch_time" · 2026-08-29
 ```
 
 ### What counts

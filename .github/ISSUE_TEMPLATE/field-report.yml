@@ -1,7 +1,7 @@
 # Field report — one thing a live MCL response taught that the skill did not know.
 # The field list is owned by references/field_report.md; ids match its headings
 # so the form can be prefilled from a URL:
-#   issues/new?template=field-report.yml&kind=promotion&endpoint=POST%20facebook/posts/search
+#   issues/new?template=field-report.yml&kind=promotion&language=Python&endpoint=POST%20facebook/posts/search
 name: Field report
 description: A live MCL API response disagreed with, or confirmed, something this skill states.
 title: "Field report: "
@@ -36,12 +36,23 @@ body:
         - other
     validations:
       required: true
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language
+      description: Which layer the call was made from. Facts about the API itself are language-neutral — pick the language you ran.
+      options:
+        - R (via reticulate)
+        - Python
+        - not language-specific / other
+    validations:
+      required: true
   - type: input
     id: skill_version
     attributes:
       label: Skill version
       description: From the `version:` line in the SKILL.md frontmatter, plus its `updated:` date.
-      placeholder: "1.19.0 (updated 2026-09-04)"
+      placeholder: "2.0.0 (updated 2026-09-08)"
     validations:
       required: true
   - type: input
@@ -79,7 +90,7 @@ body:
     id: reproduce
     attributes:
       label: How to reproduce
-      description: The minimal request — parameters or the R call, IDs as placeholders. Budget cost if known.
+      description: The minimal request — parameters or the R or Python call, IDs as placeholders. Budget cost if known.
       render: markdown
   - type: textarea
     id: proposed_change
