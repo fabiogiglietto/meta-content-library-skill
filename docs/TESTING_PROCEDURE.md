@@ -1,12 +1,12 @@
-# MCL API R Skill - Code Testing Procedure
+# MCL API Skill — R layer testing procedure
 
-> **Version:** 1.4
-> **Last Updated:** 2026-08-21
-> **Purpose:** Comprehensive testing procedure for all code examples in the MCL API R Skill repository
+> **Version:** 2.0
+> **Last Updated:** 2026-09-08
+> **Purpose:** Comprehensive testing procedure for all code examples in the MCL API Skill repository — the R layer (`languages/r/`); the Python layer has its own procedure in `TESTING_PROCEDURE_PYTHON.md`
 
 ## Overview
 
-This document provides a systematic procedure to test all code examples in the MCL API R Skill repository. Testing should be performed in the Meta Secure Research Environment (SRE) with access to the MCL API.
+This document provides a systematic procedure to test all code examples in the MCL API Skill repository (R layer). Testing should be performed in the Meta Secure Research Environment (SRE) with access to the MCL API.
 
 ### Testing Environment Requirements
 
@@ -31,7 +31,7 @@ Since code cannot be executed automatically, each example must be:
 
 ### Step 0: Verify Environment
 
-**Location:** SKILL.md § "Setup"
+**Location:** `languages/r/setup.md` § "Load the client" (facts: SKILL.md § "Setup")
 
 ```r
 library(reticulate)
@@ -44,9 +44,9 @@ client$set_default_version(client$LATEST_VERSION)
 
 # ID-safe parsing helper - required by every test below.
 # Paste the definitions of MCL_ID_PATTERN, mcl_fix_ids() and mcl_fromJSON()
-# from SKILL.md § "ID Handling (Always Load IDs as Character)", and
-# mcl_job_status() / mcl_wait_for_job() from SKILL.md § "Waiting for a Job".
-# SKILL.md is the single canonical copy; do not maintain a second one here.
+# from languages/r/ids.md § "mcl_fromJSON", and mcl_job_status() /
+# mcl_wait_for_job() from languages/r/jobs.md § "Waiting for a job".
+# Those files are the single canonical copy; do not maintain a second one here.
 ```
 
 **Expected Outcome:**
@@ -65,7 +65,7 @@ client$set_default_version(client$LATEST_VERSION)
 
 ### Test 1.1: Check Quota Status
 
-**Location:** utilities.md § "Check Quota Status"
+**Location:** references/utilities.md § "Check Quota Status" — code: `languages/r/utilities.md`
 
 **Purpose:** Verify quota checking functionality
 
@@ -123,7 +123,7 @@ cat(sprintf("\nComments Budget: %s available\n", format(comments_avail, big.mark
 
 ### Test 1.2: Install R Packages
 
-**Location:** utilities.md § "Install R Packages"
+**Location:** references/utilities.md § "Installing packages"; code: `languages/r/utilities.md` — code: `languages/r/utilities.md`
 
 **Purpose:** Test package installation via fbrir
 
@@ -150,7 +150,7 @@ cran$InstallPackages("flextable", dependencies = TRUE)
 
 ### Test 1.3: Retrieve Completed Job Data
 
-**Location:** utilities.md § "Retrieve Completed Job Data"
+**Location:** references/utilities.md § "Retrieve Completed Job Data" — code: `languages/r/utilities.md`
 
 **Purpose:** Test job data retrieval
 
@@ -201,7 +201,7 @@ if (status == "COMPLETE") {
 
 ### Test 1.4: Get Job Metadata
 
-**Location:** utilities.md § "Get Job Metadata"
+**Location:** references/utilities.md § "Get Job Metadata" — code: `languages/r/utilities.md`
 
 **Prerequisites:** Existing job ID
 
@@ -232,7 +232,7 @@ cat("Created:", as.POSIXct(job_metadata$creation_time, origin = "1970-01-01"), "
 
 ### Test 1.5: List All Jobs
 
-**Location:** utilities.md § "List All Jobs"
+**Location:** references/utilities.md § "List All Jobs" — code: `languages/r/utilities.md`
 
 **Code:**
 ```r
@@ -257,7 +257,7 @@ print(jobs_data$jobs[, c("id", "status", "mode", "query_id")])
 
 ### Test 1.6: Download a Hugging Face Model
 
-**Location:** utilities.md § "Download Machine Learning Models"
+**Location:** references/utilities.md § "Download Machine Learning Models" — code: `languages/r/utilities.md`
 
 **Purpose:** Regression test for the download path. The question this test was
 written to settle — *does `fbri.package_managers.huggingface` import from R?* —
@@ -334,7 +334,7 @@ then mean-pool) or install the package first.
 
 ### Test 2.1: Retrieve OpenAPI Spec
 
-**Location:** SKILL.md § "OpenAPI Spec"
+**Location:** `languages/r/query_params.md` § "Reading the OpenAPI spec" (facts: SKILL.md § "OpenAPI Spec")
 
 **Code:**
 ```r
@@ -355,7 +355,7 @@ spec <- client$openapi_spec()
 
 ### Test 2.2: Explore Endpoints
 
-**Location:** SKILL.md § "OpenAPI Spec"
+**Location:** `languages/r/query_params.md` § "Reading the OpenAPI spec" (facts: SKILL.md § "OpenAPI Spec")
 
 **Code:**
 ```r
@@ -385,7 +385,7 @@ write(toJSON(spec, pretty = TRUE), "openapi_spec.json")
 
 ### Test 3.1: Check Estimate
 
-**Location:** SKILL.md § "Async Query Template" (step 1)
+**Location:** `languages/r/jobs.md` § "Async query template" (step 1)
 
 **Code:**
 ```r
@@ -412,7 +412,7 @@ cat("Estimated:", estimate$estimated_results, "| Complete:", estimate$expected_c
 
 ### Test 3.2: Submit Async Job
 
-**Location:** SKILL.md § "Async Query Template" (step 2)
+**Location:** `languages/r/jobs.md` § "Async query template" (step 2)
 
 **Code:**
 ```r
@@ -454,7 +454,7 @@ cat("Query ID:", query_id, "\n")
 
 ### Test 3.3: Monitor Job Status
 
-**Location:** SKILL.md § "Async Query Template" (step 3)
+**Location:** `languages/r/jobs.md` § "Async query template" (step 3)
 
 **Prerequisites:** job_id from Test 3.2
 
@@ -497,7 +497,7 @@ it here throws away the observation.
 
 ### Test 3.4: Save Job Results
 
-**Location:** SKILL.md § "Async Query Template" (step 4)
+**Location:** `languages/r/jobs.md` § "Async query template" (step 4)
 
 **Prerequisites:** Completed job from Test 3.3
 
@@ -540,7 +540,7 @@ if (file.exists("results/climate_test.json")) {
 
 ### Test 3.5: Rerun Existing Query
 
-**Location:** SKILL.md § "Rerun a Query"
+**Location:** `languages/r/jobs.md` § "Rerunning a query"
 
 **Prerequisites:** query_id from Test 3.2
 
@@ -573,7 +573,7 @@ cat("New job created:", new_job_id, "\n")
 
 ### Test 4.1: List All Producer Lists
 
-**Location:** producer_lists.md § "List All Producer Lists"
+**Location:** references/producer_lists.md § "List All Producer Lists" — code: `languages/r/producer_lists.md`
 
 **Code:**
 ```r
@@ -606,7 +606,7 @@ print(lists$producer_lists[, c("id", "name", "platform", "entity_type")])
 
 ### Test 4.2: Get Producer IDs from List (Correct Extraction)
 
-**Location:** producer_lists.md § "Get Producer List Details"
+**Location:** references/producer_lists.md § "Get Producer List Details" — code: `languages/r/producer_lists.md`
 
 **Prerequisites:** list_id from Test 4.1
 
@@ -644,7 +644,7 @@ print(head(producer_ids, 5))
 
 ### Test 4.3: Batching Large Producer Lists
 
-**Location:** producer_lists.md § "Batching Large Producer Lists"
+**Location:** references/producer_lists.md § "Batching Large Producer Lists" — code: `languages/r/producer_lists.md`
 
 **Prerequisites:** producer_ids from Test 4.2 (preferably >250 IDs, or simulate with smaller batch)
 
@@ -676,7 +676,7 @@ cat("Batch 1 size:", length(batches[[1]]), "\n")
 
 ### Test 4.4: Submit Batched Query (Instagram)
 
-**Location:** producer_lists.md § "Query Posts from Producer List"
+**Location:** references/producer_lists.md § "Query Posts from Producer List" — code: `languages/r/producer_lists.md`
 
 **Prerequisites:**
 - Instagram producer list from Test 4.2
@@ -734,7 +734,7 @@ cat("Job submitted:", job_data$id, "\n")
 
 ### Test 4.5: Query Instagram Account Information
 
-**Location:** producer_lists.md § "Query Account/Page Information"
+**Location:** references/producer_lists.md § "Query Account/Page Information" — code: `languages/r/producer_lists.md`
 
 **Prerequisites:** Instagram producer_ids from Test 4.2
 
@@ -775,7 +775,7 @@ if (!is.null(result$data) && length(result$data) > 0) {
 
 ### Test 4.6: Complete Example - Posts and Comments
 
-**Location:** producer_lists.md § "Cross-Platform Account Matching"
+**Location:** references/producer_lists.md § "Cross-Platform Account Matching" — code: `languages/r/producer_lists.md`
 
 **Prerequisites:** Valid producer list with <10 accounts for testing
 
@@ -871,7 +871,7 @@ if (platform == "instagram" && nrow(posts_data) > 0) {
 
 ### Test 5.1: Automatic Date Chunking Function
 
-**Location:** chunking.md § "Automatic Date Chunking"
+**Location:** references/chunking.md § "Automatic Date Chunking" — code: `languages/r/chunking.md`
 
 **Code:**
 ```r
@@ -930,7 +930,7 @@ for (i in 1:min(3, length(test_chunks))) {
 
 ### Test 5.2: Combining Chunked Results with bind_rows
 
-**Location:** chunking.md § "Combining Chunked Results" and common_patterns.md § "Combining Results with Mismatched Columns"
+**Location:** references/chunking.md § "Combining Chunked Results" and common_patterns.md § "Combining Results with Mismatched Columns" — code: `languages/r/chunking.md`
 
 **Prerequisites:** Multiple job IDs from chunked query (can simulate with 2-3 jobs)
 
@@ -988,7 +988,7 @@ cat("Columns:", ncol(combined_correct), "\n")
 
 ### Test 6.1: Create Collection
 
-**Location:** collections.md § "Collections (Folders)"
+**Location:** references/collections.md § "Collections (Folders)" — code: `languages/r/collections.md`
 
 **Code:**
 ```r
@@ -1019,7 +1019,7 @@ cat("Created collection:", collection_id, "\n")
 
 ### Test 6.2: Set Default Collection
 
-**Location:** collections.md § "Collections (Folders)"
+**Location:** references/collections.md § "Collections (Folders)" — code: `languages/r/collections.md`
 
 **Prerequisites:** collection_id from Test 6.1
 
@@ -1047,7 +1047,7 @@ cat("Collection set as default\n")
 
 ### Test 6.3: List All Collections
 
-**Location:** collections.md § "Collections (Folders)"
+**Location:** references/collections.md § "Collections (Folders)" — code: `languages/r/collections.md`
 
 **Code:**
 ```r
@@ -1070,7 +1070,7 @@ print(collections$collections[, c("id", "name", "default")])
 
 ### Test 6.4: Update Query Metadata
 
-**Location:** collections.md § "Query Management"
+**Location:** references/collections.md § "Query Management" — code: `languages/r/collections.md`
 
 **Prerequisites:** query_id from Test 3.2
 
@@ -1109,7 +1109,7 @@ cat("New name:", query_details$name, "\n")
 
 ### Test 6.5: Move Query to Collection
 
-**Location:** collections.md § "Query Management"
+**Location:** references/collections.md § "Query Management" — code: `languages/r/collections.md`
 
 **Prerequisites:**
 - query_id from Test 3.2
@@ -1149,7 +1149,7 @@ cat("Collection ID:", query_details$collection_id, "\n")
 
 ### Test 7.1: Instagram Post Comments (Nested URL)
 
-**Location:** SKILL.md § "Nested Endpoints"
+**Location:** `languages/r/query_params.md` § "Nested endpoints" (facts: SKILL.md § "Nested Endpoints")
 
 **Prerequisites:** Instagram post_id (from previous Instagram query or known ID)
 
@@ -1188,7 +1188,7 @@ if (!is.null(result$data) && length(result$data) > 0) {
 
 ### Test 7.2: Wrong Nested Endpoint Pattern (Expected to Fail)
 
-**Location:** SKILL.md § "Nested Endpoints"
+**Location:** `languages/r/query_params.md` § "Nested endpoints" (facts: SKILL.md § "Nested Endpoints")
 
 **Purpose:** Demonstrate incorrect pattern causes error
 
@@ -1224,7 +1224,7 @@ tryCatch({
 
 ### Test 8.2: Time Series Analysis
 
-**Location:** common_patterns.md § "Time Series Analysis"
+**Location:** references/common_patterns.md § "Time Series Analysis" — code: `languages/r/common_patterns.md`
 
 **Prerequisites:** Data from completed job with creation_time field
 
@@ -1261,7 +1261,7 @@ cat("Total posts:", sum(daily_volume$n_posts), "\n")
 
 ### Test 8.3: Engagement Metrics
 
-**Location:** common_patterns.md § "Engagement Analysis"
+**Location:** references/common_patterns.md § "Engagement Analysis" — code: `languages/r/common_patterns.md`
 
 **Prerequisites:** Posts data with statistics fields
 
@@ -1301,7 +1301,7 @@ print(engagement_summary)
 
 ### Test 9.1: Integer Type Error (Intentional Failure)
 
-**Location:** SKILL.md § "Common Errors" and common_errors.md § "General Errors"
+**Location:** SKILL.md § "Common Errors" and `languages/r/common_errors.md` § "Errors that only exist through reticulate"
 
 **Purpose:** Demonstrate type mismatch error
 
@@ -1358,7 +1358,7 @@ cat("Success with L suffix\n")
 
 ### Test 9.2: Wrong Endpoint Error
 
-**Location:** producer_lists.md § "Critical: Endpoint Path" and common_errors.md § "Producer List Errors"
+**Location:** references/producer_lists.md § "Critical: Endpoint Path" and common_errors.md § "Producer List Errors" — code: `languages/r/producer_lists.md`
 
 **Purpose:** Demonstrate 404 error with old endpoint
 
@@ -1394,7 +1394,7 @@ cat("Found", nrow(lists$producer_lists), "producer lists\n")
 
 ### Test 9.3: Platform-Specific Parameter Error
 
-**Location:** query_params.md § "Platform-Specific ID Parameters" and common_errors.md § "Instagram Errors"
+**Location:** references/query_params.md § "Platform-Specific ID Parameters" and common_errors.md § "Instagram Errors" — code: `languages/r/query_params.md`
 
 **Purpose:** Demonstrate Instagram parameter error
 
@@ -1443,7 +1443,7 @@ cat("Success with correct parameter (post_ids)\n")
 
 ### Test 10.1: Helper Unit Test (Offline — No API Calls, No Budget)
 
-**Location:** SKILL.md § "ID Handling (Always Load IDs as Character)"
+**Location:** `languages/r/ids.md` § "mcl_fromJSON" (facts: SKILL.md § "ID Handling (IDs Are Strings)")
 
 **Purpose:** Verify `mcl_fromJSON()` on a fixture covering every failure mode: an ID above 2^53, an ID below it, a JSON `null` ID, a nested (flattened) ID, a list-column of IDs, a boolean `is_invalid_id` flag, empty result sets, and two "chunks" that must bind together.
 
@@ -1507,7 +1507,7 @@ fromJSON(chunk_big, flatten = TRUE)$data$id   # 1.78414e+16, last digits already
 
 ### Test 10.2: ID Types on Live Data
 
-**Location:** references/utilities.md § "Verify IDs Loaded as Character"
+**Location:** references/utilities.md § "Verify IDs Loaded as Strings" — code: `languages/r/utilities.md`
 
 **Prerequisites:** Any data.frame from a previous test (e.g. `job_data` from Test 1.3, producers from Test 4.2, or a `preview` response)
 
@@ -1551,7 +1551,7 @@ pass/fail.
 
 ### Test 11.1: Facebook Channel Search
 
-**Location:** references/surfaces.md § "Facebook Channels"
+**Location:** references/surfaces.md § "Facebook Channels" — code: `languages/r/surfaces.md`
 
 **Code:**
 ```r
@@ -1590,7 +1590,7 @@ if (!is.null(result$data) && is.data.frame(result$data) && nrow(result$data) > 0
 
 ### Test 11.2: Facebook Channel Messages (Sync and Async Paths)
 
-**Location:** references/surfaces.md § "Channel Messages and Updates"
+**Location:** references/surfaces.md § "Channel Messages and Updates" — code: `languages/r/surfaces.md`
 
 **Prerequisites:** a `channel_id` from Test 11.1
 
@@ -1641,7 +1641,7 @@ print(mcl_fromJSON(async_resp$text))
 
 ### Test 11.3: WhatsApp Channels and Updates
 
-**Location:** references/surfaces.md § "WhatsApp Channels"
+**Location:** references/surfaces.md § "WhatsApp Channels" — code: `languages/r/surfaces.md`
 
 **Code:**
 ```r
@@ -1679,7 +1679,7 @@ print(names(mcl_fromJSON(updates$text)$data))
 
 ### Test 11.4: Marketplace Listings and the Price Filter Constraint
 
-**Location:** references/surfaces.md § "Facebook Marketplace Listings"
+**Location:** references/surfaces.md § "Facebook Marketplace Listings" — code: `languages/r/surfaces.md`
 
 **Code:**
 ```r
@@ -1718,7 +1718,7 @@ print(bad)
 
 ### Test 11.5: Fundraisers and Donations
 
-**Location:** references/surfaces.md § "Fundraisers and Donations"
+**Location:** references/surfaces.md § "Fundraisers and Donations" — code: `languages/r/surfaces.md`
 
 **Code:**
 ```r
@@ -1764,7 +1764,7 @@ Run 12.1 first. It is the one that changes what a query means.
 
 ### Test 12.1: Which `q` operators does the API honour?
 
-**Location:** references/query_params.md § "Query Syntax (`q`)"
+**Location:** references/query_params.md § "Query Syntax (`q`)" — code: `languages/r/query_params.md`
 
 **Why:** Meta documents `&` / space / `|` / `-` as the operators and never
 mentions the words `AND` / `OR` / `NOT`. Versions of this skill up to v1.12.0
@@ -1814,7 +1814,7 @@ cat(sprintf("climate=%s policy=%s | OR(|)=%s AND(space)=%s | word-OR=%s\n",
 ### Test 12.2: Pin the `until` boundary with an epoch second
 
 **Location:** references/query_params.md § "The `since` / `until` window is not a
-clean UTC day"
+clean UTC day" — code: `languages/r/query_params.md`
 
 **Why:** Two runs (2026-08-21, 2026-08-24) both saw the until-day contribute a
 sliver of rows past midnight and neither pinned the boundary. Meta documents that
@@ -1859,7 +1859,7 @@ print(table(as.Date(ct)))
 
 ### Test 12.3: Instagram post default projection
 
-**Location:** references/field_reference.md § "Instagram Posts"
+**Location:** references/field_reference.md § "Instagram Posts" — code: `languages/r/field_reference.md`
 
 **Why:** The v1.13.0 Instagram table is transcribed from the data dictionary —
 and the dictionary was *wrong about Facebook* until a live projection corrected
@@ -1906,7 +1906,7 @@ for (f in c("caption", "producer_id", "producer_username", "producer_name",
 
 ### Test 12.4: Comment reply-pointer field name, and `fetch_all`
 
-**Location:** references/field_reference.md § "`parent_id` or `parent_comment_id`?"
+**Location:** references/field_reference.md § "`parent_id` or `parent_comment_id`?" — code: `languages/r/field_reference.md`
 
 **Why:** This skill says `parent_id`, the dictionary says `parent_comment_id`,
 and neither has been checked. The dictionary also says the field is *absent*
@@ -1953,7 +1953,7 @@ if (!is.na(col)) print(table(ifelse(is.na(sync[[col]]), "<NA>",
 
 ### Test 12.5: API search ID round-trip
 
-**Location:** SKILL.md § "API Search IDs — run a UI search from R"
+**Location:** `languages/r/query_params.md` § "Running an API search ID" (facts: SKILL.md § "API Search IDs — run a UI search from code")
 
 **Prerequisites:** an alias created in the Content Library UI (*Create API search
 ID*). This is the only step that cannot be done from R.

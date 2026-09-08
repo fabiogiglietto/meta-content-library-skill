@@ -1,8 +1,8 @@
 # Producer Lists
 
-> All examples parse responses with `mcl_fromJSON()`, defined in SKILL.md §
-> "ID Handling (Always Load IDs as Character)". It keeps every ID field a
-> character string — plain `fromJSON()` turns IDs into doubles.
+> All examples parse responses with the language helper — `languages/r/ids.md`
+> § "mcl_fromJSON" / `languages/python/ids.md` § "mcl_from_json" — which keeps
+> every ID field a string. A parser that types IDs as floats corrupts them.
 
 Producer lists are pre-defined sets of accounts for Facebook Pages/Profiles or Instagram Accounts, created in the Content Library UI.
 
@@ -33,20 +33,14 @@ per list; see § "Share producer lists between the UI and the API".
 ## Critical: ID Parameters Must Be Arrays
 
 `surface_ids` / `account_ids` / `post_ids` are **array** parameters. A scalar is
-rejected with `"Invalid parameter"` — including the case of a single ID:
+rejected with `"Invalid parameter"` — including the case of a single ID. Send an
+array at every length, one ID included; a batching loop that lets a single-ID
+batch degrade to a scalar fails only on the final batch, when it happens to hold
+one ID. How each language keeps a one-element array from collapsing into a
+scalar is the language layer's problem — `languages/r/query_params.md` § "ID
+parameters are arrays" for R.
 
-```r
-# ✓ Correct - array (Python list), even for one ID
-params[[id_param]] <- as.list(ids)
-
-# ✗ Wrong - a length-1 R vector: reticulate converts it to a Python *string*
-params[[id_param]] <- ids[1]
-```
-
-reticulate converts an R character vector of length > 1 into a Python list, but
-a length-1 vector into a Python string. `as.list()` stays a list at every
-length, so use it unconditionally — batching loops otherwise fail only on the
-final batch when it happens to hold a single ID.
+Code: `languages/r/producer_lists.md` § "ID parameters are arrays" · `languages/python/producer_lists.md` § "ID parameters are arrays"
 
 ## Creating a Producer List (CSV Import in the UI)
 
@@ -79,52 +73,28 @@ Notes:
 
 Build a list of the accounts that comment most actively on a corpus. Input is a
 top-commenters table with one row per account, as produced by aggregating
-comment records parsed with `mcl_fromJSON()` (so the handle is `owner.username`
-and the display name is `owner.name`).
+comment records parsed into flattened field names (so the handle is
+`owner.username` and the display name is `owner.name`). The steps:
 
-```r
-library(dplyr)
-library(readr)
-
-# Weights for the activity blend — tune these, don't bury them in the formula
-W <- c(comments = 0.4, posts = 0.3, reactions = 0.2, days = 0.1)
-
-producers <- top_commenters %>%
-  # 1. Keep only public accounts: both a display name and a username.
-  #    No username -> no URL -> cannot be imported.
-  filter(!is.na(owner.username), nzchar(owner.username),
-         !is.na(owner.name),     nzchar(owner.name)) %>%
-  # 2. Safety net in case the upstream table isn't already one row per account —
-  #    duplicates would silently burn slots against the 1,000 cap
-  mutate(username = tolower(trimws(owner.username))) %>%
-  distinct(username, .keep_all = TRUE) %>%
-  # 3. Score activity as a weighted blend of percentile ranks, so no single
-  #    heavy-tailed metric dominates
-  mutate(
-    activity_score =
-      W[["comments"]]  * percent_rank(n_comments)      +
-      W[["posts"]]     * percent_rank(n_distinct_posts) +
-      W[["reactions"]] * percent_rank(n_reactions)      +
-      W[["days"]]      * percent_rank(n_active_days)
-  ) %>%
-  # 4. Keep the top quartile, then cap at the 1,000-producer import limit
-  filter(activity_score >= quantile(activity_score, 0.75, na.rm = TRUE)) %>%
-  arrange(desc(activity_score))
-
-if (nrow(producers) > 1000L) {
-  cat("Top quartile has", nrow(producers), "accounts - dropping",
-      nrow(producers) - 1000L, "below the 1,000 import cap\n"); flush.console()
-}
-producers <- slice_head(producers, n = 1000L)
-
-# 5. Write the one-column import file (literal header, space and capitals)
-producers %>%
-  transmute(`Producer URL` = paste0("https://www.facebook.com/", owner.username)) %>%
-  write_csv("producer_import.csv")   # write_csv, not write.csv (no row-name column)
-```
+1. **Keep only public accounts** — both a display name and a username. No
+   username → no URL → cannot be imported.
+2. **Dedupe on the lower-cased, trimmed username** as a safety net in case the
+   upstream table isn't already one row per account — duplicates would silently
+   burn slots against the 1,000 cap.
+3. **Score activity as a weighted blend of percentile ranks**, so no single
+   heavy-tailed metric dominates. Weights used: comments 0.4, distinct posts
+   commented on 0.3, reactions received 0.2, active days 0.1 — tune these, don't
+   bury them in the formula.
+4. **Keep the top quartile** of the activity score, sort descending, then **cap
+   at the 1,000-producer import limit**, reporting how many were dropped.
+5. **Write the one-column import file** — the literal header `Producer URL`
+   (space and capitals), each value `https://www.facebook.com/` + username, and
+   no row-name or index column.
 
 Then import `producer_import.csv` in the Content Library UI and generate an API
 ID for the resulting list.
+
+Code: `languages/r/producer_lists.md` § "Recipe: producer list from active commenters" · `languages/python/producer_lists.md` § "Recipe: producer list from active commenters"
 
 ## Share producer lists between the UI and the API
 
@@ -214,8 +184,8 @@ yours."* **[documented]**
 
 ### Creation is UI-only — VERIFIED against the spec
 
-`client$openapi_spec()`, read live on 2026-08-22, declares exactly two methods on
-the producer-list paths, **both `get`**:
+The client's `openapi_spec()`, read live on 2026-08-22, declares exactly two
+methods on the producer-list paths, **both `get`**:
 
 ```
 /lists/producers            -> get
@@ -246,19 +216,11 @@ shape unread]**
 
 ## List All Producer Lists
 
-```r
-library(reticulate)
-library(jsonlite)
+`GET lists/producers` returns every list that has an API ID. Each entry carries
+`id` (the date-slug), `name` and `platform` — and **no producer count** (see the
+tie-break procedure below).
 
-client <- import("metacontentlibraryapi")$MetaContentLibraryAPIClient
-client$set_default_version(client$LATEST_VERSION)
-
-response <- client$get(path = "lists/producers")
-lists <- mcl_fromJSON(response$text)
-
-# View available lists
-print(lists)
-```
+Code: `languages/r/producer_lists.md` § "List all producer lists" · `languages/python/producer_lists.md` § "List all producer lists"
 
 ### Resolving a list by name — names are NOT unique
 
@@ -269,17 +231,12 @@ helper will silently pick one of them, and which one it picks is not stable.
 
 Because the list id is a date-slug generated per snapshot (§ "Share producer
 lists between the UI and the API"), resolving by name is the natural reflex.
-Assert uniqueness every time:
-
-```r
-ll  <- mcl_fromJSON(client$get(path = "lists/producers")$text)
-d   <- if (!is.null(ll$data)) ll$data else ll
-hit <- d[trimws(tolower(d$name)) == tolower(TARGET_NAME), ]
-stopifnot(NROW(hit) == 1)          # 2 matches is a real, observed case
-list_id <- hit$id[1]
-```
+Assert uniqueness every time: match on the trimmed, lower-cased name, and stop
+unless **exactly one** list matches — two matches is a real, observed case.
 
 Prefer pinning the id itself in analysis code, with the date it was generated.
+
+Code: `languages/r/producer_lists.md` § "Resolving a list by name" · `languages/python/producer_lists.md` § "Resolving a list by name"
 
 #### The guard is necessary but not sufficient — you also need a tie-break
 
@@ -299,7 +256,7 @@ kasv vs iicm   identical: TRUE    shared 96      <- same-day pair, redundant
 kasv vs bqtm   identical: FALSE   shared 95      <- different population
 ```
 
-So `stopifnot(NROW(hit) == 1)` correctly refuses to guess, but on its own it leaves you
+So the exactly-one-match guard correctly refuses to guess, but on its own it leaves you
 stuck. The resolution procedure that works:
 
 1. **Fetch each candidate's detail** — the `lists/producers` listing carries only
@@ -321,40 +278,34 @@ to a slightly different question, with nothing downstream to flag it.
 
 Where a query spans several lists, expect heavy overlap. `Extremists 1` (144) and
 `Extremists 2` (96) shared **89** producers, so the deduped union was **151**, not 240.
-Passing the concatenation would have sent 89 ids twice. Union, `unique()`, then chunk.
+Passing the concatenation would have sent 89 ids twice. Union, de-duplicate, then chunk.
 
 ## Get Producer List Details
 
-The response contains a `producers` **data.frame** with columns `id`, `name`, `type` — not a simple vector of IDs.
+`GET lists/producers/{list_id}` returns:
 
-```r
-list_id <- "2026-03-29-bqtm"
-
-response <- client$get(path = paste0("lists/producers/", list_id))
-list_data <- mcl_fromJSON(response$text)
-
-# Response structure:
-# list_data$id        - character: list ID
-# list_data$name      - character: list name
-# list_data$platform  - character: "facebook" or "instagram"
-# list_data$producers - data.frame: columns (id, name, type)
-
-cat("List name:", list_data$name, "\n")
-cat("Platform:", list_data$platform, "\n")
-cat("Producer count:", nrow(list_data$producers), "\n")
-
-# Extract the producers data.frame
-producers <- list_data$producers
-head(producers)
-#          id                    name   type
-# 1 252084...  DICO NO All'unione...   page
-# 2 250547...     Emanuele Tesauro     page
-# 3 249073...        Mauro Fagiolo  profile
-
-# Extract just the IDs as a vector (character, thanks to mcl_fromJSON)
-ids <- producers$id
-stopifnot(is.character(ids))   # a numeric vector here means fromJSON() was used
 ```
+id        - string: list ID
+name      - string: list name
+platform  - string: "facebook" or "instagram"
+producers - array of records with fields (id, name, type)
+```
+
+The `producers` payload is an **array of records** with `id`, `name`, `type` — not
+a simple vector of IDs. In a tabular parse it becomes a table:
+
+```
+         id                    name   type
+1 252084...  DICO NO All'unione...   page
+2 250547...     Emanuele Tesauro     page
+3 249073...        Mauro Fagiolo  profile
+```
+
+The ID column must be strings after parsing — a numeric ID column here means the
+ID-safe helper was bypassed. Take the producer IDs from `producers[].id`, not from
+an `ids` key: there is none.
+
+Code: `languages/r/producer_lists.md` § "Get producer list details" · `languages/python/producer_lists.md` § "Get producer list details"
 
 ### The UI and the API can disagree on producer count
 
@@ -362,44 +313,27 @@ stopifnot(is.character(ids))   # a numeric vector here means fromJSON() was used
 producers"* while `lists/producers/{id}` returned **830**. The cause is
 **[open]** — plausibly accounts that no longer resolve.
 
-**Treat `nrow(list_data$producers)` as authoritative for batching arithmetic**,
-and do not check it against the UI figure to decide whether a pull is complete.
-A batching loop sized from the UI number will look like it is two producers
-short of a full pass every time.
+**Treat the number of records in the API's `producers` payload as authoritative
+for batching arithmetic**, and do not check it against the UI figure to decide
+whether a pull is complete. A batching loop sized from the UI number will look
+like it is two producers short of a full pass every time.
 
 ## Query Posts from Producer List
 
 ### Auto-Detect Platform Pattern
 
-```r
-# Get list metadata first
-response <- client$get(path = paste0("lists/producers/", list_id))
-list_data <- mcl_fromJSON(response$text)
-platform <- tolower(list_data$platform)
-ids <- list_data$producers$id  # Note: $producers$id, not $ids
+Read the list's `platform` from `lists/producers/{list_id}` and let it choose
+both the ID parameter and the endpoint:
 
-# Build correct parameter name
-id_param <- if (platform == "instagram") "account_ids" else "surface_ids"
+- `platform == "instagram"` → parameter `account_ids`, endpoint `instagram/posts/job`
+- otherwise (Facebook) → parameter `surface_ids`, endpoint `facebook/posts/job`
 
-# Build parameters
-params <- list(
-  "since" = "2024-01-01",
-  "until" = "2024-12-31",
-  "limit" = 100L,
-  "mode" = "SNAPSHOT",
-  "name" = "Posts from Producer List",
-  "description" = "Researcher: X, IRB: Y"
-)
-params[[id_param]] <- as.list(ids)   # array, not a comma-joined string
+Take the IDs from `producers[].id` (not from an `ids` key), pass them as an
+**array** — never a comma-joined string — alongside `since`, `until`, `limit`,
+`mode`, `name` and `description`, and POST to `{platform}/posts/job`. The
+response carries the job `id`.
 
-# Submit job
-response <- client$post(
-  path = paste0(platform, "/posts/job"),
-  params = params
-)
-job_data <- mcl_fromJSON(response$text)
-job_id <- job_data$id
-```
+Code: `languages/r/producer_lists.md` § "Auto-detect platform pattern" · `languages/python/producer_lists.md` § "Auto-detect platform pattern"
 
 ### `account_ids` vs `post_ids` (Instagram)
 
@@ -416,151 +350,58 @@ Instagram. `post_ids` is for when you already hold the post IDs you want.
 
 ## Batching Large Producer Lists
 
-When a producer list has many IDs, batch them to stay under the ~100,000 result limit:
+When a producer list has many IDs, batch them to stay under the ~100,000 result
+limit. The pattern:
 
-```r
-batch_ids <- function(ids, batch_size = 50) {
-  n <- length(ids)
-  batches <- split(ids, ceiling(seq_along(ids) / batch_size))
-  return(batches)
-}
+- Split the ID vector into consecutive batches of **50**.
+- Submit **one async job per batch** to `{platform}/posts/job`, with the batch
+  as the ID array (an array even when the batch holds 1 ID), the same
+  `since`/`until`/`limit`/`mode`, and a name of the form `Batch i of n` so the
+  jobs can be told apart later.
+- Collect the returned job ids.
+- **Rate limit: 1 async query per minute** — wait 60 s between submissions.
 
-# Process each batch
-batches <- batch_ids(ids, batch_size = 50L)
-all_job_ids <- c()
-
-for (i in seq_along(batches)) {
-  batch <- batches[[i]]
-  cat("Batch", i, "of", length(batches), "-", length(batch), "IDs\n"); flush.console()
-  
-  params <- list(
-    "since" = "2024-01-01",
-    "until" = "2024-12-31",
-    "limit" = 100L,
-    "mode" = "SNAPSHOT",
-    "name" = sprintf("Batch %d of %d", i, length(batches)),
-    "description" = "Batched producer list query"
-  )
-  params[[id_param]] <- as.list(batch)   # array, even if the batch has 1 ID
-  
-  response <- client$post(
-    path = paste0(platform, "/posts/job"),
-    params = params
-  )
-  job_data <- mcl_fromJSON(response$text)
-  all_job_ids <- c(all_job_ids, job_data$id)
-  
-  # Rate limit: 1 async query per minute
-  if (i < length(batches)) {
-    cat("Waiting 60s for rate limit...\n"); flush.console()
-    Sys.sleep(60)
-  }
-}
-```
+Code: `languages/r/producer_lists.md` § "Batching large producer lists" · `languages/python/producer_lists.md` § "Batching large producer lists"
 
 ## Query Account/Page Information
 
-To get profile metadata (not posts) for IDs in a producer list:
+To get profile metadata (not posts) for IDs in a producer list, batch the IDs
+(max ~50 per query for reliability) and call the platform's preview endpoint
+with `limit = 100`.
 
 ### Instagram Accounts
 
-```r
-# Batch IDs (max ~50 per query for reliability)
-id_batches <- batch_ids(ids, batch_size = 50L)
+`GET instagram/accounts/preview` with `account_ids` = the batch (array).
 
-for (batch in id_batches) {
-  params <- list(
-    "account_ids" = as.list(batch),
-    "limit" = 100L
-  )
-  
-  response <- client$get(
-    path = "instagram/accounts/preview",
-    params = params
-  )
-  # Process results...
-}
-```
+Code: `languages/r/producer_lists.md` § "Instagram account metadata" · `languages/python/producer_lists.md` § "Instagram account metadata"
 
 ### Facebook Pages
 
-```r
-for (batch in id_batches) {
-  params <- list(
-    "surface_ids" = as.list(batch),
-    "limit" = 100L
-  )
-  
-  response <- client$get(
-    path = "facebook/pages/preview",
-    params = params
-  )
-  # Process results...
-}
-```
+`GET facebook/pages/preview` with `surface_ids` = the batch (array).
+
+Code: `languages/r/producer_lists.md` § "Facebook page metadata" · `languages/python/producer_lists.md` § "Facebook page metadata"
 
 ## Cross-Platform Account Matching
 
-Find Instagram accounts that match Facebook pages in a producer list using name similarity:
+Find Instagram accounts that match Facebook pages in a producer list using name
+similarity. The strategy:
 
-```r
-library(stringdist)  # Install via: cran$InstallPackages("stringdist", dependencies = TRUE)
+1. **Get the Facebook producers** from `lists/producers/{list_id}` — names are
+   already included in the response.
+2. **Search Instagram for each Facebook name**: strip the name to alphanumerics
+   and spaces, collapse whitespace, skip terms shorter than 3 characters, and
+   call `instagram/accounts/preview` with `q` = the term and `limit` = 10. Tag
+   each candidate with the source Facebook id and name. Sleep ~1.5 s between
+   calls (sync rate limit), and treat an error on one term as "no candidates"
+   rather than aborting the loop.
+3. **Score by name similarity (Jaro–Winkler)**: similarity = 1 − JW distance,
+   computed twice — display name vs. the Facebook name, and Instagram username
+   vs. the Facebook name with non-alphanumerics removed, both lower-cased — and
+   take the better of the two. De-duplicate on Instagram `id`, then tier:
+   **HIGH** ≥ 0.90, **MEDIUM** ≥ 0.75, **LOW** ≥ 0.60, otherwise **REVIEW**.
+   Sort by best similarity, descending.
 
-# 1. Get FB producers (names already included in response)
-response <- client$get(path = paste0("lists/producers/", list_id))
-list_data <- mcl_fromJSON(response$text)
-fb_producers <- list_data$producers
-
-# 2. Search IG accounts for each FB name
-ig_candidates <- list()
-for (i in seq_len(nrow(fb_producers))) {
-  term <- gsub("[^[:alnum:][:space:]]", " ", fb_producers$name[i])
-  term <- trimws(gsub("\\s+", " ", term))
-  if (nchar(term) < 3) next
-
-  cat(sprintf("[%d/%d] Searching IG for: '%s'\n", i, nrow(fb_producers), term)); flush.console()
-
-  results <- tryCatch({
-    resp <- client$get(
-      path = "instagram/accounts/preview",
-      params = list("q" = term, "limit" = 10L)
-    )
-    parsed <- mcl_fromJSON(resp$text)
-    if (!is.null(parsed$data) && is.data.frame(parsed$data) && nrow(parsed$data) > 0) {
-      parsed$data
-    } else NULL
-  }, error = function(e) { cat("  Error:", e$message, "\n"); NULL })
-
-  if (!is.null(results)) {
-    results$fb_source_id <- fb_producers$id[i]
-    results$fb_source_name <- fb_producers$name[i]
-    ig_candidates[[i]] <- results
-  }
-
-  Sys.sleep(1.5)  # Sync rate limit
-}
-
-# 3. Score by name similarity (Jaro-Winkler)
-ig_all <- bind_rows(ig_candidates)
-scored <- ig_all %>%
-  rowwise() %>%
-  mutate(
-    name_sim = 1 - stringdist(tolower(name), tolower(fb_source_name), method = "jw"),
-    user_sim = 1 - stringdist(tolower(username), tolower(gsub("[^[:alnum:]]", "", fb_source_name)), method = "jw"),
-    best_sim = max(name_sim, user_sim, na.rm = TRUE)
-  ) %>%
-  ungroup() %>%
-  distinct(id, .keep_all = TRUE) %>%
-  mutate(
-    tier = case_when(
-      best_sim >= 0.90 ~ "HIGH",
-      best_sim >= 0.75 ~ "MEDIUM",
-      best_sim >= 0.60 ~ "LOW",
-      TRUE             ~ "REVIEW"
-    )
-  ) %>%
-  arrange(desc(best_sim))
-```
+Code: `languages/r/producer_lists.md` § "Cross-platform account matching" · `languages/python/producer_lists.md` § "Cross-platform account matching"
 
 ### Instagram Account Fields (from /preview)
 
@@ -582,10 +423,10 @@ scored <- ig_all %>%
 | Error | Cause | Fix |
 |-------|-------|-----|
 | 404 "Path not found" | Using `producer-lists/` path | Use `lists/producers/` |
-| "first argument must be a vector" | Accessing `$ids` instead of `$producers$id` | Use `list_data$producers$id` |
+| "first argument must be a vector" (R) | Accessing an `ids` key instead of `producers[].id` | Take the IDs from the `producers` records' `id` field |
 | "Invalid parameter" | Wrong ID param name | Use `surface_ids` for Facebook, `account_ids` for Instagram |
-| "Invalid parameter" with the right param name | ID param passed as a scalar — e.g. a length-1 vector that reticulate turned into a Python string | Pass an array: `params[[id_param]] <- as.list(ids)` |
-| "missing value where TRUE/FALSE needed" | `nrow()` on NULL from empty search | Use safe response handling (check `is.null` and `is.data.frame` before `nrow`) |
-| "Invalid Meta Content Library ID" (3790088) with IDs straight from a list | IDs parsed as numeric → `paste(ids, collapse = ",")` produces `"9.6378e+14,..."` | Parse the list with `mcl_fromJSON()`; check `is.character(ids)` before batching |
+| "Invalid parameter" with the right param name | ID param passed as a scalar — e.g. a one-element vector that the language layer collapsed into a scalar string | Pass an array at every length — `languages/r/query_params.md` § "ID parameters are arrays" |
+| "missing value where TRUE/FALSE needed" (R) | Row-counting a null/empty response from an empty search | Use safe response handling — validate that data is present and tabular before counting rows (SKILL.md § "Safe Response Handling") |
+| "Invalid Meta Content Library ID" (3790088) with IDs straight from a list | IDs parsed as numeric → joined into the request as `"9.6378e+14,..."` | Parse the list with the ID-safe helper; check that the IDs are strings before batching |
 | Empty results | IDs from wrong platform | Verify producer list platform matches endpoint |
 | Results truncated | Too many IDs | Batch into smaller groups |

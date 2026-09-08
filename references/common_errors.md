@@ -1,26 +1,27 @@
 # Common Errors and Solutions
 
-> All examples here parse responses with `mcl_fromJSON()`, defined in SKILL.md §
-> "ID Handling (Always Load IDs as Character)". Never call `fromJSON()` directly
-> on an MCL response — IDs come back as doubles.
+> All examples parse responses with the language's ID-safe helper —
+> `languages/r/ids.md` § "mcl_fromJSON" / `languages/python/ids.md`
+> § "mcl_from_json". Never parse an MCL response raw into a data frame: IDs
+> come back as floats.
 
 > This file is the **full** error catalog. `SKILL.md` § "Common Errors" carries
-> only the subset that changes how you write a first query.
+> only the subset that changes how you write a first query. Errors that exist
+> only because of how one language talks to the client are in
+> `languages/r/common_errors.md` and `languages/python/common_errors.md`.
 
 ## ID / Numeric Precision Errors
 
 | Error / symptom | Cause | Solution |
 |-----------------|-------|----------|
-| "Invalid Meta Content Library ID" (subcode 3790088) with an ID you copied from a search result | The ID is a `numeric`, so `paste0()` rendered it as `9.6378e+14` in the URL or parameter | Parse with `mcl_fromJSON()`; hard-code IDs as quoted strings (`"963780196442228"`, never bare digits) |
-| "Can't combine `id` <character> and `id` <double>" on `bind_rows()` | `bigint_as_char = TRUE` only converts a column when a value in *that batch* exceeds 2^53, so chunk types differ | Coerce every ID field unconditionally — `mcl_fromJSON()` does this |
-| Joins/`distinct()` silently miss matches; IDs end in unexpected digits | IDs above 2^53 (~9.0e15) lost precision when parsed as double (`...123` → `...124`) | Re-parse from the raw response/file with `mcl_fromJSON()`. Rounded IDs are unrecoverable |
-| A `parent_id` column full of the literal string `"NA"` | Blanket `sprintf("%.0f", x)` over a column containing JSON `null` | Use `mcl_fix_ids()`, which maps `NA` → `NA_character_` |
-| IDs read back from a CSV are doubles again | `read_csv()`/`read.csv()` type-guess numeric ID columns | `read_csv(f, col_types = cols(.default = col_character()))` |
-| Nested `author.id` / `producer.id` still numeric | ID regex didn't account for `flatten = TRUE` dot names | Match with `"(^|[._])ids?$"` (what `mcl_fix_ids()` uses) |
+| "Invalid Meta Content Library ID" (subcode 3790088) with an ID you copied from a search result | The ID became a float somewhere, so it was rendered as `9.6378e+14` in the URL or parameter | Parse with the ID-safe helper; hard-code IDs as quoted strings (`"963780196442228"`, never bare digits) |
+| Chunks of the same query disagree on the ID column's type; concatenation fails or silently coerces | An ID above 2^53 in one chunk and not in another, so a raw parse typed the column differently per chunk | Coerce every ID field unconditionally — the ID-safe helper does this on every chunk |
+| Joins and de-duplication silently miss matches; IDs end in unexpected digits | IDs above 2^53 (~9.0e15) lost precision when parsed as a float (`...123` → `...124`) | Re-parse from the raw response/file with the ID-safe helper. Rounded IDs are unrecoverable |
+| An ID column full of a literal missing-value string (`"NA"`, `"nan"`) | A blanket numeric-to-string cast over a column containing JSON `null` | The ID-safe helper keeps `null` as missing, never as a string |
+| IDs read back from a CSV are floats again | CSV readers type-guess numeric ID columns | Read ID columns as strings — the language file says how |
+| Nested `author.id` / `producer.id` still numeric | The ID pattern did not account for the flattened dotted names | Match with `"(^|[._])ids?$"` (what the helpers use) |
 
-Notes:
-- `as.character()` is **not** a safe converter: `as.character(1.784e16)` returns `"1.784e+16"`. Use `sprintf("%.0f", x)`.
-- `options(scipen = 999)` changes display only. The value is still a double and still rounds above 2^53.
+Code: `languages/r/common_errors.md` § "Errors that only exist in R" · `languages/python/common_errors.md` § "Errors that only exist in Python"
 
 ## Producer List Errors
 
@@ -29,41 +30,18 @@ Notes:
 | 404 "Path '/meta-content-library/producer-lists/{id}' was not found" | Wrong endpoint path | Use `lists/producers/{id}` not `producer-lists/{id}`. |
 | A producer list visible in the UI is **absent from `lists/producers`** and also errors at `lists/producers/{id}` | **No API ID has been generated for that list.** The id is created on demand, not automatically | In the UI: *Producers lists* → *View* → the **down-arrow next to `Share`** → **Create API list ID**. The `···` menu does *not* offer this. See `producer_lists.md` § "Share producer lists between the UI and the API" |
 | Producer count from the API disagrees with the count shown in the UI | The API ID is a **snapshot**; the list was edited after the id was generated | Regenerate the API ID and record which id the analysis used |
-| "first argument must be a vector" on `split()` | Accessing `$ids` (doesn't exist) instead of `$producers$id` | Producer list response has `$producers` data.frame with columns (id, name, type). Use `list_data$producers$id` to get the ID vector. |
+| The ID vector is empty or the code errors while splitting it | Reading a top-level `ids` field, which does not exist | The producer list response has a `producers` array of objects with `id`, `name`, `type`. Read the `id` of each producer |
 
 ## Response Handling Errors
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| "missing value where TRUE/FALSE needed" on `nrow()` | API returned NULL or empty list instead of data.frame | Always validate before `nrow()`: `if (!is.null(x) && is.data.frame(x) && nrow(x) > 0)` |
-| "$ operator is invalid for atomic vectors" | Accessing nested field on empty/atomic response | Parse with `mcl_fromJSON(resp$text)` and check structure before accessing fields |
-| "first argument must be a vector" | Accessing a field the response doesn't have | Inspect the parsed response first: `str(mcl_fromJSON(resp$text))` |
+An API response may be empty, carry no `data`, or carry something that is not a
+table. Every language funnels responses through a `safe_get_data()` that parses
+with the ID-safe helper, validates, and returns either the rows or nothing —
+and wraps the call so one failed request in a loop is logged rather than fatal.
+Language-specific symptoms of skipping that funnel (indexing a missing field,
+counting rows of nothing) are in the language files.
 
-### Safe Response Pattern
-
-```r
-# Wrap all API data extraction in this pattern
-safe_get_data <- function(response_text) {
-  parsed <- mcl_fromJSON(response_text)   # IDs as character (SKILL.md § ID Handling)
-  if (!is.null(parsed$data) && is.data.frame(parsed$data) && nrow(parsed$data) > 0) {
-    return(parsed$data)
-  }
-  return(NULL)
-}
-
-# Usage in loops
-results <- tryCatch({
-  resp <- client$get(path = "instagram/accounts/preview", params = list("q" = term, "limit" = 10L))
-  safe_get_data(resp$text)
-}, error = function(e) {
-  cat("Error:", e$message, "\n"); flush.console()
-  return(NULL)
-})
-
-if (!is.null(results)) {
-  cat("Found", nrow(results), "results\n")
-}
-```
+Code: `languages/r/jobs.md` § "Safe response handling" · `languages/python/jobs.md` § "Safe response handling"
 
 ## Instagram Errors
 
@@ -71,7 +49,7 @@ if (!is.null(results)) {
 |-------|-------|----------|
 | "Missing required parameters. Input at least one parameter [q, post_ids, account_ids]" | Used `surface_ids` for Instagram | Use `post_ids` for posts, `account_ids` for accounts |
 | "Invalid Meta Content Library ID" (subcode 3790088) | Used a raw Instagram URL ID, or the post/account is not in MCL | MCL IDs are library-specific and differ from the numeric IDs in Instagram URLs. Look the account up with `instagram/accounts/preview` (search with `q`) and use the returned `id`. If a search-returned ID still fails, the post may be private, deleted, or from an account with <1K followers. |
-| "Invalid Meta Content Library ID" (subcode 3790088) with a valid MCL ID | ID held as `numeric` → `paste0("instagram/posts/", post_id, "/comments/preview")` builds `.../1.784e+16/comments/preview` | Parse with `mcl_fromJSON()` so `post_id` is character before it reaches the URL |
+| "Invalid Meta Content Library ID" (subcode 3790088) with a valid MCL ID | ID held as a float, so the nested path was built as `.../1.784e+16/comments/preview` | Parse with the ID-safe helper so `post_id` is a string before it reaches the URL |
 | "Invalid Meta Content Library ID" on comments endpoint | Wrong endpoint pattern | Use nested URL `/instagram/posts/{id}/comments/preview` instead of parameter-based query |
 
 ## Facebook Errors
@@ -80,8 +58,8 @@ if (!is.null(results)) {
 |-------|-------|----------|
 | "Missing required parameters" | Wrong ID parameter | Use `surface_ids` for Facebook entities |
 | "Invalid Meta Content Library ID" (subcode 3790088) | Used the numeric ID from a Facebook group/page URL as `surface_ids` | URL IDs are never valid MCL IDs. Search by name (e.g. `facebook/groups/preview` with `q`) and use the returned `id`. Private or non-indexed groups don't appear in search and aren't queryable. |
-| "Invalid Meta Content Library ID" (subcode 3790088) with a valid MCL ID | `surface_ids` built from numeric IDs → each value is sent as `9.6378e+14` | Keep IDs character end-to-end (`mcl_fromJSON()`), or convert with `sprintf("%.0f", ids)` before building the array |
-| "Invalid parameter" with a correct `surface_ids` / `account_ids` / `post_ids` name | ID param sent as a scalar — e.g. a length-1 R vector that reticulate turned into a Python string | Pass an array: `params[[id_param]] <- as.list(ids)` |
+| "Invalid Meta Content Library ID" (subcode 3790088) with a valid MCL ID | `surface_ids` built from float IDs → each value is sent as `9.6378e+14` | Keep IDs as strings end-to-end (the ID-safe helper), or format them with full digits before building the array |
+| "Invalid parameter" with a correct `surface_ids` / `account_ids` / `post_ids` name | ID param sent as a scalar — a single ID not wrapped in an array, or a comma-joined string | Pass an array at every length — `references/query_params.md` § "ID Parameters Are Arrays of Strings" |
 
 | "Invalid Meta Content Library ID" (3790088) when resolving a reshare | The reshared original is out of scope for the Content Library, and one bad ID rejects the **whole** `post_ids` call | Bisect the batch and skip the offenders — see `references/field_reference.md` § "Reshares" |
 
@@ -114,54 +92,26 @@ shared — and treat "same rows as without the filter" as *ignored*, not *workin
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| Type mismatch | Missing `L` suffix on integers | Add `L`: `limit = 100L` |
+| Type mismatch | An integer parameter arrived as a float | Send integers as integers — `references/query_params.md` § "Integer Parameters" |
 | Method not allowed | GET on /job endpoint | Use POST for async job endpoints |
 | Budget exceeded | Quota depleted | Wait for 7-day rolling reset, check with `/budgets` |
-| `'list' object has no attribute 'items'` | Passed `params = list()` (empty list) | reticulate converts an empty R list to a Python list `[]`, and the client calls `.items()` on it. Omit `params` when there are none, or pass a named list. |
+| `'list' object has no attribute 'items'` | `params` was not a mapping — the client calls `.items()` on it | Omit `params` when there are none, or pass a mapping — `references/query_params.md` § "Never Pass an Empty `params`" |
 
 ## Debugging with OpenAPI Spec
 
-When encountering parameter or endpoint errors, check the OpenAPI spec:
+When encountering parameter or endpoint errors, check the OpenAPI spec
+(`SKILL.md` § "OpenAPI Spec"): list `paths`, filter them for a keyword, and read
+one endpoint's `get.parameters` names.
 
-```r
-spec <- client$openapi_spec()
-paths <- names(spec$paths)
-
-# Find relevant endpoints
-relevant <- paths[grepl("your_keyword", paths, ignore.case = TRUE)]
-print(relevant)
-
-# Check specific endpoint parameters
-endpoint_spec <- spec$paths[["/instagram/posts/preview"]]
-print(names(endpoint_spec$get$parameters))
-```
+Code: `languages/r/common_errors.md` § "Debugging with the OpenAPI spec" · `languages/python/common_errors.md` § "Debugging with the OpenAPI spec"
 
 ## Debugging Response Structure
 
-When an API response causes unexpected errors, inspect the raw structure:
+When an API response causes unexpected errors, inspect the raw structure in
+four steps: print the first ~2,000 characters of the raw response text; parse
+it with the ID-safe helper and list the top-level fields; for each field print
+its type and length (and, for a table, its row count and column names); and
+confirm every ID-named column came out as a string — none showing `e+15` or
+`e+16`.
 
-```r
-response <- client$get(path = "some/endpoint", params = list(...))
-
-# 1. Raw JSON
-cat(substr(response$text, 1, 2000), "\n")
-
-# 2. Parsed structure
-parsed <- mcl_fromJSON(response$text)
-cat("Top-level fields:", paste(names(parsed), collapse = ", "), "\n")
-
-# 3. Inspect each field
-for (fn in names(parsed)) {
-  val <- parsed[[fn]]
-  cat(sprintf("  %s: class=%s, length=%s\n", fn, paste(class(val), collapse="/"), length(val)))
-  if (is.data.frame(val)) {
-    cat("    rows:", nrow(val), "cols:", paste(names(val), collapse = ", "), "\n")
-  }
-}
-
-# 4. Confirm every ID field came out as character
-if (is.data.frame(parsed$data)) {
-  id_cols <- grep(MCL_ID_PATTERN, names(parsed$data), value = TRUE)
-  str(parsed$data[id_cols])   # all should be chr, none showing e+15 / e+16
-}
-```
+Code: `languages/r/common_errors.md` § "Debugging response structure" · `languages/python/common_errors.md` § "Debugging response structure"
