@@ -22,9 +22,10 @@ about a real response, not a reading of the documentation.
 
 | | |
 |---|---|
-| **Skill version** | <from the `SKILL.md` frontmatter, e.g. 1.19.0 (updated 2026-09-04)> |
+| **Skill version** | <from the `SKILL.md` frontmatter, e.g. 2.0.0 (updated 2026-09-08)> |
 | **API version** | v6.0 |
 | **Environment** | SRE / SOMAR VDE / other |
+| **Language** | R / Python / n.a. — the layer the call was made from; API facts themselves are language-neutral |
 | **Observed on** | YYYY-MM-DD |
 | **Endpoint** | METHOD path, e.g. `POST facebook/posts/search` |
 | **Kind** | correction / promotion / addition / open |
@@ -38,7 +39,7 @@ Errors": "`until` is in the future, or `since` is not before `until`">
 and counts. No rows.>
 
 ## How to reproduce
-<the minimal request — parameters, or the R call, with IDs as placeholders.
+<the minimal request — parameters, or the R or Python call, with IDs as placeholders.
 Budget cost if known, e.g. "estimate only" or "one LIVE job, ~400 rows".>
 
 ## Proposed change (optional)
@@ -46,7 +47,11 @@ Budget cost if known, e.g. "estimate only" or "one LIVE job, ~400 rows".>
 file that owns it>
 ```
 
-The header table and the four headings are the contract. The issue form in the
+The header table and the four headings are the contract. Three things make a
+report actionable, and a report missing any of them is not: the **skill
+version** (from the `SKILL.md` frontmatter), the **date observed**, and the
+**verbatim API response** — message and `error_subcode`, or the response's
+field names. The **language** row says which mirror a stamp lands on. The issue form in the
 repository (`.github/ISSUE_TEMPLATE/field-report.yml`) has one field per
 heading, with the same names, so a drafted report pastes in section by section
 and a tool can prefill the form from a URL.
@@ -65,6 +70,7 @@ and written the way it should have arrived.
 | **Skill version** | 1.15.0 (updated 2026-08-27) |
 | **API version** | v6.0 |
 | **Environment** | SRE |
+| **Language** | R |
 | **Observed on** | 2026-08-29 |
 | **Endpoint** | `POST facebook/posts/preview` (the run also used `estimate`) |
 | **Kind** | addition |
@@ -99,13 +105,25 @@ reproduction names parameters without a single ID or row.
 
 ## Routes
 
-The first that applies, from `SKILL.md` § "Contributing Back":
+The source repository is
+**<https://github.com/fabiogiglietto/meta-content-library-skill>**. Three
+routes; take the first that applies:
 
-| You have | Do |
-|---|---|
-| a clone with git | branch, edit at the owner, release checklist at the end of `CHANGELOG.md`, pull request with the report as its body |
-| GitHub, no clone | the *Field report* issue form — <https://github.com/fabiogiglietto/meta-content-library-skill/issues/new?template=field-report.yml>. A session with GitHub tooling may file it after showing the full body and getting an explicit yes |
-| neither | the report as markdown, handed to the researcher to paste into the form later |
+1. **You have a clone with git.** Branch (`fix/` or `docs/`, then a slug and
+   the date), edit at the file that owns the fact, follow the release checklist
+   at the end of `CHANGELOG.md`, and open a pull request whose body is the
+   field report.
+2. **GitHub is reachable but there is no clone.** Open an issue with the
+   *Field report* form:
+   <https://github.com/fabiogiglietto/meta-content-library-skill/issues/new?template=field-report.yml>.
+   Its fields are the report's headings, so a drafted report pastes in section
+   by section — or, if the session has GitHub tooling, it may file the issue
+   itself, **after showing the researcher the complete body and getting an
+   explicit yes**. Never silently.
+3. **Neither** — inside the SRE, or a copy of this skill with no web access.
+   Produce the report as markdown and hand it to the researcher to paste into
+   the form later. The report is the deliverable; the route is only how it
+   travels.
 
 A pull request carries the change *and* the evidence: the report goes in the PR
 body, the edit goes at the owning file with its `[verified DATE]` stamp, and the
@@ -140,6 +158,11 @@ delete the question.
 
 The maintainer reproduces it where possible, edits the sentence at its owner
 (one owner per fact — a pointer elsewhere, never a second copy), and follows the
-release checklist at the end of `CHANGELOG.md`. A report that cannot be
+release checklist at the end of `CHANGELOG.md`. The language row decides where
+a stamp lands: a Python *promotion* stamps the mirrored section in
+`languages/python/` `[verified DATE]` and leaves the R stamp untouched; a
+Python *correction* whose cause is the API — not pandas, not the call — edits
+the neutral owner and stamps both mirrors; one whose cause is the Python call
+edits only `languages/python/`. A report that cannot be
 reproduced is not discarded: it becomes an `open` question with the report as
 its first ruled-out-nothing-yet observation.
