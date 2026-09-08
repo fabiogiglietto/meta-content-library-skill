@@ -1,45 +1,24 @@
 # MCL API Utilities
 
-> All examples parse responses with `mcl_fromJSON()`, defined in SKILL.md §
-> "ID Handling (Always Load IDs as Character)". It keeps every ID field a
-> character string — plain `fromJSON()` turns IDs into doubles.
+> All examples parse responses with the language's ID-safe helper —
+> `languages/r/ids.md` § "mcl_fromJSON" / `languages/python/ids.md`
+> § "mcl_from_json". It keeps every ID field a string; a raw parse turns IDs
+> into floats.
 
-Verified working code for common utility tasks — except where a section
+Facts about the SRE's utilities, verified from R except where a section
 carries its own sourcing tag ([documented] / [inferred]), which means it was
-transcribed rather than run.
+transcribed rather than run. The calls themselves are in
+`languages/r/utilities.md` and `languages/python/utilities.md`.
 
 ## Check Quota Status
 
-```r
-library(reticulate)
-library(jsonlite)
+`GET budgets` returns one object per pool. For the `queries` pool (posts,
+pages, groups, events, accounts) read `total_usage` and `max_usage_limit` and
+report the difference as available records; report
+`preallocated_rows_for_running_queries` when it is above zero; then do the
+same for the separate `comments` pool.
 
-client <- import("metacontentlibraryapi")$MetaContentLibraryAPIClient
-client$set_default_version(client$LATEST_VERSION)
-
-response <- client$get(path = "budgets")
-budgets <- mcl_fromJSON(response$text)
-
-# Extract query budget (posts, pages, groups, events, accounts)
-queries <- budgets$queries
-queries_used <- as.numeric(queries$total_usage)
-queries_limit <- as.numeric(queries$max_usage_limit)
-queries_avail <- queries_limit - queries_used
-
-cat("Query Budget:\n")
-cat(sprintf("  Used:      %s / %s\n", format(queries_used, big.mark=","), format(queries_limit, big.mark=",")))
-cat(sprintf("  Available: %s records\n", format(queries_avail, big.mark=",")))
-
-# In-progress queries (preallocated)
-if (queries$preallocated_rows_for_running_queries > 0) {
-  cat(sprintf("  In Progress: %s records\n", format(queries$preallocated_rows_for_running_queries, big.mark=",")))
-}
-
-# Separate comments budget
-comments <- budgets$comments
-comments_avail <- as.numeric(comments$max_usage_limit) - as.numeric(comments$total_usage)
-cat(sprintf("\nComments Budget: %s available\n", format(comments_avail, big.mark=",")))
-```
+Code: `languages/r/utilities.md` § "Check quota status" · `languages/python/utilities.md` § "Check quota status"
 
 ### Observed response shape
 
@@ -119,24 +98,17 @@ by watching `max_usage_limit` itself change value. So:
 term and silent reversion: documented from Meta support 2026-08-31, not yet
 observed]
 
-## Install R Packages
+## Installing packages
 
-The Meta SRE uses a custom CRAN mirror. Use `fbrir` to install packages:
+The SRE has no direct route to CRAN or PyPI: standard `install.packages()`
+and `pip install` do not work. Meta ships package managers that *are* the
+connection — `fbrir` on the R side (a custom CRAN mirror, and a conda-forge
+channel), `fbri.package_managers.Pip` on the Python side (a private PyPI
+mirror), plus the Hugging Face helper for models. The four channels, their
+proxies and their gotchas are in § "The package-manager table above is
+incomplete — there are four channels, not two" below.
 
-```r
-library(fbrir)
-
-# Initialize CRAN instance
-cran <- CRAN$new()
-
-# Install single package
-cran$InstallPackages("flextable", dependencies = TRUE)
-
-# Install multiple packages
-cran$InstallPackages(c("ggplot2", "dplyr", "tidyr"), dependencies = TRUE)
-```
-
-**Note**: Standard `install.packages()` does not work in the SRE.
+Code: `languages/r/utilities.md` § "Installing packages" · `languages/python/utilities.md` § "Installing packages"
 
 ## Download Machine Learning Models
 
@@ -172,7 +144,7 @@ interchangeable:
 
 | You want | Use |
 |----------|-----|
-| An R package from CRAN | `fbrir` → `CRAN$new()$InstallPackages()` (above) |
+| An R package from CRAN | `fbrir` → `CRAN$new()$InstallPackages()` (§ "Installing packages") |
 | A pre-trained model from Hugging Face | `fbri.package_managers.huggingface` (below) |
 
 **The rule the rest of this section follows from: the SRE has no internet
@@ -184,22 +156,18 @@ through the `fbri` helper, then load it from its local path.
 > transcribed from
 > [Machine Learning Models](https://developers.facebook.com/docs/researcher-platform/features/ml-models)
 > (fetched 2026-08-21). **The import works from R: [verified 2026-08-22]** in a
-> live SRE session — see "Downloading from R". The download *call* itself is
+> live SRE session — see "Calling the helper from either kernel". The download *call* itself is
 > still untested.
 
-### Downloading (Python, as documented)
+### Downloading, as documented
 
-```python
-# Whole repository
-from fbri.package_managers.huggingface import hf_download_repo
-hf_download_repo(repo="facebook/mbart-large-50-many-to-many-mmt", revision="main", output_dir=None)
+Two functions in `fbri.package_managers.huggingface`:
+`hf_download_repo(repo, revision="main", output_dir=None)` fetches a whole
+repository, and `hf_download_file(filename, repo, revision="main",
+output_dir=None)` fetches one file — **note the argument order: filename
+first, then repo**.
 
-# A single file — NOTE the argument order: filename first, then repo
-from fbri.package_managers.huggingface import hf_download_file
-repo = "facebook/mbart-large-50-many-to-many-mmt"
-filename = ".gitattributes"
-hf_download_file(filename, repo, revision="main", output_dir=None)
-```
+Code: `languages/r/utilities.md` § "Downloading a model" · `languages/python/utilities.md` § "Downloading a model"
 
 Downloads land in `~/huggingface/<REPO>/<REVISION>` — where `<REPO>` keeps its
 **org prefix**, so the default revision of the model above is at
@@ -210,7 +178,7 @@ Dropping the `facebook/` gives a path that does not exist.
 (`/opt/conda/lib/python3.11/site-packages/fbri/package_managers/huggingface.py`),
 not inferred:
 
-```python
+```
 if output_dir is None:
     output_dir = os.path.join(os.path.expanduser("~"), "huggingface", repo, revision)
 filepath = os.path.join(output_dir, filename)
@@ -230,13 +198,8 @@ Three consequences worth knowing before you rely on either function:
 - **There is a third, undocumented function: `hf_list_files(repo, revision)`.**
   Meta's page does not mention it, and `hf_download_repo` is just a loop over it.
   Use it to check a repo id — and your access to it — **before** committing to a
-  multi-gigabyte download:
-
-  ```r
-  hf <- import("fbri.package_managers.huggingface")
-  files <- hf$hf_list_files("facebook/mbart-large-50-many-to-many-mmt", "main")
-  length(files); head(files)
-  ```
+  multi-gigabyte download. Code: `languages/r/utilities.md` § "Listing a repo's
+  files" · `languages/python/utilities.md` § "Listing a repo's files".
 
 **Verify a download finished before you use it.** The helper streams to the
 final path with no staging file, no checksum and no resume, and nothing cleans
@@ -246,12 +209,9 @@ corrupt weight file, which is far more confusing than a missing one.
 
 The function prints `Download Finished to '<dir>'` on success. **If you did not
 see that line, delete the directory and download again** — do not treat a file's
-existence as evidence it is complete:
+existence as evidence it is complete.
 
-```r
-model_dir <- file.path(path.expand("~"), "huggingface", REPO, "main")
-unlink(model_dir, recursive = TRUE)   # start clean after any failed attempt
-```
+Code: `languages/r/utilities.md` § "Cleaning up a failed download" · `languages/python/utilities.md` § "Cleaning up a failed download"
 
 **`hf_download_repo` downloads every file in the repo — budget ~10× the weights.**
 **[measured 2026-08-22]** `all-MiniLM-L6-v2`, whose PyTorch weights are about
@@ -260,13 +220,10 @@ unlink(model_dir, recursive = TRUE)   # start clean after any failed attempt
 variants indiscriminately. There is no format filter.
 
 With ~23 GB of home directory available that matters. For anything large, list
-first and fetch only what you need:
+first and fetch only what you need — the config, tokenizer, vocab and
+special-tokens files plus the `.safetensors` weights.
 
-```r
-files <- unlist(hf$hf_list_files(REPO, "main"))
-want  <- files[grepl("^(config|tokenizer|vocab|special_tokens)|\\.safetensors$", files)]
-for (f in want) hf$hf_download_file(f, REPO, "main")
-```
+Code: `languages/r/utilities.md` § "Fetching only the files you need" · `languages/python/utilities.md` § "Fetching only the files you need"
 
 Throughput measured at roughly **16 MB/s**, so a 17 GB repository is on the order
 of 18 minutes.
@@ -309,11 +266,8 @@ out in this order:
    not on Meta's list, a 400 is the expected answer and the route forward is a
    support ticket with a use-case justification.
 2. **If it is on the list, suspect the org prefix** — Meta names owners, not repo
-   ids. Resolve it with `hf_list_files()`, which costs nothing:
-
-   ```r
-   hf$hf_list_files("sentence-transformers/all-MiniLM-L6-v2", "main")   # 30 files
-   ```
+   ids. Resolve it with `hf_list_files()`, which costs nothing —
+   `sentence-transformers/all-MiniLM-L6-v2` at `main` lists 30 files.
 
 A revision mistake never reaches this ladder — it announces itself as a 404.
 
@@ -324,16 +278,12 @@ the 7-character short form**, and a pinned download gets its **own directory**
 beside `main/` — so a pinned pipeline cannot be quietly changed by a later `main`
 download, and both can coexist.
 
-Resolve the current commit without downloading anything, then pin to it:
+Resolve the current commit without downloading anything — `GET
+{HF_ENDPOINT}/api/models/{REPO}/revision/main` through the proxy returns
+`sha` (e.g. `1110a243fdf4706b3f48f1d95db1a4f5529b4d41`) — then download with
+that SHA as the `revision`; the files land in `~/huggingface/{REPO}/{SHA}`.
 
-```r
-requests <- import("requests")
-info <- requests$get(paste0(hf$HF_ENDPOINT, "/api/models/", REPO, "/revision/main"))$json()
-SHA  <- info$sha        # e.g. "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
-
-hf$hf_download_repo(REPO, SHA)
-model_dir <- file.path(path.expand("~"), "huggingface", REPO, SHA)
-```
+Code: `languages/r/utilities.md` § "Pinning a revision" · `languages/python/utilities.md` § "Pinning a revision"
 
 That metadata call also returns `lastModified`, `tags`, `pipeline_tag`,
 `library_name`, `downloads` and `author` — the proxy passes Hugging Face's model
@@ -366,29 +316,21 @@ id in each entry's href**, even though it prints the bare name as text; the link
 the reliable source, and `hf_list_files()` then confirms in one free call that the
 id is downloadable.
 
-### Downloading from R
+### Calling the helper from either kernel
 
 **[verified 2026-08-22]** — `fbri`, `fbri.package_managers` and
 `fbri.package_managers.huggingface` all import from R-side reticulate in a live
 SRE session. reticulate binds to `/opt/conda/bin/python3` (Python **3.11**), the
 same conda environment the notebook kernels use, which is why the import
-resolves. `import()` below is therefore the supported path, not a guess. The
+resolves. Importing it from R is therefore the supported path, not a guess. The
 **download call** has not been run yet — that is Phase B in
-`docs/ML_MODELS_OPEN_QUESTIONS.md`:
+`docs/ML_MODELS_OPEN_QUESTIONS.md`.
 
-```r
-library(reticulate)
+A Python cell remains valid if anything goes wrong on the R side — run the
+download there and use the model path from R; the files are on disk either
+way.
 
-hf <- import("fbri.package_managers.huggingface")
-hf$hf_download_repo(repo = "facebook/mbart-large-50-many-to-many-mmt")
-
-model_path <- file.path(path.expand("~"), "huggingface",
-                        "facebook/mbart-large-50-many-to-many-mmt", "main")
-list.files(model_path)
-```
-
-The Python-cell fallback remains valid if anything goes wrong — run the download
-there and use `model_path` from R; the files are on disk either way.
+Code: `languages/r/utilities.md` § "Downloading a model" · `languages/python/utilities.md` § "Downloading a model"
 
 **One preinstalled-library gotcha, [verified 2026-08-22]:** `transformers` and
 `torch` are available, but **`sentence_transformers` is NOT**. Models Meta lists
@@ -396,39 +338,21 @@ under Sentence-BERT / Sentence-Transformers (`all-MiniLM-L6-v2`,
 `paraphrase-multilingual-MiniLM-L12-v2`) therefore cannot be loaded with the
 `SentenceTransformer(...)` one-liner most tutorials use. Load them through
 `transformers` directly (`AutoModel` + `AutoTokenizer`, then mean-pool the token
-embeddings yourself), or install the package first — see "Install R Packages"
-above for the R side and Meta's pip page for the Python side.
+embeddings yourself), or install the package first — § "Installing packages".
 
 ### Inference from R works — [verified 2026-08-22]
 
 An earlier version of this section said inference was "easiest left in Python".
 **That was wrong, and it is corrected here.** The `**kwargs` unpacking that made
 Meta's example look awkward is avoidable: pass the tensors by name. Loading and
-embedding took 0.7 s in total, entirely from R.
+embedding took 0.7 s in total, entirely from R. The recipe: load
+`AutoTokenizer` and `AutoModel` from the local model directory, tokenize with
+padding and truncation as PyTorch tensors, run the model with `input_ids` and
+`attention_mask`, then mean-pool `last_hidden_state` under the attention mask
+— what SentenceTransformer does internally, and what you must do yourself
+because it is not installed. The result is one 384-dimensional row per text.
 
-```r
-library(reticulate)
-REPO  <- "sentence-transformers/all-MiniLM-L6-v2"
-MDIR  <- file.path(path.expand("~"), "huggingface", REPO, "main")
-
-tf_   <- import("transformers")
-torch <- import("torch")
-tok   <- tf_$AutoTokenizer$from_pretrained(MDIR)
-mod   <- tf_$AutoModel$from_pretrained(MDIR)
-
-texts <- list("Meta Content Library research", "a second document")
-enc   <- tok(texts, padding = TRUE, truncation = TRUE, return_tensors = "pt")
-out   <- mod(input_ids = enc$input_ids, attention_mask = enc$attention_mask)
-
-# mean-pool the token embeddings, masking padding — what SentenceTransformer
-# does internally, and what you must do yourself because it is not installed
-m   <- enc$attention_mask$unsqueeze(-1L)$float()
-emb <- torch$sum(out$last_hidden_state * m, dim = 1L) /
-       torch$clamp(m$sum(dim = 1L), min = 1e-9)
-
-embeddings <- as.matrix(emb$detach()$numpy())   # rows = texts, cols = 384
-dim(embeddings)
-```
+Code: `languages/r/utilities.md` § "Inference with transformers" · `languages/python/utilities.md` § "Inference with transformers"
 
 **No offline configuration is needed.** `from_pretrained()` on a local path does
 not contact the hub — it loaded in 0.1 s with no `TRANSFORMERS_OFFLINE` or
@@ -664,100 +588,45 @@ Content Library."*
 
 ## Retrieve Completed Job Data
 
-```r
-library(reticulate)
-library(jsonlite)
+A job id (a date-slug such as `2025-11-30-xxx-xxx`) is enough to come back to a
+finished job: `get_async_job(job_id=…)` returns the job object, its status is
+read through the wait helper's normalizer (comparing the raw return value is
+unsafe — `SKILL.md` § "Waiting for a Job"), and when it is `COMPLETE`,
+`write_data_to_file(directory=, filename=)` saves the results, which the
+ID-safe helper then loads from disk.
 
-client <- import("metacontentlibraryapi")$MetaContentLibraryAPIClient
-client$set_default_version(client$LATEST_VERSION)
-
-job_id <- "2025-11-30-xxx-xxx"  # Your job ID
-
-# Get job object
-job <- client$get_async_job(job_id = job_id)
-
-# Check status. mcl_job_status() upper-cases and trims; comparing the raw
-# return value is unsafe — see SKILL.md § "Waiting for a Job".
-status <- mcl_job_status(job)
-cat("Status:", status, "\n")
-
-if (status == "COMPLETE") {
-  # Save to file
-  output_dir <- "retrieved_jobs"
-  if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
-  
-  filename <- paste0("job_", job_id, ".json")
-  job$write_data_to_file(directory = output_dir, filename = filename)
-  
-  # Load into R
-  filepath <- file.path(output_dir, filename)
-  job_data <- mcl_fromJSON(filepath)
-  
-  cat("Retrieved", nrow(job_data), "records\n")
-}
-```
+Code: `languages/r/utilities.md` § "Retrieving a completed job" · `languages/python/utilities.md` § "Retrieving a completed job"
 
 ### Get Job Metadata
 
-```r
-# Full job details
-job_response <- client$get(path = paste0("async/jobs/", job_id))
-job_metadata <- mcl_fromJSON(job_response$text)
+`GET async/jobs/{job_id}` returns the job's `mode`, `query_id` and
+`creation_time` (an epoch second), among other fields.
 
-cat("Mode:", job_metadata$mode, "\n")
-cat("Query ID:", job_metadata$query_id, "\n")
-cat("Created:", as.POSIXct(job_metadata$creation_time, origin = "1970-01-01"), "\n")
-```
+Code: `languages/r/utilities.md` § "Reading job metadata" · `languages/python/utilities.md` § "Reading job metadata"
 
 ### Get Query Information
 
-```r
-query_response <- client$get(path = paste0("async/queries/", job_metadata$query_id))
-query_info <- mcl_fromJSON(query_response$text)
+`GET async/queries/{query_id}` returns the query's `name`, `platform`,
+`entity_type` and `params`.
 
-cat("Query Name:", query_info$name, "\n")
-cat("Platform:", query_info$platform, "\n")
-cat("Entity Type:", query_info$entity_type, "\n")
-cat("Parameters:", query_info$params, "\n")
-```
+Code: `languages/r/utilities.md` § "Reading query information" · `languages/python/utilities.md` § "Reading query information"
 
 ## List All Jobs
 
-```r
-jobs_response <- client$get(path = "async/jobs")
-jobs_data <- mcl_fromJSON(jobs_response$text)
+`GET async/jobs` returns the account's jobs under the **`jobs`** key (not
+`data` — `references/collections.md` § "⚠ The `async/jobs` envelope key is
+`jobs`, not `data`"), each with `id`, `status`, `mode` and `query_id`.
 
-# View summary
-print(jobs_data$jobs[, c("id", "status", "mode", "query_id")])
-```
+Code: `languages/r/utilities.md` § "Listing all jobs" · `languages/python/utilities.md` § "Listing all jobs"
 
-## Verify IDs Loaded as Character
+## Verify IDs Loaded as Strings
 
-Run this on any data.frame before joining, deduplicating, or exporting — it fails
-loudly if an ID slipped through as a double:
+Run `check_ids()` on any table before joining, deduplicating, or exporting — it
+fails loudly if an ID-named column (`"(^|[._])ids?$"`) slipped through as a
+number, and reports how many ID columns carry 16+ digit values, since digits
+above 2^53 that were ever rounded cannot be repaired.
 
-```r
-check_ids <- function(df) {
-  id_cols <- grep(MCL_ID_PATTERN, names(df), value = TRUE)   # "(^|[._])ids?$"
-  bad <- id_cols[vapply(df[id_cols], is.numeric, logical(1))]   # logical is_invalid_id is fine
-
-  if (length(bad)) {
-    stop("Numeric ID column(s): ", paste(bad, collapse = ", "),
-         " — re-parse the source with mcl_fromJSON()")
-  }
-  # Digits above 2^53 are already rounded and cannot be repaired
-  risky <- vapply(df[id_cols], function(x) {
-    if (!is.character(x)) return(FALSE)
-    any(nchar(x) >= 16, na.rm = TRUE)
-  }, logical(1))
-
-  cat(sprintf("%d ID column(s) OK (%d with 16+ digit values)\n",
-              length(id_cols), sum(risky)))
-  invisible(TRUE)
-}
-
-check_ids(posts)
-```
+Code: `languages/r/utilities.md` § "Verifying ID columns" · `languages/python/utilities.md` § "Verifying ID columns"
 
 ## SNAPSHOT vs LIVE Data Retention
 
@@ -792,18 +661,7 @@ Meta documents all four; this file previously named only CRAN and Hugging Face.
 | A Python package | `from fbri.package_managers import Pip; Pip.get_instance().install("pkg")` | [Install Python packages](https://developers.facebook.com/docs/researcher-platform/pip) |
 | A pre-trained model from Hugging Face | `fbri.package_managers.huggingface` (above) | ML models page |
 
-```r
-library(fbrir)
-cran <- CRAN$new();  cran$InstallPackages(c("abctools", "abdiv"))
-conda <- Conda$new(); conda$Install(c("r-timetk", "r-timereg"))   # R packages are prefixed "r-"
-```
-
-```python
-from fbri.package_managers import Pip
-pip = Pip.get_instance()
-pip.install("package"); pip.install(["a", "b"]); pip.install("pkg", upgrade=True)
-pip.list(); pip.uninstall("pkg"); pip.purge()      # purge removes ALL user-installed packages
-```
+Code: `languages/r/utilities.md` § "Installing packages" · `languages/python/utilities.md` § "Installing packages"
 
 **Both routes go through a Meta proxy**, and neither needs an approval step: R packages via
 `https://mesa-override-graph-api.test.fb-researchtool.com/public/external-proxy/`, Python via a
@@ -862,11 +720,10 @@ regardless of what conda did. Packages install into `/home/jovyan/.fort/user_pac
 which is **not on `PATH`** — another reason `Sys.which()` finds nothing even on success.
 
 **Before concluding a native package is unavailable, check the filesystem, not the verdict:**
+test for `/home/jovyan/.fort/user_packages/conda/bin/<binary>` and run it by
+absolute path with `--version`.
 
-```r
-p <- "/home/jovyan/.fort/user_packages/conda/bin/tesseract"
-file.exists(p); system2(p, "--version")
-```
+Code: `languages/r/utilities.md` § "Checking a conda-installed binary" · `languages/python/utilities.md` § "Checking a conda-installed binary"
 
 **[verified 2026-08-24] The files ARE there — the `Failed install` message is cosmetic.**
 
