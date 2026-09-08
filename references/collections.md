@@ -1,102 +1,57 @@
 # Collections and Query Management
 
-> All examples parse responses with `mcl_fromJSON()`, defined in SKILL.md §
-> "ID Handling (Always Load IDs as Character)". It keeps every ID field a
-> character string — plain `fromJSON()` turns IDs into doubles.
+> Parse every response with the language helper — `languages/r/ids.md` §
+> "mcl_fromJSON" / `languages/python/ids.md` § "mcl_from_json" — so that every
+> ID field stays a string (SKILL.md § "ID Handling (IDs Are Strings)").
 
 ## Collections (Folders)
 
-```r
-# Create collection
-response <- client$post(
-    path = "async/collections",
-    body = list(
-        name = "Climate Research 2024",
-        description = "PI: Dr. Smith, IRB #2024-001, NSF Grant #12345"
-    )
-)
-collection_id <- mcl_fromJSON(response$text)$id
+A collection is a folder for queries. Four calls manage them:
 
-# Set as default (new queries auto-added here)
-client$post(
-    path = paste0("async/collections/", collection_id),
-    body = list(default = TRUE)
-)
+| Action | Call |
+|---|---|
+| Create | `POST async/collections`, body `name` + `description`; the response carries the new `id` |
+| Set as default | `POST async/collections/{collection_id}`, body `default = true` — new queries are auto-added to the default collection |
+| List | `GET async/collections` |
+| Delete | `DELETE async/collections/{collection_id}` — the queries it held remain |
 
-# List all collections
-collections <- mcl_fromJSON(client$get(path = "async/collections")$text)
-
-# Delete collection (queries remain)
-client$delete(path = paste0("async/collections/", collection_id))
-```
+Code: `languages/r/collections.md` § "Managing collections" · `languages/python/collections.md` § "Managing collections"
 
 ## Query Management
 
-```r
-# List all queries
-queries <- mcl_fromJSON(client$get(path = "async/queries")$text)
+| Action | Call |
+|---|---|
+| List all queries | `GET async/queries` |
+| One query, with all its jobs | `GET async/queries/{query_id}` |
+| Update metadata | `POST async/queries/{query_id}`, body `name` / `description` (e.g. append `PUBLISHED` and a DOI once the paper is out) |
+| Move to a collection | `POST async/queries/{query_id}`, body `collection_id` |
+| Make public, for sharing | `POST async/queries/{query_id}`, body `visibility = "PUBLIC"` |
+| Delete | `DELETE async/queries/{query_id}` — **deletes all of its jobs too** |
 
-# Get specific query with all its jobs
-query_details <- mcl_fromJSON(
-    client$get(path = paste0("async/queries/", query_id))$text
-)
-
-# Update query metadata
-client$post(
-    path = paste0("async/queries/", query_id),
-    body = list(
-        name = "Updated Name - PUBLISHED",
-        description = "Updated with DOI: 10.1234/paper.2025"
-    )
-)
-
-# Move query to collection
-client$post(
-    path = paste0("async/queries/", query_id),
-    body = list(collection_id = collection_id)
-)
-
-# Make query public (for sharing)
-client$post(
-    path = paste0("async/queries/", query_id),
-    body = list(visibility = "PUBLIC")
-)
-
-# Delete query (deletes all jobs too!)
-client$delete(path = paste0("async/queries/", query_id))
-```
+Code: `languages/r/collections.md` § "Managing queries" · `languages/python/collections.md` § "Managing queries"
 
 ## Job Management
 
-```r
-# List all jobs -- the payload is under $jobs, NOT $data. See the warning below.
-jl   <- mcl_fromJSON(client$get(path = "async/jobs")$text)
-jobs <- jl$jobs                      # data.frame: id, creation_time, update_time,
-                                     #             status, mode, query_id
-stopifnot(is.data.frame(jobs))       # assert; the wrong key fails silently
+`GET async/jobs` lists every job; **the payload is under the `jobs` key, not
+`data`** (see the warning below). Each row carries `id`, `creation_time`,
+`update_time`, `status`, `mode`, `query_id`.
 
-# Get job metadata
-job_meta <- mcl_fromJSON(
-    client$get(path = paste0("async/jobs/", job_id))$text
-)
-# Returns: id, status, mode, query_id, creation_time
-```
+`GET async/jobs/{job_id}` returns one job's metadata: `id`, `status`, `mode`,
+`query_id`, `creation_time`.
 
-### ⚠ The `async/jobs` envelope key is `jobs`, not `data` — **[verified 2026-08-24]**
+Code: `languages/r/collections.md` § "Listing jobs" · `languages/python/collections.md` § "Listing jobs"
+
+### ⚠ The `async/jobs` envelope key is `jobs`, not `data` — [verified 2026-08-24]
 
 Most list-shaped responses in this API wrap their payload in `data`, so the common
-defensive idiom is:
+defensive idiom is "take `data` if present, otherwise the whole response".
 
-```r
-d <- if (!is.null(x$data)) x$data else x     # WRONG for async/jobs
-```
-
-Against `async/jobs` that idiom **falls through silently**: `$data` is NULL, so `d`
-becomes the whole envelope, `d$mode` is NULL, and any summary computed from it is
-wrong *without erroring*. On 2026-08-24 this reported `0 of 100 snapshot slots used`
-on an account with 434 jobs; the true figure was 5. A wrong number that looks
-plausible is worse than a failure, and the only thing that caught it was probing the
-response shape rather than trusting the idiom.
+Against `async/jobs` that idiom **falls through silently**: `data` is absent, so
+the fallback is the whole envelope, its `mode` is null, and any summary computed
+from it is wrong *without erroring*. On 2026-08-24 this reported `0 of 100
+snapshot slots used` on an account with 434 jobs; the true figure was 5. A wrong
+number that looks plausible is worse than a failure, and the only thing that
+caught it was probing the response shape rather than trusting the idiom.
 
 ```
 class(jl):  list          names(jl):  jobs
@@ -114,17 +69,13 @@ Two further properties of the listing:
   on the query (`async/queries`), which was returning **502** on the same date; see
   `../docs/OPEN_QUESTION_ASYNC_QUERIES_502.md`.
 
-```r
-# Counting SNAPSHOT slots against the 100-concurrent cap, correctly:
-jobs <- mcl_fromJSON(client$get(path = "async/jobs")$text)$jobs
-sum(jobs$mode == "SNAPSHOT" & jobs$status != "FAILED", na.rm = TRUE)
+Counting SNAPSHOT slots against the 100-concurrent cap correctly means reading
+`jobs` explicitly and counting rows with `mode == "SNAPSHOT"` and `status !=
+"FAILED"`. The same section shows the two per-job calls: `POST
+async/jobs/{job_id}/snapshot` converts a LIVE job to SNAPSHOT (preserving its
+data) and `DELETE async/jobs/{job_id}` deletes a job.
 
-# Convert LIVE to SNAPSHOT (preserve data)
-client$post(path = paste0("async/jobs/", job_id, "/snapshot"))
-
-# Delete job
-client$delete(path = paste0("async/jobs/", job_id))
-```
+Code: `languages/r/collections.md` § "The `data` fallback idiom is wrong for async/jobs" · `languages/python/collections.md` § "The `data` fallback idiom is wrong for async/jobs"
 
 ### Nothing inside the SRE reliably survives the month — the job least of all
 
@@ -157,61 +108,47 @@ SNAPSHOT-mode jobs are capped at **100 concurrent per user**; exceeding it fails
 with `error_subcode 3790172` ("Exceeded async snapshots limit"). **LIVE jobs do
 not count against the cap.**
 
-When reproducibility isn't needed for a given pull, run it LIVE and save the
-results to disk:
-
-```r
-params[["mode"]] <- "LIVE"      # does not consume a snapshot slot
-```
+When reproducibility isn't needed for a given pull, submit it with `mode =
+"LIVE"` — it does not consume a snapshot slot — and save the results to disk.
 
 A LIVE job can be promoted later if it turns out to be worth preserving:
+`POST async/jobs/{job_id}/snapshot`.
 
-```r
-client$post(path = paste0("async/jobs/", job_id, "/snapshot"))
-```
-
-Free slots by deleting finished snapshots — either job by job, or a whole query
-(which deletes its jobs with it):
-
-```r
-client$delete(path = paste0("async/jobs/", job_id))       # one job
-client$delete(path = paste0("async/queries/", query_id))  # query + all its jobs
-```
+Free slots by deleting finished snapshots — either job by job (`DELETE
+async/jobs/{job_id}`) or a whole query (`DELETE async/queries/{query_id}`, which
+deletes its jobs with it).
 
 Retention differs: LIVE data is kept ~30 days, SNAPSHOT up to 1 year.
 
+Code: `languages/r/collections.md` § "Staying under the 100-snapshot cap" · `languages/python/collections.md` § "Staying under the 100-snapshot cap"
+
 ## Reproducibility: Sharing & Copying
 
-```r
-# Copy another researcher's public query
-response <- client$post(
-    path = paste0("async/queries/", other_query_id, "/copy")
-)
-# Copies query + COMPLETE SNAPSHOT jobs
-# Jobs are rerun (counts toward YOUR budget)
+`POST async/queries/{other_query_id}/copy` copies another researcher's public
+query together with its COMPLETE SNAPSHOT jobs. **The jobs are rerun, and the
+reruns count toward *your* budget.**
 
-# Copy entire public collection
-response <- client$post(
-    path = paste0("async/collections/", other_collection_id, "/copy")
-)
-```
+`POST async/collections/{other_collection_id}/copy` copies an entire public
+collection.
+
+Code: `languages/r/collections.md` § "Copying a public query or collection" · `languages/python/collections.md` § "Copying a public query or collection"
 
 ## Naming Best Practices
 
 **Collections**: Project-level names
-```r
+```
 "Climate Change Research 2024-2025"
 "Election Misinformation Study"
 ```
 
 **Queries**: Specific + Time period
-```r
+```
 "Climate Posts - 2024 Q1 - US Only"
 "Vaccine Discourse - Instagram - Jan 2024"
 ```
 
 **Descriptions**: Include everything
-```r
+```
 description = "
   WHAT: Facebook posts mentioning 'climate change'
   WHEN: Q1 2024 (Jan 1 - Mar 31)

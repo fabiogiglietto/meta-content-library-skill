@@ -1,8 +1,8 @@
 # Query Parameters Reference
 
-> All examples parse responses with `mcl_fromJSON()`, defined in SKILL.md §
-> "ID Handling (Always Load IDs as Character)". It keeps every ID field a
-> character string — plain `fromJSON()` turns IDs into doubles.
+> Parse every response with the language helper — `languages/r/ids.md` §
+> "mcl_fromJSON" / `languages/python/ids.md` § "mcl_from_json" — so that every
+> ID field stays a string (SKILL.md § "ID Handling (IDs Are Strings)").
 
 ## Common Parameters (All Endpoints)
 
@@ -11,16 +11,17 @@
 | `q` | string | Search query — keywords and boolean operators. **No double-quoted phrases** (subcode 3790184) |
 | `since` | string **or integer** | Start date `YYYY-MM-DD` **or a UNIX timestamp**. **Not a clean UTC-midnight boundary — see below** |
 | `until` | string **or integer** | End date `YYYY-MM-DD` **or a UNIX timestamp**. **Inclusive of at least part of the named date — see below** |
-| `limit` | integer | Results per page (use `L` suffix: `100L`) |
+| `limit` | integer | Results per page — integer-typed, see § "Integer Parameters" |
 | `lang` | string | Language filter (ISO 639-1: "en", "es") |
 | `country` | string | Country filter (ISO 3166-1: "US", "GB") |
-| `surface_ids` | list | Facebook only: filter to specific page / group / profile IDs — **character strings only**, always `as.list()` |
+| `surface_ids` | list | Facebook only: filter to specific page / group / profile IDs — **strings only, always an array**, see § "ID Parameters Are Arrays of Strings" |
 | `account_ids` | list | Instagram only: filter to specific account IDs — same rules |
 
 ## Post Filters (Facebook Posts)
 
 > Documented, not tested — transcribed from the Facebook posts guide
-> (fetched 2026-08-21). Confirm anything surprising with `client$openapi_spec()`.
+> (fetched 2026-08-21). Confirm anything surprising against the OpenAPI spec
+> (SKILL.md § "OpenAPI Spec").
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -44,13 +45,8 @@ Meta's guide is wrong in both directions here. Measured on
 **Use it without `q`.** The guide says `link` "cannot be used without the q
 parameter". It can, and it must: `link` alone returned **90** posts where
 `q="trump"` + the same `link` returned **16** (a verified subset). `q` only
-narrows.
-
-```r
-# right
-client$get(path = "facebook/posts/preview",
-           params = list(link = URL, since = S, until = U, limit = 100L, fields = F))
-```
+narrows. The right call sends `link`, `since`, `until`, `limit` and `fields`
+— and no `q`.
 
 **⚠ With `q` present, an unmatched `link` is silently ignored.** `q` + a URL
 nobody shared returned the *identical* 100 rows as `q` alone (Jaccard 1.0), HTTP
@@ -129,6 +125,8 @@ a real and separate class. On the `mcl-links-comments` frame they are **15.8%**
 of link-bearing posts. Pair `link` with a text-URL regex pass for any count that
 claims completeness.
 
+Code: `languages/r/query_params.md` § "Link search without `q`" · `languages/python/query_params.md` § "Link search without `q`"
+
 ### `q` does not search URLs — **[verified 2026-08-29]**
 
 The Facebook-posts guide recommends, for domain-level search, "use the q
@@ -201,7 +199,7 @@ another** — all three of these were verified separately on 2026-08-21:
 | Where | Casing | How verified |
 |---|---|---|
 | `sort` | **lowercase** — `most_to_least_views` | the 2025-11-10 REST-ful pass lowercased them |
-| `mode` | **UPPERCASE** — `"SNAPSHOT"` / `"LIVE"` | `enum` declaration in `client$openapi_spec()`, 5 occurrences |
+| `mode` | **UPPERCASE** — `"SNAPSHOT"` / `"LIVE"` | `enum` declaration in the OpenAPI spec, 5 occurrences |
 | `status` (returned) | **UPPERCASE** — `COMPLETE` | `get_status()` on four live jobs |
 
 Note the trap that makes guessing unsafe: `mode`'s own `description` in the spec
@@ -228,17 +226,14 @@ does not assert one.
 `creation_time` itself is documented UTC (`field_reference.md`).
 
 **What to do about it.** Do not rely on the boundary. Request one day wider than
-you need and filter client-side on `creation_time`:
-
-```r
-# want: posts created on 2026-08-20 UTC
-res <- ...   # query with since = "2026-08-20", until = "2026-08-21"
-ct   <- as.POSIXct(gsub("T", " ", sub("(\\+|Z).*$", "", res$creation_time)), tz = "UTC")
-res  <- res[which(as.Date(ct) == as.Date("2026-08-20")), , drop = FALSE]
-```
+you need and filter client-side on `creation_time` — for posts created on
+2026-08-20 UTC, query `since = "2026-08-20", until = "2026-08-21"` and keep the
+rows whose `creation_time` falls on the 20th.
 
 This is correct under any boundary semantics, and comparing the returned range
 against the requested one is how the anomaly above was found in the first place.
+
+Code: `languages/r/query_params.md` § "Filtering `creation_time` client-side" · `languages/python/query_params.md` § "Filtering `creation_time` client-side"
 
 ### Reproduced on a 7-day window — **[verified 2026-08-24]**
 
@@ -271,13 +266,8 @@ returned:    2026-08-17 00:01:02  ->  2026-08-24 00:25:33  UTC
 `since` and `until` are documented as accepting **either `YYYY-MM-DD` or a UNIX
 timestamp**, on every endpoint that has them. That is a lever the two runs above
 did not have: a timestamp names an exact second, so one query pins the boundary
-that two date-granular observations could not.
-
-```r
-# 2026-08-24 00:00:00 UTC, exactly
-until_epoch <- as.integer(as.POSIXct("2026-08-24 00:00:00", tz = "UTC"))
-params <- list("since" = "2026-08-17", "until" = until_epoch, ...)
-```
+that two date-granular observations could not: send `until` as the epoch
+second of 2026-08-24 00:00:00 UTC, exactly.
 
 If the returned maximum `creation_time` still runs past the requested instant,
 the offset is server-side and the date form is not the cause. Procedure:
@@ -286,6 +276,8 @@ the offset is server-side and the date form is not the cause. Procedure:
 Until that is run, **the widen-and-filter mitigation above stays the operative
 advice** — it is correct under every boundary semantics, and a timestamp that
 turns out to behave like a date would silently reintroduce the loss.
+
+Code: `languages/r/query_params.md` § "Pinning `until` with an epoch second" · `languages/python/query_params.md` § "Pinning `until` with an epoch second"
 
 ## Sort Defaults Differ by Endpoint — and the Default Is Rarely Chronological
 
@@ -308,7 +300,7 @@ Two traps:
 - **The docs spell the Pages value `most_to_least_follower_count` and the
   Profiles value `most_to_least_followers_count`** — singular on one endpoint,
   plural on the other. One of the two may be a documentation typo; treat the
-  pair as unverified and read the enum from `client$openapi_spec()` before
+  pair as unverified and read the enum from the OpenAPI spec before
   relying on either. An unrecognised `sort` is an "Invalid parameter" error, so
   this fails loudly rather than silently.
 - **`sort` is documented as synchronous-only on `instagram/accounts`,
@@ -422,24 +414,18 @@ version of this file has been running a different query than they thought.
 
 **Use the symbols.** They are what the documentation specifies:
 
-```r
-# ✓ union — either word
-params = list("q" = "climate | environment")
-
-# ✓ intersection — both words (a blank space IS the AND operator)
-params = list("q" = "climate policy")
-params = list("q" = "climate&policy")     # identical
-
-# ✓ exclusion
-params = list("q" = "vaccine -covid")
-
-# ✓ grouping
-params = list("q" = "(climate | environment) (policy | legislation)")
-```
+| Intent | `q` value |
+|---|---|
+| union — either word | `climate \| environment` |
+| intersection — both words (a blank space IS the AND operator) | `climate policy` — identical to `climate&policy` |
+| exclusion | `vaccine -covid` |
+| grouping | `(climate \| environment) (policy \| legislation)` |
 
 To settle the word forms for good, compare three `estimate` calls — `estimate`
 is free and sync searches run 60/minute, so this costs nothing but a minute:
 see `docs/TESTING_PROCEDURE.md` § "Which `q` operators does the API honour?".
+
+Code: `languages/r/query_params.md` § "Query operators" · `languages/python/query_params.md` § "Query operators"
 
 ### No Double-Quoted Phrases (subcode 3790184)
 
@@ -456,19 +442,12 @@ independently word by word, *"meaning that searching by phrase is not supported
 (queries 'All for one' and 'One for all' are equivalent)"*. So the rejection is
 not a parser quirk to work around — **there is no phrase search to reach**.
 
-```r
-# ✗ Rejected by the API (works only in the UI)
-params = list("q" = '"climate change"')
-
-# ✓ Distinctive single token
-params = list("q" = "climate")
-
-# ✓ Tokens joined with OR
-params = list("q" = "climate | warming")
-
-# ✓ Narrow with AND instead of a phrase
-params = list("q" = "climate policy")
-```
+| `q` value | |
+|---|---|
+| `"climate change"` (quote characters in the value) | ✗ rejected by the API — works only in the UI |
+| `climate` | ✓ distinctive single token |
+| `climate \| warming` | ✓ tokens joined with OR |
+| `climate policy` | ✓ narrow with AND instead of a phrase |
 
 `|` does not reproduce a phrase — it matches posts containing *either* word, so
 it broadens the corpus rather than matching the bigram. Prefer a distinctive
@@ -476,10 +455,13 @@ single token where one exists (`Meloni` rather than `"Giorgia Meloni"`, `M5S`
 rather than `"Movimento 5 Stelle"`), and use a space (AND) when both words must
 appear — remembering that word order and adjacency are not tested either way.
 
-Note that `q = "climate change"` — an R string holding two space-separated words
-— is fine: no double-quote character reaches the API, and the space is simply
-the AND operator. What 3790184 rejects is a query **value** containing `"`
-characters, i.e. `q = '"climate change"'`.
+Note that a `q` **value** of `climate change` — two space-separated words — is
+fine: no double-quote character reaches the API, and the space is simply the
+AND operator. What 3790184 rejects is a query value that itself contains `"`
+characters. Whether your string literal's own quotes are part of the value is a
+language question, shown in the language files.
+
+Code: `languages/r/query_params.md` § "No double-quoted phrases" · `languages/python/query_params.md` § "No double-quoted phrases"
 
 ### Tokenization — exact, with no stemming
 
@@ -542,27 +524,16 @@ automatically a bug in your query.
 
 ## Producer Lists
 
-Read a list with `lists/producers/{list_id}`, then pass its IDs as the
-platform's ID parameter — `surface_ids` for Facebook, `account_ids` for
-Instagram:
-
-```r
-list_data <- mcl_fromJSON(client$get(path = paste0("lists/producers/", list_id))$text)
-ids       <- list_data$producers$id            # character, via mcl_fromJSON()
-platform  <- tolower(list_data$platform)
-id_param  <- if (platform == "instagram") "account_ids" else "surface_ids"
-
-params <- list("since" = "2024-01-01", "mode" = "SNAPSHOT",
-               "name" = "Producer List Query",
-               "description" = "Posts from tracked accounts")
-params[[id_param]] <- as.list(ids)   # array, not a comma-joined string
-
-response <- client$post(path = paste0(platform, "/posts/job"), params = params)
-```
+Read a list with `lists/producers/{list_id}`; the response carries `platform`
+and a `producers` array whose `id`s you pass as the platform's ID parameter —
+`surface_ids` for Facebook, `account_ids` for Instagram — to
+`{platform}/posts/job`, as an array, not a comma-joined string.
 
 `references/producer_lists.md` owns this topic: list creation, response shape,
 batching, cross-platform matching, and the `account_ids` vs `post_ids`
 distinction.
+
+Code: `languages/r/query_params.md` § "Querying a producer list" · `languages/python/query_params.md` § "Querying a producer list"
 
 ## Other Surfaces
 
@@ -578,18 +549,12 @@ post or comment; bulk reads go through `{platform}/comments/job` with
 `parent_ids`, with `{platform}/comments/estimate` to size it first. **SKILL.md
 § "Nested Endpoints" owns the path table**; this section owns the parameters.
 
-```r
-response <- client$post(
-    path = "facebook/comments/job",
-    params = list(
-        "parent_ids" = as.list(post_ids),   # array, even for one ID; max 250
-        "fetch_all" = TRUE,                 # all reply levels, not just top-level
-        "mode" = "SNAPSHOT",
-        "name" = "Comments on Target Posts",
-        "description" = "Comments for sentiment analysis"
-    )
-)
-```
+A comments job is `POST facebook/comments/job` (or `instagram/…`) with
+`parent_ids` — an array even for one ID, max 250 — `fetch_all = true` for every
+reply level rather than top-level only, and the async `mode`, `name`,
+`description`.
+
+Code: `languages/r/query_params.md` § "Submitting a comments job" · `languages/python/query_params.md` § "Submitting a comments job"
 
 ### Bulk-comment parameters
 
@@ -623,16 +588,13 @@ Three further limits:
 
 ## Estimate Response
 
-```r
-estimate <- mcl_fromJSON(client$get(
-    path = "facebook/posts/estimate",
-    params = list("q" = "election", "since" = "2024-01-01", "until" = "2024-12-31")
-)$text)
+`GET {platform}/posts/estimate` takes the same search parameters as the query
+and returns two key fields:
 
-# Key fields:
-# estimate$estimated_results - Approximate count
-# estimate$expected_complete - TRUE if <100k (will get all results)
-```
+| Field | Meaning |
+|---|---|
+| `estimated_results` | Approximate count |
+| `expected_complete` | `true` if under 100k — the job will return all results |
 
 **"Approximate" is worth a magnitude — [observed 2026-08-25].** A producer-list query
 over a 7-day window estimated **700** and the completed job returned **583**: the
@@ -640,9 +602,11 @@ estimate ran **~20 % high**. One observation, on one query, so it is not a bound
 it is enough to say that `estimated_results` is a **sizing** figure, not a count.
 
 Two consequences: do not use it as the denominator of any reported rate (use
-`nrow()` of the result), and when an estimate sits just under a cap, treat it as
+the row count of the result), and when an estimate sits just under a cap, treat it as
 *near* the cap rather than under it. `expected_complete` is the reliable half — it
-was `TRUE` and the job did return everything.
+was `true` and the job did return everything.
+
+Code: `languages/r/query_params.md` § "Reading an estimate" · `languages/python/query_params.md` § "Reading an estimate"
 
 ## Field expansion: the `fields` parameter uses BRACE syntax, not dots
 
@@ -650,13 +614,8 @@ was `TRUE` and the job did return everything.
 [Field expansion](https://developers.facebook.com/docs/content-library-and-api/appendix/field-expansion).
 
 Nested sub-fields are requested with **curly braces**:
-
-```r
-# CORRECT — returns id, statistics.like_count, statistics.haha_count
-client$get(path = "facebook/posts/preview",
-           params = list("q" = "cybercrime",
-                         "fields" = "id,statistics{like_count,haha_count}"))
-```
+`fields = "id,statistics{like_count,haha_count}"` returns `id`,
+`statistics.like_count`, `statistics.haha_count`.
 
 **The dots in the data dictionary are naming, not request syntax.** The dictionary writes
 `statistics.like_count`; the *request* is `statistics{like_count}`; the *response* comes back
@@ -664,6 +623,8 @@ flattened to `statistics.like_count` again. Requesting `"statistics.like_count"`
 
 Defaults: naming a parent without braces returns that entity's default expanded fields; omitting
 `fields` entirely returns default expanded fields on default parent fields.
+
+Code: `languages/r/query_params.md` § "Requesting nested fields" · `languages/python/query_params.md` § "Requesting nested fields"
 
 ### `fields` works on the ASYNC JOB endpoint too — **[verified 2026-08-25]**
 
@@ -676,19 +637,14 @@ the job has completed means paying for a second job at full budget, with no refu
 Verified end to end on a 211-producer list over a 7-day window — the same `fields`
 string previewed first, then submitted:
 
-```r
-FIELDS <- paste0("id,creation_time,text,lang,surface{id,name,type},",
-                 "statistics{views,reaction_count,comment_count,share_count,like_count}")
-
-# 1. FREE positive control -- confirm the projection before spending anything
-pv <- mcl_fromJSON(client$get(path = "facebook/posts/preview",
-                              params = c(list("limit" = 5L, "fields" = FIELDS), id_params))$text)
-stopifnot("text" %in% names(pv$data))          # the field that is NOT default
-
-# 2. the same string on the job
-job <- client$post(path = "facebook/posts/job",
-                   params = c(list("fields" = FIELDS, "mode" = "LIVE"), id_params))
 ```
+id,creation_time,text,lang,surface{id,name,type},statistics{views,reaction_count,comment_count,share_count,like_count}
+```
+
+1. **Free positive control** — `preview` with `limit = 5` and that `fields`
+   string, asserting that `text` (the field that is NOT default) is in the
+   returned columns.
+2. The same string on `facebook/posts/job`.
 
 All nine requested fields came back on both calls, and the 583-row job result carried
 `text`, `lang`, `surface.{id,name,type}` and the four `statistics.*` columns — brace
@@ -698,6 +654,8 @@ expansion, flattening and all.
 > budget, so **preview the exact `fields` string before submitting the job that uses it.**
 > Because unknown names are dropped *silently* (next section), a typo is otherwise
 > invisible until the job is paid for and finished.
+
+Code: `languages/r/query_params.md` § "Previewing a `fields` string before the job" · `languages/python/query_params.md` § "Previewing a `fields` string before the job"
 
 ### `fields` drops unknown names SILENTLY — always use a positive control
 
@@ -723,40 +681,36 @@ Conclusion, on sound evidence: `link_attachment_fields` and `match_type` are **n
 in the Content Library API; they belong to the Third-Party Cleanroom schema (see
 `field_reference.md` § "The data dictionary is segmented by product").
 
-## Integer Parameters (Critical!)
+## Integer Parameters
 
-Always use `L` suffix for integers:
+Every parameter typed `integer` in the tables of this file and of
+`references/surfaces.md` — `limit`, `views_bucket_start` / `views_bucket_end`,
+the member / follower / price thresholds, and `since` / `until` when given as
+a UNIX timestamp — must arrive as an integer. A float in an integer slot
+(`100.0` for `100`) is a type error, not a silently truncated value. Whether a
+plain numeric literal in your language reaches the client as an integer or a
+float is a language question, and each language file shows its mechanism.
 
-```r
-# ✓ Correct
-params = list("limit" = 100L, "offset" = 0L)
+Code: `languages/r/query_params.md` § "Integer parameters" · `languages/python/query_params.md` § "Integer parameters"
 
-# ✗ Wrong - will cause type errors
-params = list("limit" = 100, "offset" = 0)
-```
+## ID Parameters Are Arrays of Strings
 
-## ID Parameters Are Always Character (Critical!)
+Two rules, both enforced by the API:
 
-`L` applies to counts and limits — **never to IDs**. IDs are 15–19 digits, far
-beyond `.Machine$integer.max`, and a bare numeric literal becomes a double that
-is sent in scientific notation → "Invalid Meta Content Library ID" (subcode
-3790088).
+- **Arrays, at every length.** `surface_ids`, `account_ids`, `post_ids`,
+  `parent_ids` and the other `*_ids` parameters take an array even for a
+  single ID. A scalar is rejected with "Invalid parameter".
+- **Strings, never numbers.** IDs are 15–19 digits, beyond what a 32-bit
+  integer holds and, above 2^53, beyond what a double represents exactly. A
+  numeric ID that reaches the request in scientific notation (`9.6378e+14`) is
+  rejected with "Invalid Meta Content Library ID" (subcode 3790088). IDs parsed
+  with the language helper are already strings; an ID that arrived as a number
+  from elsewhere (CSV, spreadsheet) must be reformatted to its full digits, not
+  merely cast.
 
-```r
-# ✓ Correct - array of quoted strings
-params = list("surface_ids" = list("963780196442228", "252084123456789"), "limit" = 100L)
-params[[id_param]] <- as.list(ids)   # ids came from mcl_fromJSON() → character
+Integer typing (§ above) applies to counts and limits — **never to IDs**.
 
-# ✗ Wrong - numeric IDs
-params = list("surface_ids" = 963780196442228)          # sent as 9.6378e+14
-params = list("surface_ids" = as.list(as.numeric(ids))) # each sent as 9.6378e+14
-
-# ✗ Wrong - scalar instead of array → "Invalid parameter"
-params = list("surface_ids" = ids[1])   # length-1 vector → Python string
-
-# Rescue an ID that arrived as numeric from elsewhere (CSV, spreadsheet, reticulate)
-ids <- sprintf("%.0f", ids)     # NOT as.character(), which yields "1.784e+16"
-```
+Code: `languages/r/query_params.md` § "ID parameters are arrays" · `languages/python/query_params.md` § "ID parameters are arrays"
 
 ## Finding MCL IDs (Never Use URL IDs)
 
@@ -771,30 +725,22 @@ full pattern.
 ## ID Parameter Batch Limits
 
 `post_ids` accepts at most **250 IDs per call**. Chunk longer lists — and chunk
-`surface_ids` at ≤ 250 as well, to stay on the safe side:
-
-```r
-chunks <- split(ids, ceiling(seq_along(ids) / 250L))
-for (chunk in chunks) {
-  params <- list("limit" = 100L)
-  params[["post_ids"]] <- as.list(chunk)
-  # ...
-}
-```
+`surface_ids` at ≤ 250 as well, to stay on the safe side — sending each chunk
+as its own array.
 
 `references/producer_lists.md` batches at 50 for producer-list queries, which is
 well inside this limit.
 
+Code: `languages/r/query_params.md` § "Chunking an ID list" · `languages/python/query_params.md` § "Chunking an ID list"
+
 ## Never Pass an Empty `params`
 
-```r
-# ✗ Wrong - reticulate converts list() to a Python list [], and the client
-#   calls .items() on it → 'list' object has no attribute 'items'
-client$get(path = "budgets", params = list())
+The client expects `params` to be a mapping (a dict) and calls `.items()` on
+it. An empty value that reaches it as a list instead fails with
+`'list' object has no attribute 'items'`. When a call has no parameters, omit
+`params` entirely rather than passing something empty.
 
-# ✓ Correct - omit params entirely, or pass a named list
-client$get(path = "budgets")
-```
+Code: `languages/r/query_params.md` § "Never pass an empty params" · `languages/python/query_params.md` § "Never pass an empty params"
 
 ## Platform-Specific ID Parameters
 
@@ -815,5 +761,5 @@ parameters. Input at least one parameter [q, post_ids, account_ids]".
 ## Producer List Endpoint
 
 Use `lists/producers/{list_id}` — `producer-lists/{list_id}` returns 404, and
-the response carries a `$producers` data.frame (id, name, type), not a `$ids`
-vector. Details: `references/producer_lists.md`.
+the response carries a `producers` array of records (id, name, type), not an
+`ids` list. Details: `references/producer_lists.md`.

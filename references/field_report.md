@@ -31,7 +31,7 @@ about a real response, not a reading of the documentation.
 | **Kind** | correction / promotion / addition / open |
 
 ## What the skill says
-<file § section, quoted — e.g. `references/common_errors.md` § "Query / Job
+<file § section, quoted — e.g. `references/common_errors.md` § "Scope and Quota
 Errors": "`until` is in the future, or `since` is not before `until`">
 
 ## What the API returned
@@ -76,7 +76,7 @@ and written the way it should have arrived.
 | **Kind** | addition |
 
 ## What the skill says
-Nothing. `references/common_errors.md` § "Query / Job Errors" has no row for
+Nothing. `references/common_errors.md` § "Scope and Quota Errors" has no row for
 subcode 3790079, and nothing in the skill says `until` must be before *now* —
 only that `since` must be before `until`.
 
@@ -93,7 +93,7 @@ not strictly before the current epoch time either.
 `surface_ids`, any `q`. Preview only; no budget spent.
 
 ## Proposed change
-New row in `references/common_errors.md` § "Query / Job Errors": "Invalid time
+New row in `references/common_errors.md` § "Scope and Quota Errors": "Invalid time
 range" (subcode 3790079) — **[verified 2026-08-29]** `until` must be strictly
 **before the current epoch time**; a window ending "today or later" fails
 outright. Owner: `references/common_errors.md`.

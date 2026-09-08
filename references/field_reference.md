@@ -99,8 +99,9 @@ different dataset permissions is **[untested]** — do not present these as publ
 
 ### Producer Fields
 
-These are the **flattened** names returned by `mcl_fromJSON()` (which parses with
-`flatten = TRUE`). The posting account is under `post_owner.*`; the surface the
+These are the **flattened** names — what jsonlite's `flatten = TRUE` produces
+in R and what `pd.json_normalize` produces in Python; the ID-safe helpers in
+both languages return them. The posting account is under `post_owner.*`; the surface the
 post was made to is under `surface.*` — for a post to a Page they usually agree,
 but for a post to a group they differ.
 
@@ -121,40 +122,19 @@ but for a post to a group they differ.
 | `shared_post_id` | string | ID of the **original** post, on a reshare |
 
 A reshare carries no field for the original *account* — only `shared_post_id`.
-To attribute it, fetch the original post by `post_ids` and read its
-`post_owner.*`:
+To attribute it, fetch the original post by `post_ids` (an array, at most 250
+per call) from `facebook/posts/preview` and read its `post_owner.*`.
 
-```r
-resp <- client$get(
-  path   = "facebook/posts/preview",
-  params = list("post_ids" = as.list(shared_ids), "limit" = 100L)   # array, max 250
-)
-originals <- safe_get_data(resp$text)
-originals[, c("id", "post_owner.id", "post_owner.username")]
-```
+Code: `languages/r/field_reference.md` § "Fetching reshared originals" · `languages/python/field_reference.md` § "Fetching reshared originals"
 
 Resolve **defensively**: some reshared originals are out of scope for the
 Content Library, their IDs are invalid, and a single bad ID rejects the *whole*
 `post_ids` call with subcode 3790088. Bisect the batch (or drop to one ID at a
-time) and skip the offenders rather than losing the batch:
+time) and skip the offenders rather than losing the batch: try the whole
+batch; on failure, if it is a single ID, drop it; otherwise split it in two
+and recurse, concatenating whatever resolves.
 
-```r
-resolve_originals <- function(ids) {
-  if (length(ids) == 0L) return(NULL)
-  out <- tryCatch(
-    safe_get_data(client$get(
-      path   = "facebook/posts/preview",
-      params = list("post_ids" = as.list(ids), "limit" = 100L)
-    )$text),
-    error = function(e) NULL
-  )
-  if (!is.null(out)) return(out)
-  if (length(ids) == 1L) return(NULL)          # this one ID is out of scope - skip it
-  mid <- length(ids) %/% 2L
-  bind_rows(resolve_originals(ids[seq_len(mid)]),
-            resolve_originals(ids[(mid + 1L):length(ids)]))
-}
-```
+Code: `languages/r/field_reference.md` § "Resolving originals defensively" · `languages/python/field_reference.md` § "Resolving originals defensively"
 
 ### Engagement Statistics
 
@@ -438,25 +418,12 @@ means the behaviour described below is what you get unasked:
 
 A comments query with `parent_ids` = **post** IDs and no `fetch_all` returns
 **top-level comments only**. Replies are then a separate fetch, keyed on the
-comment IDs that report replies:
+comment IDs that report replies: submit a `facebook/comments/job` with
+`parent_ids` = the post IDs; then submit a second one with `parent_ids` = the
+`id`s of those comments whose `statistics.top_level_reply_count` is above 0.
+Reply records carry `parent_id` = the comment they answer.
 
-```r
-# 1. Top-level comments for the posts
-top <- safe_get_data(client$post(
-  path   = "facebook/comments/job",
-  params = list("parent_ids" = as.list(post_ids), "mode" = "SNAPSHOT",
-                "name" = "Top-level comments", "description" = "…")
-)$text)
-
-# 2. Replies: pass the COMMENT ids that have replies
-with_replies <- top$id[top$statistics.top_level_reply_count > 0]
-replies <- safe_get_data(client$post(
-  path   = "facebook/comments/job",
-  params = list("parent_ids" = as.list(with_replies), "mode" = "SNAPSHOT",
-                "name" = "Replies", "description" = "…")
-)$text)
-# reply records carry parent_id = the comment they answer
-```
+Code: `languages/r/field_reference.md` § "Replies as a second pull" · `languages/python/field_reference.md` § "Replies as a second pull"
 
 ## Instagram Posts
 
@@ -644,13 +611,14 @@ posts would produce; `multimedia_text` presumably reports a match inside video o
 other multimedia and has **not** been observed. Do not write a two-way `switch`
 on this field.
 
-```r
-client$get(path = "facebook/posts/preview",
-           params = list("q" = "governo",
-                         "search_scope" = "post_text_and_image_text",
-                         "fields" = "id,match_type"))
-# -> match_type tally over 25 rows:  image_text 5 | post_text 24
+A `facebook/posts/preview` with `q`, `search_scope = "post_text_and_image_text"`
+and `fields = "id,match_type"` gave, over 25 rows:
+
 ```
+match_type tally:  image_text 5 | post_text 24
+```
+
+Code: `languages/r/field_reference.md` § "Requesting match_type" · `languages/python/field_reference.md` § "Requesting match_type"
 
 **`match_type` requires a `q` search.** Requesting it alongside `surface_ids` with no query
 returns nothing — there is no "match" to report. That is not the field being unavailable, and it
@@ -666,7 +634,7 @@ you never receive it.
 
 **[verified 2026-08-22]** Request the sub-field explicitly and media URLs are returned:
 
-```r
+```
 fields = "id,multimedia{type,url,duration,user_tags}"
 # multimedia sub-fields present: type, duration, url   (user_tags never appeared)
 ```
@@ -700,14 +668,12 @@ This cost four consecutive false negatives in one session. The label *"Link atta
 description"* was read as `link_attachment_fields.description`. **The actual property is
 `link_attachment`.**
 
-**Always start here:**
+**Always start here:** the spec's `components.schemas.FacebookPost.properties`
+is the definitive field list for *this* deployment, and
+`components.schemas.LinkAttachment.properties` (and the other nested schemas)
+give the sub-fields.
 
-```r
-sp <- client$openapi_spec()
-fb <- sp$components$schemas$FacebookPost$properties
-names(fb)                                  # the definitive field list for THIS deployment
-sp$components$schemas$LinkAttachment$properties   # and its nested schemas
-```
+Code: `languages/r/field_reference.md` § "Reading field names from the spec" · `languages/python/field_reference.md` § "Reading field names from the spec"
 
 Free, in-session, complete, and specific to the deployment you are querying. There is no reason
 to discover a field list by trial and error.
@@ -739,7 +705,7 @@ Multimedia     -> id, type, duration, tags, url
 
 **[verified 2026-08-22]** Requested by its real name, on link posts:
 
-```r
+```
 fields = "id,content_type,link_attachment,shared_post_id"
 # -> id, content_type,
 #    link_attachment.description, link_attachment.link,

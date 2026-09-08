@@ -8,7 +8,7 @@
 > None of it has been run against a live SRE session, unlike the tables in
 > `field_reference.md` marked as confirmed. Treat an unexpected `NULL` column or
 > a rejected parameter as this file being wrong, not your query — and settle it
-> with `client$openapi_spec()` (SKILL.md § "OpenAPI Spec").
+> by reading the OpenAPI spec (SKILL.md § "OpenAPI Spec").
 
 These surfaces reached the API after the skill's earlier endpoint list was
 written:
@@ -53,7 +53,7 @@ older pattern gets you a 404.
 **Correction, 2026-08-22 — Marketplace *does* have an `estimate` endpoint.** This
 file previously said "No `estimate` endpoint is documented for any of these
 surfaces — none of the guides mention one." The guides may not, but the **OpenAPI
-spec does**. Read live via `client$openapi_spec()`:
+spec does**. Read live from the OpenAPI spec (SKILL.md § "OpenAPI Spec"):
 
 ```
 /facebook/marketplace-listings/preview             -> get
@@ -89,17 +89,11 @@ Search: `facebook/channels/preview`. Either `q` or `admin_ids` is required.
 | `is_admin_verified` | boolean | Filter on the admin's verified badge |
 | `since` / `until` | string | `YYYY-MM-DD` or UNIX timestamp |
 
-```r
-resp <- client$get(
-  path   = "facebook/channels/preview",
-  params = list("q" = "meta", "member_count_min" = 1000L)
-)
-channels <- safe_get_data(resp$text)   # IDs stay character
-```
-
 Fields: `id`, `name`, `description`, `creation_time`, `is_admin_verified`,
 `member_count`, `admin.id`, `admin.type` (Page or profile), `admin.username`,
 `admin.name`.
+
+Code: `languages/r/surfaces.md` § "Searching Facebook channels" · `languages/python/surfaces.md` § "Searching Facebook channels"
 
 ## Instagram Channels
 
@@ -120,8 +114,11 @@ Fields: `id`, `name`, `creation_time`, `is_admin_verified`, `member_count`,
 `admin.id`, `admin.type` (creator / business / personal), `collaborators[].id`,
 `collaborators[].type`, `moderators[].id`, `moderators[].type`.
 
-The array fields arrive as list-columns after `flatten = TRUE`; `mcl_fromJSON()`
-walks into them, so the nested IDs are character too.
+`collaborators[]` and `moderators[]` are arrays nested inside each record, and
+the IDs inside them are MCL IDs like any other — keep them strings when the
+language layer flattens the response.
+
+Code: `languages/r/surfaces.md` § "Nested array fields on Instagram channels" · `languages/python/surfaces.md` § "Nested array fields on Instagram channels"
 
 ## WhatsApp Channels
 
@@ -139,13 +136,6 @@ Search: `whatsapp/channels/preview`. WhatsApp channels are keyed on
 | `limit` | integer | Page size, 10–50 |
 | `since` / `until` | string | `YYYY-MM-DD` or UNIX timestamp |
 
-```r
-resp <- client$get(
-  path   = "whatsapp/channels/preview",
-  params = list("q" = "news", "follower_count_min" = 10000L, "limit" = 50L)
-)
-```
-
 Fields: `id`, `name`, `description`, `creation_time`, `categories[]`,
 `is_verified`, `follower_count`.
 
@@ -153,44 +143,37 @@ Note the inconsistency across the three platforms — the *filter* is
 `is_channel_verified`, the *field* it filters is `is_verified`, and the
 Facebook/Instagram equivalents are `is_admin_verified` on both sides.
 
+Code: `languages/r/surfaces.md` § "Searching WhatsApp channels" · `languages/python/surfaces.md` § "Searching WhatsApp channels"
+
 ## Channel Messages and Updates
 
 ### Sync: one channel at a time
 
-```r
-# Facebook
-client$get(path = paste0("facebook/channels/", channel_id, "/messages/preview"),
-           params = list("limit" = 50L))
-# Instagram
-client$get(path = paste0("instagram/channels/", channel_id, "/messages/preview"),
-           params = list("limit" = 50L))
-# WhatsApp
-client$get(path = paste0("whatsapp/channels/", channel_id, "/updates/preview"),
-           params = list("limit" = 50L))
-```
+The channel ID goes in the path, one channel per call:
+
+| Platform | Path |
+|---|---|
+| Facebook | `facebook/channels/{channel_id}/messages/preview` |
+| Instagram | `instagram/channels/{channel_id}/messages/preview` |
+| WhatsApp | `whatsapp/channels/{channel_id}/updates/preview` |
 
 `limit` here is **0–50, default 10** — not the 100 that applies to other sync
 searches. Sync reads reach only the **last 1000 messages/updates** on the
 channel, and WhatsApp updates go back **30 days** at most.
 
+Code: `languages/r/surfaces.md` § "Channel messages, one channel at a time" · `languages/python/surfaces.md` § "Channel messages, one channel at a time"
+
 ### Async: many channels at once
 
-```r
-resp <- client$post(
-  path   = "facebook/channel-messages/job",
-  params = list(
-    "channel_ids"  = as.list(channel_ids),   # array, max 250 IDs
-    "text_filter"  = "election",
-    "mode"         = "SNAPSHOT",
-    "name"         = "Channel messages - election",
-    "description"  = "PI: …, IRB #…"
-  )
-)
-```
+`POST facebook/channel-messages/job` (and the Instagram / WhatsApp paths in the
+table at the top of this file) takes `channel_ids` — an array, **max 250 IDs**
+— and `text_filter`, plus the usual async `mode`, `name` and `description`.
 
 `text_filter` is applied **after** the messages are loaded, so an estimate taken
 before filtering can be far higher than the row count you actually get back.
 Budget on the unfiltered estimate.
+
+Code: `languages/r/surfaces.md` § "Channel messages, many channels at once" · `languages/python/surfaces.md` § "Channel messages, many channels at once"
 
 Message and update fields:
 
@@ -212,8 +195,8 @@ Message and update fields:
 > not exist and is dropped silently (`CHANGELOG.md` v1.15.0,
 > `field_reference.md` § Link Fields). The rows above are transcribed from Meta's
 > docs and **have not been run** against a channel-message response, so they are
-> left as documented rather than corrected. Verify with `client$openapi_spec()`
-> before relying on `.url` — one call settles it.
+> left as documented rather than corrected. Verify against the OpenAPI spec
+> (SKILL.md § "OpenAPI Spec") before relying on `.url` — one call settles it.
 | `shared_instagram_post_id`, `message_replied_to_id` | — | yes | — |
 
 `multimedia` on Facebook channel messages carries type, MCL ID, duration and
@@ -258,10 +241,11 @@ quiz_attachment.options[].is_correct_answer
 
 Two notes for analysis. **`statistics.top_reactions` is truncated at five** —
 it is not a complete reaction distribution, and summing it will not equal
-`statistics.reactions_count`. And every `options[]` field is an **array inside a
-list-column** after `flatten = TRUE`; `mcl_fromJSON()` walks into them so any IDs
-stay character, but you still need `tidyr::unnest()` (or a `purrr::map_int()`)
-to get vote counts into a data.frame.
+`statistics.reactions_count`. And every `options[]` field is an **array nested
+inside the record**, so getting vote counts into a flat table takes an explicit
+unnest step in the language layer.
+
+Code: `languages/r/surfaces.md` § "Unnesting poll and quiz options" · `languages/python/surfaces.md` § "Unnesting poll and quiz options"
 
 ## Facebook Marketplace Listings
 
@@ -310,13 +294,8 @@ Fundraiser fields: `id`, `title`, `description`, `creation_time`,
 `statistics.donor_count`, `statistics.share_count`.
 
 Donations hang off a fundraiser and are Facebook-only:
-
-```r
-resp <- client$get(
-  path   = paste0("facebook/fundraisers/", fundraiser_id, "/donations/preview"),
-  params = list("since" = "2026-01-01")
-)
-```
+`facebook/fundraisers/{fundraiser_id}/donations/preview`, with the fundraiser ID
+in the path and a `since` date as parameter.
 
 Donation fields: `owner.id`, `owner.type` (profile / Page / private),
 `donation_time`, `statistics.reaction_count`, `statistics.reply_count`.
@@ -324,3 +303,5 @@ Donation fields: `owner.id`, `owner.type` (profile / Page / private),
 Only donations whose privacy is set to *everyone* are included, and the donor is
 `owner.type = "private"` when they gave anonymously — so `statistics.donor_count`
 on the fundraiser is **not** the row count you get here. Don't reconcile the two.
+
+Code: `languages/r/surfaces.md` § "Donations of a fundraiser" · `languages/python/surfaces.md` § "Donations of a fundraiser"
