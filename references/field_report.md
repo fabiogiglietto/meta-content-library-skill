@@ -104,7 +104,7 @@ The first that applies, from `SKILL.md` § "Contributing Back":
 | You have | Do |
 |---|---|
 | a clone with git | branch, edit at the owner, release checklist at the end of `CHANGELOG.md`, pull request with the report as its body |
-| GitHub, no clone | the *Field report* issue form — <https://github.com/fabiogiglietto/meta-content-library-r-skill/issues/new?template=field-report.yml>. A session with GitHub tooling may file it after showing the full body and getting an explicit yes |
+| GitHub, no clone | the *Field report* issue form — <https://github.com/fabiogiglietto/meta-content-library-skill/issues/new?template=field-report.yml>. A session with GitHub tooling may file it after showing the full body and getting an explicit yes |
 | neither | the report as markdown, handed to the researcher to paste into the form later |
 
 A pull request carries the change *and* the evidence: the report goes in the PR
