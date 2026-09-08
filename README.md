@@ -1,17 +1,27 @@
 # MCL API Skill
 
-> **Version:** 1.19.0 — see [CHANGELOG.md](CHANGELOG.md)
+> **Version:** 2.0.0 — see [CHANGELOG.md](CHANGELOG.md)
 
 An [Agent Skill](https://agentskills.io) that teaches Claude and Codex how to
 query the **Meta Content Library (MCL) API v6.0 from R or Python**. Install it once, then
-ask in plain language ("top posts from my producer list this week") and get R
+ask in plain language ("top posts from my producer list this week") and get
 code that runs correctly inside Meta's Secure Research Environment (SRE) or the
-SOMAR Virtual Data Enclave (VDE) — with the integer suffixes, character IDs,
+SOMAR Virtual Data Enclave (VDE) — with the integer typing, string IDs,
 SNAPSHOT mode and status polling that the API silently punishes you for
 forgetting.
 
-Everything the skill teaches is in **[SKILL.md](SKILL.md)** and the
-`references/` files it links. This README is the front door: what the skill
+The skill has one language-neutral core and two language layers. **R** (via
+reticulate) is the **verified** layer: its code has been run in live SRE
+sessions and carries dated `[verified]` stamps. **Python** (the
+`metacontentlibraryapi` client with pandas) is **documented, not yet
+field-tested**: transcribed from Meta's own Python examples and mirrored from
+the verified R calls, section for section, and promoted to `[verified]` as
+field reports arrive. When a request does not say which language, the skill
+writes R and says so.
+
+Everything the skill teaches is in **[SKILL.md](SKILL.md)**, the `references/`
+files it links (API facts, language-neutral), and `languages/r/` and
+`languages/python/` (the calls). This README is the front door: what the skill
 covers, how to install it in each tool, and what a first query looks like end
 to end.
 
@@ -23,10 +33,15 @@ the docs and this file disagree".
 
 ## What it covers
 
-- **Async query patterns** with proper integer handling (`L` suffix)
+- **Async query patterns** with integers that arrive as integers (`L` suffix
+  in R; nothing to do in Python)
 - **SNAPSHOT mode** for reproducible research, and when to use LIVE instead
-- **IDs always as character** (`mcl_fromJSON()`) — no scientific notation, no
-  precision loss above 2^53, no per-batch type drift
+- **IDs always as strings** (`mcl_fromJSON()` in R, `mcl_from_json()` in
+  Python) — no scientific notation, no precision loss above 2^53, no per-batch
+  type drift
+- **Two language layers that mirror each other** — the same section titles in
+  `languages/r/` and `languages/python/`, so a fact checked in one is findable
+  in the other
 - **Producer lists** — UI CSV import, endpoint paths, response shape, batching,
   and cross-platform account matching
 - **Newer surfaces** — Facebook, Instagram and WhatsApp channels and their
@@ -48,8 +63,9 @@ the docs and this file disagree".
 
 ## Installation
 
-The skill is a folder with a `SKILL.md` at its root plus `references/`. Every
-tool below reads that same layout; only the location and the trigger differ.
+The skill is a folder with a `SKILL.md` at its root plus `references/` and
+`languages/`. Every tool below reads that same layout; only the location and
+the trigger differ.
 
 | Where you work | Where the skill goes | How you trigger it |
 |---|---|---|
@@ -91,7 +107,8 @@ the skill folder as its root, not the files loose at the top level:
 mcl-api.zip
 └── mcl-api/
     ├── SKILL.md
-    └── references/
+    ├── references/
+    └── languages/
 ```
 
 ```bash
@@ -167,8 +184,10 @@ then on.
 ## Your first query, end to end
 
 The skill is used from **outside** the SRE: you talk to Claude or Codex on your
-own machine, they write R against the skill, and you paste the result into a
-JupyterLab notebook inside the SRE, which has no internet access. Three steps:
+own machine, they write code against the skill, and you paste the result into a
+JupyterLab notebook inside the SRE, which has no internet access. Three steps,
+shown in R — the verified layer. Ask for Python and the same three steps come
+back from `languages/python/`, with the same helpers under Python names:
 
 The same three steps as a page with copy buttons and a mock-up of the SRE
 notebook: **[visual walkthrough](https://claude.ai/code/artifact/d53e845a-facd-46e6-b391-c5f88e34f404)**
@@ -274,7 +293,9 @@ need to take out must be rendered as an image in a cell.
 
 | File | Purpose |
 |------|---------|
-| `SKILL.md` | Setup, critical requirements, ID handling, first-query errors |
+| `SKILL.md` | The language-neutral core: environment, critical requirements, choosing the language, ID handling, endpoints, jobs, errors, and the routing to everything below |
+| `languages/r/` | The R layer, verified — one file per topic, mirroring `references/` by basename; the helpers live here |
+| `languages/python/` | The Python layer, documented and not yet field-tested — same files, same section titles |
 | `references/query_params.md` | Search parameters, filters, `q` syntax, batch limits |
 | `references/producer_lists.md` | Producer lists: creation, endpoint paths, response structure, cross-platform matching |
 | `references/chunking.md` | Large dataset handling and date-based splitting |
@@ -285,9 +306,11 @@ need to take out must be rendered as an image in a cell.
 | `references/common_errors.md` | Full error catalog and debugging patterns |
 | `references/utilities.md` | Quota checking, package and ML model installation, job retrieval |
 | `references/ml_models_approved.md` | The approved pre-trained ML model list, with canonical repo ids |
-| `references/field_report.md` | The field report template — how a session's findings travel back here |
-| `docs/TESTING_PROCEDURE.md` | Manual verification procedure for the code examples |
-| `docs/first-query.html` | The visual walkthrough (prompt, R code, SRE notebook); GitHub Pages serves it from `/docs` when enabled |
+| `references/field_report.md` | The field report template and routes — how a session's findings travel back here |
+| `references/staying_current.md` | The documentation check in full; the baseline and the owner map stay in `SKILL.md` |
+| `docs/TESTING_PROCEDURE.md` | Manual verification procedure for the R layer |
+| `docs/TESTING_PROCEDURE_PYTHON.md` | The same suites for the Python layer — running one is how a Python section earns its `[verified]` stamp |
+| `docs/first-query.html` | The visual walkthrough (prompt, R code, SRE notebook); GitHub Pages serves it from `/docs` when enabled. The published copy linked above predates the rename |
 | `.github/ISSUE_TEMPLATE/field-report.yml` | The Field report issue form; one field per template heading |
 | `.github/workflows/meta-docs-check.yml` | Monthly check of Meta's changelog; opens an issue on drift |
 | `.github/scripts/check_meta_docs.py` | The checker — run `--check` locally, `--update` after reconciling |
@@ -295,7 +318,8 @@ need to take out must be rendered as an image in a cell.
 ## Requirements
 
 - Meta Research Platform access (Amazon WorkSpaces Secure Browser with JupyterLab)
-- R with the reticulate package
+- R with the reticulate package, or Python 3 with pandas — both kernels are in
+  the SRE, and the MCL client is a Python package either way
 - MCL API v6.0 access
 
 Export from the SRE is by notebook only, and the exported notebook is
@@ -322,7 +346,10 @@ ends with something learned, it offers once to write the report, and
   [CHANGELOG.md](CHANGELOG.md).
 
 Reports carry error messages, subcodes, endpoints, parameters, field names
-and counts — never MCL content.
+and counts — never MCL content. Each report names the language it ran in.
+**The most valuable contribution right now is a Python field report**: every
+section of `languages/python/` is documented-not-tested, and one successful
+call from a Python kernel promotes it.
 
 ## License
 
