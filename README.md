@@ -191,8 +191,7 @@ back from `languages/python/`, with the same helpers under Python names:
 
 The same round trip, four stations, as a page with copy buttons and a mock-up of the SRE
 notebook: **[visual walkthrough](https://fabiogiglietto.github.io/meta-content-library-skill/first-query.html)**
-(GitHub Pages, served from [`docs/first-query.html`](docs/first-query.html); the
-same page is mirrored as a [claude.ai artifact](https://claude.ai/code/artifact/d53e845a-facd-46e6-b391-c5f88e34f404)).
+(GitHub Pages, served from [`docs/first-query.html`](docs/first-query.html)).
 
 **1. Ask.** In claude.ai, Claude Code or Codex:
 
@@ -310,7 +309,7 @@ need to take out must be rendered as an image in a cell.
 | `references/staying_current.md` | The documentation check in full; the baseline and the owner map stay in `SKILL.md` |
 | `docs/TESTING_PROCEDURE.md` | Manual verification procedure for the R layer |
 | `docs/TESTING_PROCEDURE_PYTHON.md` | The same suites for the Python layer — running one is how a Python section earns its `[verified]` stamp |
-| `docs/first-query.html` | The visual walkthrough (prompt, R code, SRE notebook, the field report at the end); GitHub Pages serves it from `/docs` at the link above; the claude.ai artifact mirrors it |
+| `docs/first-query.html` | The visual walkthrough (prompt, R code, SRE notebook, the field report at the end); GitHub Pages serves it from `/docs` at the link above |
 | `.github/ISSUE_TEMPLATE/field-report.yml` | The Field report issue form; one field per template heading |
 | `.github/workflows/meta-docs-check.yml` | Monthly check of Meta's changelog; opens an issue on drift |
 | `.github/scripts/check_meta_docs.py` | The checker — run `--check` locally, `--update` after reconciling |

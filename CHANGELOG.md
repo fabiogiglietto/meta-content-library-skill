@@ -9,8 +9,9 @@ maintaining their own copies.
 - **The repository is public** and GitHub Pages serves `main` from `/docs`, so
   the visual walkthrough now lives at
   <https://fabiogiglietto.github.io/meta-content-library-skill/first-query.html>.
-  The README's walkthrough link points there; the claude.ai artifact stays as a
-  mirror. No API fact changed.
+  The README links there and nowhere else; the claude.ai artifact that served
+  as a stand-in while the repository was private is no longer referenced. No
+  API fact changed.
 - **Commit history was rewritten before publication** (git-filter-repo, same
   day). Every SHA before 2026-09-09 changed; tags v2.0.0 and v2.0.1 were moved
   to the rewritten commits. Anyone with an older clone should re-clone rather
