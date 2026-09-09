@@ -4,6 +4,18 @@ All notable changes to the `mcl-api` skill (named `mcl-api-r` through v1.19.0). 
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v2.0.2 (2026-09-09) — public repository
+
+- **The repository is public** and GitHub Pages serves `main` from `/docs`, so
+  the visual walkthrough now lives at
+  <https://fabiogiglietto.github.io/meta-content-library-skill/first-query.html>.
+  The README's walkthrough link points there; the claude.ai artifact stays as a
+  mirror. No API fact changed.
+- **Commit history was rewritten before publication** (git-filter-repo, same
+  day). Every SHA before 2026-09-09 changed; tags v2.0.0 and v2.0.1 were moved
+  to the rewritten commits. Anyone with an older clone should re-clone rather
+  than pull.
+
 ## v2.0.1 (2026-09-09)
 
 - **`docs/first-query.html`** gains a fourth station: what the skill asks for
