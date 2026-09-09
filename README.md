@@ -189,7 +189,7 @@ JupyterLab notebook inside the SRE, which has no internet access. Three steps,
 shown in R — the verified layer. Ask for Python and the same three steps come
 back from `languages/python/`, with the same helpers under Python names:
 
-The same three steps as a page with copy buttons and a mock-up of the SRE
+The same round trip, four stations, as a page with copy buttons and a mock-up of the SRE
 notebook: **[visual walkthrough](https://claude.ai/code/artifact/d53e845a-facd-46e6-b391-c5f88e34f404)**
 (source: [`docs/first-query.html`](docs/first-query.html), which will move to
 GitHub Pages once the repository is public).
