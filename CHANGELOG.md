@@ -11,7 +11,7 @@ maintaining their own copies.
   with a copy button (now carrying the Language row and the current section
   name), the no-data rule, and where the report goes. Written on the
   contribute-back branch after PR #39 merged and stranded there; rebased onto
-  2.0.0. The hosted copy still needs republishing.
+  2.0.0. The hosted copy was republished from this file on 2026-09-09.
 
 ## v2.0.0 (2026-09-08) — one skill, two languages
 
