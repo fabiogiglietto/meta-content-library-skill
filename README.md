@@ -189,7 +189,7 @@ JupyterLab notebook inside the SRE, which has no internet access. Three steps,
 shown in R — the verified layer. Ask for Python and the same three steps come
 back from `languages/python/`, with the same helpers under Python names:
 
-The same three steps as a page with copy buttons and a mock-up of the SRE
+The same round trip, four stations, as a page with copy buttons and a mock-up of the SRE
 notebook: **[visual walkthrough](https://claude.ai/code/artifact/d53e845a-facd-46e6-b391-c5f88e34f404)**
 (source: [`docs/first-query.html`](docs/first-query.html), which will move to
 GitHub Pages once the repository is public).
@@ -310,7 +310,7 @@ need to take out must be rendered as an image in a cell.
 | `references/staying_current.md` | The documentation check in full; the baseline and the owner map stay in `SKILL.md` |
 | `docs/TESTING_PROCEDURE.md` | Manual verification procedure for the R layer |
 | `docs/TESTING_PROCEDURE_PYTHON.md` | The same suites for the Python layer — running one is how a Python section earns its `[verified]` stamp |
-| `docs/first-query.html` | The visual walkthrough (prompt, R code, SRE notebook, the field report at the end); GitHub Pages serves it from `/docs` when enabled. The published copy linked above predates the rename |
+| `docs/first-query.html` | The visual walkthrough (prompt, R code, SRE notebook, the field report at the end); GitHub Pages serves it from `/docs` when enabled. The published copy linked above was republished from this file on 2026-09-09 |
 | `.github/ISSUE_TEMPLATE/field-report.yml` | The Field report issue form; one field per template heading |
 | `.github/workflows/meta-docs-check.yml` | Monthly check of Meta's changelog; opens an issue on drift |
 | `.github/scripts/check_meta_docs.py` | The checker — run `--check` locally, `--update` after reconciling |
