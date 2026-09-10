@@ -4,6 +4,19 @@ All notable changes to the `mcl-api` skill (named `mcl-api-r` through v1.19.0). 
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v2.0.3 (2026-09-10)
+
+- **`query_with_chunking()` dropped the last day of the range**, in both
+  language layers. The window loop ran `while (current < end)`, so whenever the
+  final window would have been a single day — `(end - start) %% chunk_size == 0`
+  — the loop stopped one day short and `end_date` was never queried:
+  2024-01-01 to 2024-03-31 with `chunk_size = 30` produced three windows, the
+  last ending 2024-03-30. The condition is now `current <= end`, in
+  `languages/r/chunking.md`, `languages/python/chunking.md` and the copy that
+  Test 5.1 carries in `docs/TESTING_PROCEDURE.md`, which gains a check for it.
+  Found offline against a mock client, not in the SRE; provenance tags are
+  unchanged and the Python section stays `[documented]`. No API fact changed.
+
 ## v2.0.2 (2026-09-09) — public repository
 
 - **The repository is public** and GitHub Pages serves `main` from `/docs`, so

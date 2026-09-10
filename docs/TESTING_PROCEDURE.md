@@ -885,7 +885,7 @@ query_with_chunking <- function(query_text, start_date, end_date, platform = "fa
   chunks <- list()
   current <- start
   i <- 1
-  while (current < end) {
+  while (current <= end) {
     chunk_end <- min(current + chunk_size - 1, end)
     chunks[[i]] <- list(
       since = format(current, "%Y-%m-%d"),
@@ -923,6 +923,7 @@ for (i in 1:min(3, length(test_chunks))) {
 - [ ] Chunk count is correct (365 days / 30 = ~12 chunks)
 - [ ] Date ranges are sequential
 - [ ] No gaps between chunks
+- [ ] The last window ends on `end_date` — a range whose length is an exact multiple of `chunk_size` plus one day used to lose its final day (fixed in v2.0.3)
 
 **Screenshot Required:** Yes
 
