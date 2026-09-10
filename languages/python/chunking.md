@@ -27,7 +27,7 @@ def query_with_chunking(query_text, start_date, end_date, platform="facebook",
     # Generate date chunks
     chunks = []
     current = start
-    while current < end:
+    while current <= end:
         chunk_end = min(current + timedelta(days=chunk_size - 1), end)
         chunks.append({"since": current.isoformat(), "until": chunk_end.isoformat()})
         current = chunk_end + timedelta(days=1)

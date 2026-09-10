@@ -20,7 +20,7 @@ query_with_chunking <- function(query_text, start_date, end_date, platform = "fa
   chunks <- list()
   current <- start
   i <- 1
-  while (current < end) {
+  while (current <= end) {
     chunk_end <- min(current + chunk_size - 1, end)
     chunks[[i]] <- list(
       since = format(current, "%Y-%m-%d"),

@@ -1,13 +1,13 @@
 ---
 name: mcl-api
 description: "Meta Content Library (MCL) API v6.0 from R or Python. Use when querying Facebook, Instagram or WhatsApp content in Meta's SRE or the SOMAR VDE — async jobs, producer lists, SNAPSHOT mode, MCL IDs, quotas, error subcodes — whether the code is R via reticulate (the verified layer) or Python with the metacontentlibraryapi client and pandas (documented, not yet field-tested). Defaults to R when the language is not stated."
-version: 2.0.2
-updated: 2026-09-09
+version: 2.0.3
+updated: 2026-09-10
 ---
 
 # Meta Content Library API v6.0 — R and Python
 
-> **Skill Version:** 2.0.2 | **Updated:** 2026-09-09 | [Changelog](CHANGELOG.md)
+> **Skill Version:** 2.0.3 | **Updated:** 2026-09-10 | [Changelog](CHANGELOG.md)
 
 ## Environment
 
