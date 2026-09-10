@@ -1,6 +1,6 @@
 # Surfaces added in v6.0 — Python
 
-> **Language layer: Python — [documented], not yet run.** Setup and client calls
+> **Language layer: Python — [documented] unless a section is stamped `[verified DATE]`.** First run from a Python kernel in the SRE on 2026-09-10 (Step 0, Step 0b, Tests 1.1 and 10.1; no job submitted). Setup and client calls
 > are transcribed from the Python tab of Meta's documentation; helpers and pandas
 > handling mirror calls that are `[verified]` from R against the same
 > `metacontentlibraryapi` client (keyword arguments pass through reticulate

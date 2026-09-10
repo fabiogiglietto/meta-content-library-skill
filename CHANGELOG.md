@@ -4,6 +4,49 @@ All notable changes to the `mcl-api` skill (named `mcl-api-r` through v1.19.0). 
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v2.1.0 (2026-09-10) — the Python layer's first run
+
+**First execution of `languages/python/` from a Python 3 kernel in the SRE.**
+Step 0, Step 0b (six of seven questions), Test 1.1 and Test 10.1 of
+`docs/TESTING_PROCEDURE_PYTHON.md`;
+no job submitted, no query units spent. The Python files' shared banner now
+says so, and these sections carry `[verified 2026-09-10]`:
+
+- **`setup.md` § "Load the client"** — the import works without reticulate on
+  `/opt/conda/bin/python` 3.11.9 with pandas 2.3.3. New facts: **`LATEST_VERSION`
+  is the string `"latest"`** and requests go to `latest/…` until `"6.0"` is
+  pinned (SKILL.md § "Setup" now says so); the client's full surface with
+  signatures — `get(path, estimate=False, version=None, params=None)`,
+  `post(…, body=None)`, `delete`, `get_async_job(job_id)`, `has_next_page`,
+  `query_next_page`, `migrate_path`, `openapi_spec`, `set_default_version`;
+  `MetaContentLibraryAPIAsyncUtils` offers `get_all_async_queries`, `get_data`,
+  `get_status`, `write_data_to_file`; every response is a
+  `requests.models.Response`; `get(estimate=True)` only appends
+  `limit=0&summary=True` to a preview and is not the estimate endpoint.
+- **`ids.md` § "mcl_from_json"** — Test 10.1 passed on the R fixtures, and the
+  int64-plus-null-becomes-float64 hazard reproduced.
+- **`jobs.md` § "Safe response handling"** — an empty result is `{"data": []}`
+  with no `paging`; the `KeyError: 'data'` row in `common_errors.md` now names
+  the error response as its cause.
+- **`query_params.md` § "Paging a preview"** — `paging.cursors.after` (99
+  chars) observed from Python; the client's own `has_next_page()` /
+  `query_next_page()` pager verified and documented as the Python shortcut.
+  § "Reading the OpenAPI spec" — a `dict` with `openapi, info, servers, paths,
+  components, security, tags`. § "Never pass an empty params" — `{}`, `None`
+  and omission all accepted. § "Integer parameters" — **an integral float
+  `limit` is honoured** (`5.0` → 5 rows, `3.0` → 3); this does not match the
+  R layer's "type mismatch" on an R double, left **open** in that section.
+- **`common_errors.md`** — an HTTP error raises `requests.exceptions.HTTPError`
+  with the error JSON as its message and the `Response` on `.response`; the
+  `except Exception` example is narrowed accordingly. A scalar
+  `surface_ids="1"` answered subcode 3790088, not "Invalid parameter".
+- `docs/ML_MODELS_OPEN_QUESTIONS.md` Q2 closed: the kernel is the interpreter
+  reticulate binds.
+
+Still `[documented]`: the async template, jobs, collections, chunking,
+producer lists and everything else that needs a job. No neutral API fact was
+contradicted; the neutral files are unchanged except SKILL.md's three lines.
+
 ## v2.0.3 (2026-09-10)
 
 - **`query_with_chunking()` dropped the last day of the range**, in both
