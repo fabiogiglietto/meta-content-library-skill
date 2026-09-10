@@ -1,6 +1,6 @@
 # MCL API Skill
 
-> **Version:** 2.1.0 — see [CHANGELOG.md](CHANGELOG.md)
+> **Version:** 2.1.1 — see [CHANGELOG.md](CHANGELOG.md)
 
 An [Agent Skill](https://agentskills.io) that teaches Claude and Codex how to
 query the **Meta Content Library (MCL) API v6.0 from R or Python**. Install it once, then
@@ -30,6 +30,8 @@ Upstream documentation:
 and Meta's docs disagree, the skill records both and keeps whichever claim was
 checked against a live response — see `references/field_reference.md` § "Where
 the docs and this file disagree".
+
+*Independent project, not affiliated with or endorsed by Meta Platforms, Inc. See [Disclaimer](#disclaimer).*
 
 ## What it covers
 
@@ -349,6 +351,15 @@ and counts — never MCL content. Each report names the language it ran in.
 **The most valuable contribution right now is a Python field report**: every
 section of `languages/python/` is documented-not-tested, and one successful
 call from a Python kernel promotes it.
+
+## Disclaimer
+
+This is an independent, community-maintained project. It is not affiliated
+with, endorsed by, or supported by Meta Platforms, Inc. "Meta", "Meta Content
+Library", "Facebook", "Instagram" and "WhatsApp" are trademarks of Meta
+Platforms, Inc., used here only to identify the API this skill documents. The
+authoritative documentation is Meta's own:
+<https://developers.facebook.com/docs/content-library-and-api>.
 
 ## License
 

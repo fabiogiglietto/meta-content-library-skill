@@ -4,6 +4,20 @@ All notable changes to the `mcl-api` skill (named `mcl-api-r` through v1.19.0). 
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v2.1.1 (2026-09-10) — non-affiliation notice
+
+Documentation only; no functional change.
+
+- **Non-affiliation notice.** The skill's title carries the Meta Content
+  Library name, so `README.md` (a line under the upstream-docs paragraph and a
+  new § "Disclaimer"), the `SKILL.md` header blockquote and the footer of the
+  GitHub Pages walkthrough (`docs/first-query.html`) now state that this is an
+  independent project, not affiliated with or endorsed by Meta Platforms, Inc.,
+  and that the Meta names are trademarks used only to identify the API.
+- **GitHub repository description** updated to match (R and Python, not R
+  only) and to carry the same notice; the Pages walkthrough is set as the
+  repository homepage.
+
 ## v2.1.0 (2026-09-10) — the Python layer's first run
 
 **First execution of `languages/python/` from a Python 3 kernel in the SRE.**

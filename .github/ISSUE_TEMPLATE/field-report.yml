@@ -52,7 +52,7 @@ body:
     attributes:
       label: Skill version
       description: From the `version:` line in the SKILL.md frontmatter, plus its `updated:` date.
-      placeholder: "2.1.0 (updated 2026-09-10)"
+      placeholder: "2.1.1 (updated 2026-09-10)"
     validations:
       required: true
   - type: input
