@@ -1,13 +1,13 @@
 ---
 name: mcl-api
 description: "Meta Content Library (MCL) API v6.0 from R or Python. Use when querying Facebook, Instagram or WhatsApp content in Meta's SRE or the SOMAR VDE — async jobs, producer lists, SNAPSHOT mode, MCL IDs, quotas, error subcodes — whether the code is R via reticulate (the verified layer) or Python with the metacontentlibraryapi client and pandas (documented, not yet field-tested). Defaults to R when the language is not stated."
-version: 2.0.3
+version: 2.1.0
 updated: 2026-09-10
 ---
 
 # Meta Content Library API v6.0 — R and Python
 
-> **Skill Version:** 2.0.3 | **Updated:** 2026-09-10 | [Changelog](CHANGELOG.md)
+> **Skill Version:** 2.1.0 | **Updated:** 2026-09-10 | [Changelog](CHANGELOG.md)
 
 ## Environment
 
@@ -16,7 +16,8 @@ updated: 2026-09-10
   granted for
 - **Language**: R via reticulate, or Python. The MCL client is the Python
   package `metacontentlibraryapi`; R reaches it through reticulate. Both kernels
-  share one interpreter, `/opt/conda/bin/python3` (3.11). See
+  share one interpreter, `/opt/conda/bin/python`, 3.11.9 [verified 2026-09-10 from
+  the Python 3 kernel; pandas 2.3.3]. See
   [Choosing the language](#choosing-the-language)
 - **Export**: notebook only, and **its outputs are stripped** — code, markdown and
   **images** survive; cell outputs, stdout, stderr and HTML do not. Numbers do not
@@ -104,7 +105,10 @@ Collection (folder for organization)
 
 Import the client class from `metacontentlibraryapi` and pin the API version
 with `set_default_version(LATEST_VERSION)`. Every method is called on the
-class itself, never on an instance. Also define the language's ID-safe parser
+class itself, never on an instance. **`LATEST_VERSION` is the literal string
+`"latest"`** [verified 2026-09-10 from Python] — an alias the API resolves, so
+the requests go to `latest/…` until you pin `"6.0"`, after which they go to
+`6.0/…`. See [Citing the Data](#citing-the-data) for why that matters. Also define the language's ID-safe parser
 and job-wait helper before anything else; every example in this skill assumes
 them.
 
@@ -147,8 +151,10 @@ Code: `languages/r/ids.md` § "mcl_fromJSON" · `languages/python/ids.md` § "mc
 
 Retrieve the complete API spec programmatically (v6.0+) with the client's
 `openapi_spec()` — use it to discover endpoints, parameters, and response
-schemas, and to settle any question this skill does not answer. Its `paths`
-are the endpoint list; each path's `get`/`post` entry carries `parameters`.
+schemas, and to settle any question this skill does not answer. It is a
+mapping with the keys `openapi, info, servers, paths, components, security,
+tags` [verified 2026-09-10]; `paths` is the endpoint list, and each path's
+`get`/`post` entry carries `parameters`.
 
 Code: `languages/r/query_params.md` § "Reading the OpenAPI spec" · `languages/python/query_params.md` § "Reading the OpenAPI spec"
 

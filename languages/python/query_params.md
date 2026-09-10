@@ -1,6 +1,6 @@
 # Query parameters and endpoints — Python
 
-> **Language layer: Python — [documented], not yet run.** Setup and client calls
+> **Language layer: Python — [documented] unless a section is stamped `[verified DATE]`.** First run from a Python kernel in the SRE on 2026-09-10 (Step 0, Step 0b, Tests 1.1 and 10.1; no job submitted). Setup and client calls
 > are transcribed from the Python tab of Meta's documentation; helpers and pandas
 > handling mirror calls that are `[verified]` from R against the same
 > `metacontentlibraryapi` client (keyword arguments pass through reticulate
@@ -10,7 +10,7 @@
 > § "Contributing Back", kind *promotion*, language *Python*. Where the client's
 > behaviour is unknown, the section says so.
 
-## Reading the OpenAPI spec — [documented; mirrors languages/r/query_params.md]
+## Reading the OpenAPI spec — [verified 2026-09-10]
 
 Facts: `SKILL.md` § "OpenAPI Spec"
 
@@ -32,10 +32,10 @@ with open("openapi_spec.json", "w", encoding="utf-8") as f:
     json.dump(spec, f, indent=2)
 ```
 
-**[inferred from R]**: `openapi_spec()` returns a mapping, not a string — R
-receives it as a named list through reticulate, which is how a `dict` arrives.
+`openapi_spec()` returns a `dict` [verified 2026-09-10] with the keys `openapi,
+info, servers, paths, components, security, tags`.
 
-## Paging a preview — [documented; mirrors languages/r/query_params.md, verified 2026-08-29 from R]
+## Paging a preview — [verified 2026-09-10]
 
 Facts: `SKILL.md` § "Key Endpoints (v6.0)"
 
@@ -52,6 +52,24 @@ while True:
     if not after:
         break
 ```
+
+The client also pages by itself [verified 2026-09-10] — `has_next_page(response)`
+reads the same cursor (`True` on a page with `paging.cursors.after`, `False`
+on an empty result) and `query_next_page(response)` re-issues the request
+with `&after=…` appended, returning the next `requests.models.Response`.
+Neither exists in R, so this loop is the language-neutral shape and the pair
+below is the Python shortcut:
+
+```python
+resp = client.get(path="facebook/posts/preview", params=base_params)
+acc = list(mcl_from_json(resp.text).get("data") or [])
+while client.has_next_page(resp):
+    resp = client.query_next_page(resp)
+    acc.extend(mcl_from_json(resp.text).get("data") or [])
+```
+
+On a response with no `paging`, `query_next_page()` did not raise — it
+returned 200 with `data` again — so the `while` guard is what stops it.
 
 ## Nested endpoints — [documented; mirrors languages/r/query_params.md]
 
@@ -95,18 +113,23 @@ print(groups[["id", "name", "member_count"]])   # use this `id`, not the URL num
 GROUP_ID = "PASTE_MCL_ID_FROM_SEARCH"   # quoted! e.g. "963780196442228", NOT the URL's 910620404641635
 ```
 
-## Integer parameters — [documented]
+## Integer parameters — [verified 2026-09-10]
 
 Facts: `references/query_params.md` § "Integer Parameters"
 
 A Python `100` is already an integer; there is no suffix and nothing to convert.
-What is **open** is whether the client or the API accepts an integral float
-(`100.0`) — the R layer only ever observed the rejection of an R double, which
-reticulate sends as a Python `float`, so a float is the thing to avoid:
+An **integral float is honoured** from Python [verified 2026-09-10]: `limit=5.0`
+returned 5 rows and `limit=3.0` returned 3, on `facebook/posts/preview`. The
+client's echoed request line omits the float (`?q="climate"` alone) while the
+integer form shows `&limit=3`, so do not read that line as proof a parameter
+was dropped. This does not match the R layer's "type mismatch" on an R double
+— whether the rejection there is reticulate's marshalling, a different
+parameter, or an API change is **open**; pass `int` and the question never
+arises:
 
 ```python
 params = {"limit": 100}     # ✓
-params = {"limit": 100.0}   # ✗ a float — the R layer's "type mismatch" is this value
+params = {"limit": 100.0}   # accepted on 2026-09-10; still pass an int
 ```
 
 ## ID parameters are arrays — [documented]
@@ -127,16 +150,16 @@ params["surface_ids"] = ",".join(ids)  # ✗ one string, not an array
 The reticulate hazard the R layer describes — a length-1 vector collapsing to a
 scalar — does not exist in Python: `["963780196442228"]` stays a list.
 
-## Never pass an empty params — [documented]
+## Never pass an empty params — [verified 2026-09-10]
 
 Facts: `references/query_params.md` § "Never Pass an Empty `params`"
 
 The client calls `.items()` on `params`, which is how the R layer's empty
 `list()` (a Python `[]`) produced `'list' object has no attribute 'items'`.
-A Python `dict` has `.items()`, so `params={}` should pass where an R `list()`
-did not — **not run**; omit `params` when there are none regardless, and never
-pass a `list` or `tuple` as `params`. Whether `params=None` is accepted is
-**open**.
+From Python, `params={}`, `params=None` and omitting `params` all succeeded
+on `budgets` [verified 2026-09-10] — the rule's name is the R layer's; here it
+reduces to *never pass a `list` or `tuple` as `params`*. Omit it when there
+are none, for readability.
 
 ## Running an API search ID — [documented; mirrors languages/r/query_params.md]
 

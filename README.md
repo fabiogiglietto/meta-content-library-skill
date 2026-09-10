@@ -1,6 +1,6 @@
 # MCL API Skill
 
-> **Version:** 2.0.3 — see [CHANGELOG.md](CHANGELOG.md)
+> **Version:** 2.1.0 — see [CHANGELOG.md](CHANGELOG.md)
 
 An [Agent Skill](https://agentskills.io) that teaches Claude and Codex how to
 query the **Meta Content Library (MCL) API v6.0 from R or Python**. Install it once, then

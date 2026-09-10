@@ -1,6 +1,6 @@
 # Async jobs — Python
 
-> **Language layer: Python — [documented], not yet run.** Setup and client calls
+> **Language layer: Python — [documented] unless a section is stamped `[verified DATE]`.** First run from a Python kernel in the SRE on 2026-09-10 (Step 0, Step 0b, Tests 1.1 and 10.1; no job submitted). Setup and client calls
 > are transcribed from the Python tab of Meta's documentation; helpers and pandas
 > handling mirror calls that are `[verified]` from R against the same
 > `metacontentlibraryapi` client (keyword arguments pass through reticulate
@@ -43,7 +43,7 @@ def mcl_wait_for_job(job, poll=5, timeout=3600):
 Every wait in this skill goes through `mcl_wait_for_job()`. If you compare a
 status yourself, compare `mcl_job_status(job)`, never the raw return value.
 
-## Safe response handling — [documented; mirrors languages/r/jobs.md]
+## Safe response handling — [verified 2026-09-10]
 
 Facts: `SKILL.md` § "Safe Response Handling"
 
@@ -74,9 +74,11 @@ results = pd.json_normalize(json.loads(resp.text)["data"])
 if len(results) > 0: ...
 ```
 
-**Open:** whether an empty result carries `"data": []` or omits `data`
-entirely. The helper handles both; a field report saying which is the truth
-would let the error catalogue name the exact failure.
+**An empty result is `{"data": []}` with no `paging` key [verified 2026-09-10]**
+(a preview whose `q` matched nothing). A non-empty preview is
+`{"data": [...], "paging": {"cursors": {"after": …}}}`. Live: three rows through
+`safe_get_data()` came back with `id` dtype `object`, every value a 15-digit
+`str`.
 
 ## Async query template — [documented; mirrors languages/r/jobs.md]
 
@@ -118,11 +120,13 @@ posts = pd.json_normalize(mcl_load_json("results/climate_2024.json"))
 ```
 
 The keyword names — `path=`, `params=`, `job_id=`, `directory=`, `filename=` —
-are the ones the R layer passes through reticulate unchanged, so they are the
-client's real signature. Three things about the client are **open** because R
-never needed them: what `response` exposes beyond `.text` (a `.status_code`?
-a `.json()`?); which exception class an HTTP error raises and whether the
-error JSON is in its message; and the exact shape of the saved file.
+are the client's real signature (`languages/python/setup.md` § "Load the
+client" lists all of them, [verified 2026-09-10]). `response` is a
+`requests.models.Response`, so `.status_code` and `.json()` exist beside
+`.text`; an HTTP error raises `requests.exceptions.HTTPError` with the error
+JSON as its message and the 400 `Response` on `.response`
+(`languages/python/common_errors.md`). What is still **open**, because no job
+has been submitted from Python, is the exact shape of the saved file.
 **[inferred from R]**: the R layer parses the saved file straight into a table,
 so it is a JSON array of records rather than a `{"data": [...]}` envelope —
 which is why step 4 above passes the loaded list to `json_normalize` directly.

@@ -1,6 +1,6 @@
 # ID handling — Python
 
-> **Language layer: Python — [documented], not yet run.** Setup and client calls
+> **Language layer: Python — [documented] unless a section is stamped `[verified DATE]`.** First run from a Python kernel in the SRE on 2026-09-10 (Step 0, Step 0b, Tests 1.1 and 10.1; no job submitted). Setup and client calls
 > are transcribed from the Python tab of Meta's documentation; helpers and pandas
 > handling mirror calls that are `[verified]` from R against the same
 > `metacontentlibraryapi` client (keyword arguments pass through reticulate
@@ -35,7 +35,7 @@ hazard moves one step downstream, into pandas:
 So the rule is the same as in R — **IDs are `str`, end to end** — and the
 helper enforces it at parse time, before pandas ever sees a number.
 
-## mcl_from_json — [documented; mirrors languages/r/ids.md, verified from R]
+## mcl_from_json — [verified 2026-09-10]
 
 Facts: `SKILL.md` § "ID Handling (IDs Are Strings)"
 
@@ -73,6 +73,15 @@ def mcl_load_json(path):
     with open(path, encoding="utf-8") as f:
         return mcl_fix_ids(json.load(f))
 ```
+
+`docs/TESTING_PROCEDURE_PYTHON.md` Test 10.1 passed in the SRE on 2026-09-10 with the
+R fixtures: IDs above and below 2^53 exact as `str`, nested `author.id` as
+`str`, a null `parent_id` as `None`, a list-column of IDs as `str`, the
+`is_invalid_id` flag still `bool`, `like_count` still integer, and
+`pd.concat` of two chunks keeping `object`. The hazard reproduced on the same
+fixture: one null turned the bare `int64` column into `float64` and rounded
+the 17-digit ID. `mcl_load_json()` on a saved array-of-records returned `str`
+IDs and `None` for the null.
 
 Every example in this skill parses responses with `mcl_from_json()` instead of
 a bare `json.loads()`, and saved files with `mcl_load_json()`. Building a table
