@@ -165,6 +165,12 @@ restrict a Page search to known Pages:
 | `facebook/posts/preview` | `surface_ids` (**not** the four above) | 250 |
 | `instagram/posts/preview` | `account_ids` / `post_ids` | 250 |
 
+**`limit` and the id-batch cap disagree, and `limit` wins.** On
+`facebook/pages/preview`, `limit` is capped at **100** — `limit = 129` returns
+`{"title":"Invalid value, expected between 0 and 100","detail":"limit","status":400}`
+**[verified 2026-09-16]**. So an id batch above 100 cannot have all of its results returned
+in one call. Batch entity lookups at 100 regardless of the 250 in the table above.
+
 `admin_countries` likewise survives on `facebook/pages` and `facebook/profiles`
 (it filters on the admin's country); it is only on `facebook/posts` that the
 name is `surface_countries`. `website` is a further filter on both of those two
