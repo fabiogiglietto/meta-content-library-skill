@@ -377,7 +377,10 @@ Code: `languages/r/producer_lists.md` § "Instagram account metadata" · `langua
 
 ### Facebook Pages
 
-`GET facebook/pages/preview` with `surface_ids` = the batch (array).
+`GET facebook/pages/preview` with **`page_ids`** = the batch (array). Not `surface_ids` —
+that is the content-endpoint parameter and returns HTTP 400, `error_subcode 3790086`
+**[verified 2026-09-16]**. Batch at **100**, not 250: `limit` on this endpoint is capped
+at 100 (see `query_params.md`), so a larger id batch cannot return all of its results.
 
 Code: `languages/r/producer_lists.md` § "Facebook page metadata" · `languages/python/producer_lists.md` § "Facebook page metadata"
 

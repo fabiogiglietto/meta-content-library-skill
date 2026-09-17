@@ -275,12 +275,27 @@ Code: `languages/r/query_params.md` § "Nested endpoints" · `languages/python/q
 You must look the entity up by name and read the `id` MCL returns. Lookup
 endpoints by entity (search with `q`, read `id` from `data`):
 
-| Entity | Endpoint | ID used in queries |
-|--------|----------|--------------------|
-| Facebook group    | `facebook/groups/preview`    | `surface_ids` |
-| Facebook page     | `facebook/pages/preview`     | `surface_ids` |
-| Facebook profile  | `facebook/profiles/preview`  | `surface_ids` |
-| Instagram account | `instagram/accounts/preview` | `account_ids` |
+| Entity | Lookup endpoint | The lookup itself takes | Its `id` is later passed as |
+|--------|-----------------|-------------------------|------------------------------|
+| Facebook group    | `facebook/groups/preview`    | `q` or `group_ids`   | `surface_ids` |
+| Facebook page     | `facebook/pages/preview`     | `q` or `page_ids`    | `surface_ids` |
+| Facebook profile  | `facebook/profiles/preview`  | `q` or `profile_ids` | `surface_ids` |
+| Instagram account | `instagram/accounts/preview` | `q` or `account_ids` | `account_ids` |
+
+**The last two columns are different parameters and this is easy to get wrong.** An entity
+lookup selects by its *own* id parameter; `surface_ids` is what you pass to the **content**
+endpoints (`facebook/posts`, `facebook/comments`) afterwards. Sending `surface_ids` to
+`facebook/pages/preview` fails with
+
+```
+{"title":"Missing required parameters",
+ "detail":"... Input at least one parameter [q, page_ids] to search again.",
+ "error_subcode":3790086,"status":400}
+```
+
+**[verified on live data 2026-09-16, pages only]** — the group and profile rows follow
+`references/query_params.md` § "ID parameters by endpoint" and are not separately verified.
+`references/query_params.md` has always had this right; this table did not.
 
 **ID params are arrays.** `surface_ids` / `account_ids` / `post_ids` must be
 passed as arrays — a scalar is rejected with `"Invalid parameter"`, and that
@@ -540,6 +555,33 @@ This skill is a transcription of documentation that changes without warning, and
 **a stale field name fails silently** — `fields` drops unknown names without
 erroring, and column selection by name drops them again. That failure mode is
 why this section exists: nothing will tell you the skill is out of date.
+
+**A positive control proves the projection was honoured. It does not prove the projection
+was complete.** The usual advice — send `statistics{like_count}` and check it came back —
+catches a *dropped* field. It cannot catch a field you never asked for, because an
+unrequested field and an empty one are indistinguishable in the response.
+
+That gap is expensive when an **estimand** depends on the missing field. A five-country
+study collected 291,826 Facebook comments in June 2026 with a `fields` list that named
+`statistics{like_count,top_level_reply_count}` and not `reaction_count`; nothing failed, and
+the engagement-weighted estimand the design registered became permanently uncomputable for
+that window. Re-collecting would have cost ~282,000 comment units and five days.
+
+So, alongside the positive control:
+
+> **Assert at collection time every field an estimand depends on**, and make the assertion
+> stop the run rather than warn. By the time a missing field is visible in analysis the
+> budget is already spent.
+
+```r
+assert_reaction_field <- function(df, what = "") {
+  if (!("statistics.reaction_count" %in% names(df)))
+    stop("statistics.reaction_count missing in ", what, " — the estimand depends on it")
+  invisible(TRUE)
+}
+```
+
+Call it once per run, on the first successful response, beside the positive control.
 
 ### Baseline — what the last check found
 
