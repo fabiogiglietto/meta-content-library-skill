@@ -4,6 +4,39 @@ All notable changes to the `mcl-api` skill (named `mcl-api-r` through v1.19.0). 
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v2.2.0 (2026-10-14) — `mcl_fromJSON()` mangled mixed ID columns; default page size is 10
+
+From a review of `mcl-political-reach-study` against this skill, driven in the
+SRE on 2026-10-14 (R, API `latest` = v6.0; free calls plus one 2-row LIVE job).
+
+- **Correction — the R ID helper corrupted the case it exists for**
+  (`languages/r/ids.md` § "mcl_fromJSON"). It parsed with `bigint_as_char = TRUE`
+  and then coerced *numeric* ID columns. But when a column of unquoted IDs mixes
+  values above and below 2^53, jsonlite returns the whole column as character
+  with the smaller values formatted to 15 significant digits —
+  `[1000000000000000, 2000000000000001, 12345678901234567]` →
+  `"1e+15" "2e+15" "12345678901234567"` — and the coercion step skips it because
+  it is already character. **Reproduced offline, not observed in a live
+  response** (see next item). The helper now quotes unquoted 15+ digit `*id`
+  values and `*ids` array elements in the raw text before parsing
+  (`mcl_quote_ids()`), and reads a file path as text first so the step runs on
+  saved job files too. Test 10.1 gains a mixed-column fixture; the copy in
+  `docs/first-query.html` is updated. Python is unaffected (`json.loads()` keeps
+  integers exact).
+- **Confirmation — IDs were quoted on every endpoint read**
+  (SKILL.md § "ID Handling"): `lists/producers/{id}` (five lists, 1,288 ids),
+  `facebook/pages/preview`, and a `facebook/posts` job file. So the hazard above
+  is latent today; the helper stays mandatory because nothing guarantees it.
+- **Addition — the default page size is 10** (`references/query_params.md`, next
+  to the `limit` cap). `facebook/pages/preview` with 25 `page_ids` and no `limit`
+  returned 10 rows plus a cursor; `limit = 100L` returned all 25. Observed, not
+  read: no documentation consulted states the default.
+- **Addition — small estimates are coarse and not additive** (SKILL.md § "Async
+  Query Template"). Eight single-surface one-week estimates: seven of 10, one of
+  0; the same eight together: 30; a LIVE job on a "10" surface returned 2 rows.
+- **Not filed as a fact:** 70 back-to-back sync estimates ran ~35/min with 0
+  failures — too slow to test the 60/min limit; inconclusive.
+
 ## v2.1.1 (2026-09-10) — non-affiliation notice
 
 Documentation only; no functional change.

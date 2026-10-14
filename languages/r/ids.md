@@ -19,12 +19,28 @@ alone converts a column **only when some value in that batch exceeds 2^53**, so
 the same column is `chr` in one chunk and `num` in the next, and `bind_rows()`
 fails with *"Can't combine `id` <character> and `id` <double>"*.
 
+**And when it does convert, it corrupts the rest of the column — [reproduced
+2026-10-14, offline].** If one value in a column of unquoted IDs exceeds 2^53,
+jsonlite turns the *whole column* into character, but formats the other values
+with 15 significant digits:
+
+```r
+fromJSON('[{"a":1000000000000000},{"a":2000000000000001},{"a":12345678901234567}]',
+         bigint_as_char = TRUE)$a
+#> "1e+15"  "2e+15"  "12345678901234567"
+```
+
+`2000000000000001` has lost its last digit, and the column is already character,
+so a coercion step that only touches *numeric* columns never sees it. The same
+happens inside an array of IDs. The only safe point to intervene is **before**
+parsing: quote the unquoted IDs in the raw text.
+
 ## mcl_fromJSON
 
 Facts: `SKILL.md` § "ID Handling (IDs Are Strings)"
 
-Fix both at once — parse with `bigint_as_char = TRUE`, then coerce every ID
-field unconditionally:
+Fix all three — quote unquoted IDs in the raw JSON, parse with
+`bigint_as_char = TRUE`, then coerce every ID field unconditionally:
 
 ```r
 # Matches id, post_id, surface_ids, parent_id, and flattened author.id / producer.id
@@ -50,15 +66,30 @@ mcl_fix_ids <- function(x, name = "") {
   x
 }
 
+# Quote unquoted 15+ digit values of *id keys and inside *ids arrays, before
+# jsonlite sees them. Inside a JSON string the key's quotes are escaped (\"id\"),
+# so these patterns cannot match post text.
+mcl_quote_ids <- function(txt) {
+  txt <- gsub('("[A-Za-z_]*id"\\s*:\\s*)(-?[0-9]{15,})', '\\1"\\2"', txt, perl = TRUE)
+  m <- gregexpr('"[A-Za-z_]*ids"\\s*:\\s*\\[[^]]*\\]', txt, perl = TRUE)
+  regmatches(txt, m) <- lapply(regmatches(txt, m), function(s)
+    gsub('(?<![0-9"])(-?[0-9]{15,})(?![0-9"])', '"\\1"', s, perl = TRUE))
+  txt
+}
+
 # Use this for EVERY MCL response — response text or a job's saved .json file
 mcl_fromJSON <- function(txt) {
-  mcl_fix_ids(fromJSON(txt, flatten = TRUE, bigint_as_char = TRUE))
+  if (length(txt) == 1 && !grepl("^\\s*[\\[{]", txt) && file.exists(txt)) {
+    txt <- paste(readLines(txt, warn = FALSE, encoding = "UTF-8"), collapse = "\n")
+  }
+  mcl_fix_ids(fromJSON(mcl_quote_ids(txt), flatten = TRUE, bigint_as_char = TRUE))
 }
 ```
 
 Every example in this skill parses responses with `mcl_fromJSON()` instead of
 `fromJSON()`. It accepts response text (`resp$text`) and a file path (a job's
-saved `.json`) alike, because `fromJSON()` does.
+saved `.json`) alike; a path is read as text first, so the quoting step runs
+on both.
 
 ## Rules that follow
 

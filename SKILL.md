@@ -1,13 +1,13 @@
 ---
 name: mcl-api
 description: "Meta Content Library (MCL) API v6.0 from R or Python. Use when querying Facebook, Instagram or WhatsApp content in Meta's SRE or the SOMAR VDE — async jobs, producer lists, SNAPSHOT mode, MCL IDs, quotas, error subcodes — whether the code is R via reticulate (the verified layer) or Python with the metacontentlibraryapi client and pandas (documented, not yet field-tested). Defaults to R when the language is not stated."
-version: 2.1.1
-updated: 2026-09-10
+version: 2.2.0
+updated: 2026-10-14
 ---
 
 # Meta Content Library API v6.0 — R and Python
 
-> **Skill Version:** 2.1.1 | **Updated:** 2026-09-10 | [Changelog](CHANGELOG.md)
+> **Skill Version:** 2.2.0 | **Updated:** 2026-10-14 | [Changelog](CHANGELOG.md)
 
 > Independent project, not affiliated with or endorsed by Meta Platforms, Inc. "Meta", "Meta Content Library", "Facebook", "Instagram" and "WhatsApp"
 > are trademarks of Meta Platforms, Inc., used only to identify the API this skill documents.
@@ -131,10 +131,17 @@ JSON. Any path that turns them into a float breaks two ways:
   raw URL ID.
 
 Which path does that differs by language: in R, `jsonlite::fromJSON()` parses
-unquoted IDs as doubles; in Python, `json.loads()` keeps them exact but a
+unquoted IDs as doubles — and with `bigint_as_char = TRUE`, a column that mixes
+IDs above and below 2^53 comes back as character with the smaller ones already
+mangled (`"2e+15"`), which is why the R helper quotes IDs *before* parsing; in Python, `json.loads()` keeps them exact but a
 pandas column with a single null becomes float64. Each layer has a helper that
 closes its own hole — use it for **every** MCL response, whether from response
 text or from a job's saved `.json` file.
+
+**[verified 2026-10-14]** `lists/producers/{id}` (five lists, 1,288 ids),
+`facebook/pages/preview` and a `facebook/posts` job's saved file returned **every**
+`id` quoted. The hazard was not observed on those endpoints that day — keep the
+helper anyway: nothing guarantees the encoding, and the failure is silent.
 
 **Scope note — [verified 2026-08-21].** This applies to **post, producer and
 surface** ids, which are 16-digit numerics. It does **not** apply to **async job
@@ -351,6 +358,10 @@ Four steps, in this order:
 
 1. **Estimate** — `GET {platform}/{resource}/estimate` with the same parameters;
    read `estimated_results` and `expected_complete` before spending budget.
+   **Small estimates are coarse and not additive** **[verified 2026-10-14]**: for one
+   week, eight single-surface estimates came back as 10 (seven) and 0 (one), the
+   same eight together as 30, and a job on one of the "10" surfaces returned 2
+   rows. Use the estimate to size a query against the 100,000 cap, not as a count.
 2. **Submit** — `POST {platform}/{resource}/job` with `mode = "SNAPSHOT"`, a
    `name` and a `description`. The response carries `id` (the job) and
    `query_id` (the reusable query).
