@@ -42,7 +42,7 @@ SOURCES = [
         "key": "content-library",
         "label": "Content Library and API",
         "url": "https://developers.facebook.com/docs/content-library-and-api/changelog",
-        # 19 dated entries observed 2026-08-25.
+        # 19 entry headings observed 2026-10-21.
         "min_entries": 10,
         "owner": (
             "API facts. Route with the page-to-file map in `SKILL.md` section "
@@ -53,7 +53,7 @@ SOURCES = [
         "key": "researcher-platform",
         "label": "Secure Research Environment / Researcher Platform",
         "url": "https://developers.facebook.com/docs/researcher-platform/changelog",
-        # 5 dated entries observed 2026-08-25, newest 2025-08-18. The floor is
+        # 5 entry headings observed 2026-10-21, newest 2026-10-12. The floor is
         # 4 rather than half: with so few entries a half-parse would still clear
         # a proportional threshold, and changelog entries do not normally vanish.
         "min_entries": 4,
@@ -97,6 +97,12 @@ MONTHS = {
 DATE_RE = re.compile(
     r"\b(" + "|".join(MONTHS) + r") ([0-9]{1,2}), (20[0-9]{2})\b"
 )
+# Each changelog entry is headed by an <h2> carrying its date, sometimes after a
+# version label ("Version 5.0, November 11, 2024"). Dates are read from these
+# headings only: entry bodies quote other dates -- deadlines ("will be deprecated
+# on November 9, 2026"), extensions, "as of" notes -- and counting those made the
+# 2026-10-09 deprecation notice read as two entries, one of them in the future.
+H2_RE = re.compile(r"<h2\b[^>]*>(.*?)</h2>", re.S | re.I)
 
 
 def fetch(url, timeout=60):
@@ -108,10 +114,12 @@ def fetch(url, timeout=60):
 
 
 def extract_dates(html):
-    """Every 'Month D, YYYY' on the page, as ISO strings, newest first."""
+    """The date of every <h2> entry heading, as ISO strings, newest first."""
     seen = set()
-    for month, day, year in DATE_RE.findall(html):
-        seen.add(f"{year}-{MONTHS[month]:02d}-{int(day):02d}")
+    for heading in H2_RE.findall(html):
+        text = re.sub(r"<[^>]+>", "", heading).replace("&nbsp;", " ")
+        for month, day, year in DATE_RE.findall(text):
+            seen.add(f"{year}-{MONTHS[month]:02d}-{int(day):02d}")
     return sorted(seen, reverse=True)
 
 
