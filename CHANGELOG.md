@@ -4,6 +4,50 @@ All notable changes to the `mcl-api` skill (named `mcl-api-r` through v1.19.0). 
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v2.2.0 (2026-10-21) — multimedia ML models
+
+Meta added **six multimedia models** to the SRE's approved Hugging Face list,
+announced on both changelogs on **2026-10-12** — for **Meta Content Library API
+environments only**. Read from the
+[ML models page](https://developers.facebook.com/docs/researcher-platform/features/ml-models)
+on 2026-10-21; every entry's printed repo id matches its href.
+
+| Repo id | Use |
+|---------|-----|
+| `openai/whisper-large-v3` | speech transcription |
+| `openai/clip-vit-large-patch14` | image–text similarity |
+| `facebook/dinov2-large` | image embeddings |
+| `facebook/sam2.1-hiera-large` | image and video segmentation |
+| `facebook/detr-resnet-50` | object detection |
+| `facebook/wav2vec2-base-960h` | speech recognition, audio embeddings |
+
+- **`references/ml_models_approved.md`** — new baseline: 19 entries in two groups
+  ("All Secure Research Environment environments", 13; "Meta Content Library API
+  environments only", 6). The page also **retitled every entry**, reordered the
+  original thirteen (no id changed), now **prints the full `org/repo` id**, and
+  **dropped the text-only approval condition** (open-source license only). The
+  2026-08 history is kept, with a note that its entry numbers are the old page's.
+- **`references/utilities.md`** — approved-models table regrouped by use with a
+  "where" column; new § "Multimedia models (MCL API environments)" with the files
+  each model needs and their sizes. **`openai/whisper-large-v3` is 24.7 GB as a
+  whole repo**, more than the ~23 GB free in `/home/jovyan`, so
+  `hf_download_repo()` on it fills the disk; the named files are 3.1 GB. Also:
+  DETR's `main` needs `timm` plus a backbone fetch, so use its **`no_timm`**
+  branch; SAM 2.1 needs `transformers` ≥ 4.56; audio needs a decoder. All
+  **[documented]/[inferred]** — none of the six has been probed from the SRE.
+  The org-prefix and mis-titled-#11 traps are marked as fixed on Meta's page;
+  the 400-error ladder gains an environment step; restrictions updated.
+- **`languages/r/utilities.md`, `languages/python/utilities.md`** — new §
+  "Fetching a multimedia model" with per-repo file lists.
+- **`references/field_reference.md`** — the "no vision model on the list" caveat
+  on `multimedia{url}` is replaced; fetching the bytes stays untested.
+- **`docs/ML_MODELS_OPEN_QUESTIONS.md`** — Q21–Q24 and Phase G for the new models.
+- **`docs/SUPPORT_TICKET_ML_MODELS.md`** — documentation issue 1 and the #11
+  mis-title are fixed on Meta's side.
+- **Tripwire** — `.github/meta-docs-baseline.json` and SKILL.md § "Baseline" now
+  record 2026-10-12 on both trees. The 2026-10-09 v5.0 deprecation notice is
+  deliberately left unrecorded, so the check keeps flagging it.
+
 ## v2.1.1 (2026-09-10) — non-affiliation notice
 
 Documentation only; no functional change.

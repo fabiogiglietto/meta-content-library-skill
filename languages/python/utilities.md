@@ -143,6 +143,51 @@ for f in want:
     hf_download_file(f, REPO, "main")
 ```
 
+### Fetching a multimedia model — [documented 2026-10-12, untested]
+
+Facts: `references/utilities.md` § "Multimedia models (MCL API environments)"
+
+MCL API environments only. Name the files — the generic filter above misses
+`preprocessor_config.json` and would take Whisper's 6 GB of fp32 shards. Never
+`hf_download_repo()` Whisper: the whole repo (24.7 GB) is larger than the disk.
+
+```python
+import os
+from fbri.package_managers.huggingface import hf_download_file, hf_list_files
+
+MM_FILES = {
+    "openai/whisper-large-v3": ["config.json", "generation_config.json", "preprocessor_config.json",
+                                "tokenizer.json", "tokenizer_config.json", "vocab.json", "merges.txt",
+                                "added_tokens.json", "special_tokens_map.json", "normalizer.json"],
+    "openai/clip-vit-large-patch14": ["config.json", "preprocessor_config.json", "tokenizer.json",
+                                      "tokenizer_config.json", "vocab.json", "merges.txt",
+                                      "special_tokens_map.json"],
+    "facebook/dinov2-large": ["config.json", "preprocessor_config.json"],
+    "facebook/sam2.1-hiera-large": ["config.json", "preprocessor_config.json", "processor_config.json",
+                                    "video_preprocessor_config.json"],
+    "facebook/detr-resnet-50": ["config.json", "preprocessor_config.json"],
+    "facebook/wav2vec2-base-960h": ["config.json", "preprocessor_config.json", "feature_extractor_config.json",
+                                    "tokenizer_config.json", "vocab.json", "special_tokens_map.json"],
+}
+# DETR from its no_timm branch: main needs timm and a pretrained-backbone fetch
+def mm_revision(repo):
+    return "no_timm" if repo == "facebook/detr-resnet-50" else "main"
+
+REPO = "openai/clip-vit-large-patch14"
+REV = mm_revision(REPO)
+hf_list_files(REPO, REV)   # free: confirms this environment may download it
+for f in MM_FILES[REPO] + ["model.safetensors"]:
+    hf_download_file(f, REPO, REV)
+
+MDIR = os.path.join(os.path.expanduser("~"), "huggingface", REPO, REV)
+from transformers import AutoModel, AutoProcessor
+proc = AutoProcessor.from_pretrained(MDIR)
+mod = AutoModel.from_pretrained(MDIR)
+```
+
+For Whisper load in half precision on a GPU server:
+`AutoModelForSpeechSeq2Seq.from_pretrained(MDIR, torch_dtype=torch.float16)`.
+
 ### Pinning a revision — [documented; mirrors languages/r/utilities.md, verified 2026-08-22 from R]
 
 Facts: `references/utilities.md` § "Pinning a revision for reproducible work"

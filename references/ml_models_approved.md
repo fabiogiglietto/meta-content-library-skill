@@ -6,20 +6,22 @@ silent drift. Do not edit it to be prettier — edit it only to match the page.
 
 - **Source:** https://developers.facebook.com/docs/researcher-platform/features/ml-models
 - **First fetched:** 2026-08-21
-- **Last confirmed unchanged:** 2026-08-22 (superseded — see change below)
-- **Last change detected:** 2026-08-22
-- **Last fetched verbatim:** 2026-08-26, **read off the live DOM** — 13 entries,
-  and each entry's **link target** extracted. That mapping is now the baseline;
-  it is strictly better evidence than any prose summary of the page.
-- **Repo ids last corrected:** 2026-08-26 — **entry #12 was wrong here** (see
-  § "Correction 2026-08-26" below); entry #11 confirmed against the page's own href.
-- **Screenshot of the page as of 2026-08-26:** `docs/evidence/ml-models-page-2026-08-26.png`
+- **Last change detected:** 2026-10-21 — **six multimedia models added** (announced
+  on both Meta changelogs as of **2026-10-12**), entries retitled, and the page
+  now prints every repo id as visible text. See § "Change 2026-10-12" below.
+- **Last fetched verbatim:** 2026-10-21, from the server-rendered HTML — **19
+  entries in two groups**, each entry's visible repo id and **link target**
+  extracted and found identical for all nineteen. That mapping is the baseline.
+- **Last confirmed unchanged:** 2026-10-21 (fetched as the new baseline)
+- **Previous baseline:** 2026-08-26, 13 entries, read off the live DOM —
+  screenshot `docs/evidence/ml-models-page-2026-08-26.png`. The 2026-08 history
+  below refers to entries by **that** page's numbering, not the current one.
 - **Checked by:** monthly scheduled agent (see `docs/ML_MODELS_OPEN_QUESTIONS.md`
   § "Tracking Meta's model list for drift")
-- **What the drift check must diff:** the **link targets**, not just the entry
-  count or the visible names. A repo id can change under an unchanged title, and
-  in 2026-08 an entry's title and its href named two different models. The href
-  table in § "Correction 2026-08-26" is the baseline to compare against.
+- **What the drift check must diff:** the **repo ids** (visible text *and* link
+  target), not just the entry count or the titles. A repo id can change under an
+  unchanged title, and in 2026-08 an entry's title and its href named two
+  different models. The table below is the baseline to compare against.
 
 The prose table in `references/utilities.md` § "Download Machine Learning Models"
 groups these by use and is the reader-facing version. This file is the raw
@@ -27,37 +29,109 @@ record. When they disagree, this file is right and `utilities.md` is stale.
 
 ## The list, as the page presents it
 
-Names are **as written on the page** — Meta lists owners and model names, not
-Hugging Face repo ids. Where a full repo id appears verbatim it is marked ✓; the
-rest must have their org prefix read off the page before use, since the prefix is
-part of the download path.
+**[fetched 2026-10-21]** The page now says *"Use each repository ID as shown"* and
+prints each entry as `Title: org/repo`. Titles below are verbatim; the repo id is
+the page's own visible text, and it matches the entry's href in all 19 cases.
 
-| # | As listed by Meta | Full repo id |
-|---|-------------------|--------------|
-| 1 | Facebook No Language Left Behind (nllb-200-3.3B) | `facebook/nllb-200-3.3B` ✔ 12 files |
-| 2 | Facebook No Language Left Behind (nllb-200-distilled-600M) | `facebook/nllb-200-distilled-600M` — **[verified by listing 2026-08-22]** |
-| 3 | Google Text-to-Text Transfer Transformer (T5) | `google-t5/t5-base` ✔ 11 files — **not** `t5-base` |
-| 4 | Google Text-to-Text Transfer Transformer (T5-small) | `google-t5/t5-small` ✔ 20 files — **not** `t5-small` |
-| 5 | Google BERT Base Model (Uncased) | `google-bert/bert-base-uncased` ✔ 16 files — **not** `bert-base-uncased` |
-| 6 | Facebook mBART-50 | `facebook/mbart-large-50` ✔ 9 files |
-| 7 | Facebook mBART Many-to-Many Multilingual Machine Translation | `facebook/mbart-large-50-many-to-many-mmt` ✓ |
-| 8 | UKP Lab Sentence-BERT (all-MiniLM-L6-v2) | `sentence-transformers/all-MiniLM-L6-v2` — **[verified by listing 2026-08-22]** (note: NOT `ukp-lab/…`) |
-| 9 | Hugging Face DistilBERT (distilbert-base-uncased-finetuned-sst-2-english) | `distilbert/distilbert-base-uncased-finetuned-sst-2-english` ✔ 17 files — **not** the bare name Meta prints |
-| 10 | Hugging Face XLM-RoBERTa (large-sized model) | `FacebookAI/xlm-roberta-large` ✔ 17 files — **not** `xlm-roberta-large` |
-| 11 | Hugging Face DeBERTaV3: Improving DeBERTa using ELECTRA-Style Pre-Training with Gradient-Disentangled Embedding Sharing | `microsoft/mdeberta-v3-base` ✔ 9 files — **[link target read from the page 2026-08-26; independently stated by Meta Support the same day]**. The entry's *title* is the DeBERTaV3 paper; its *link* is mDeBERTa. `microsoft/deberta-v3-base` / `-large` are not approved |
-| 12 | Hugging Face mDeBERTa v3 multilingual | `MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7` ✔ 13 files — **[link target read from the page 2026-08-26; verified by listing 2026-08-26]**. An XNLI-finetuned zero-shot classifier, *not* a base model, and **not** `microsoft/mdeberta-v3-base` as this file previously claimed |
-| 13 | Hugging Face Sentence-Transformers (paraphrase-multilingual-MiniLM-L12-v2) | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` ✔ 28 files |
+The list is split into **two groups**, and the split matters:
 
-**Count at last fetch: 13 entries over 13 distinct repositories** — one repo per
-entry, established from the page's own link targets on 2026-08-26, and **all
-thirteen now confirmed downloadable by listing**. An earlier reading of this file
-claimed twelve; that was wrong, and § "Correction 2026-08-26" records why.
+### All Secure Research Environment environments
 
-✔ = **[verified by listing 2026-08-22]** — `hf_list_files(repo, "main")` returned
-that many files. Only #7 appears as a complete repo id on Meta's page itself; the
-other eleven were resolved by probing, at zero cost with nothing downloaded.
+| # | Title as listed by Meta | Repo id (as printed = href) | Probe |
+|---|-------------------------|-----------------------------|-------|
+| 1 | Facebook No Language Left Behind 3.3B | `facebook/nllb-200-3.3B` | ✔ 12 files |
+| 2 | Facebook No Language Left Behind distilled 600M | `facebook/nllb-200-distilled-600M` | ✔ |
+| 3 | Google T5 base | `google-t5/t5-base` | ✔ 11 files |
+| 4 | Google T5 small | `google-t5/t5-small` | ✔ 20 files |
+| 5 | Google BERT base (uncased) | `google-bert/bert-base-uncased` | ✔ 16 files |
+| 6 | Facebook mBART-50 | `facebook/mbart-large-50` | ✔ 9 files |
+| 7 | Facebook mBART-50 many-to-many translation | `facebook/mbart-large-50-many-to-many-mmt` | ✔ |
+| 8 | Sentence-Transformers all-MiniLM-L6-v2 | `sentence-transformers/all-MiniLM-L6-v2` | ✔ 30 files |
+| 9 | Sentence-Transformers paraphrase-multilingual-MiniLM-L12-v2 | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | ✔ 28 files |
+| 10 | DistilBERT SST-2 sentiment | `distilbert/distilbert-base-uncased-finetuned-sst-2-english` | ✔ 17 files |
+| 11 | XLM-RoBERTa large | `FacebookAI/xlm-roberta-large` | ✔ 17 files |
+| 12 | Microsoft mDeBERTa V3 base (multilingual) | `microsoft/mdeberta-v3-base` | ✔ 9 files |
+| 13 | mDeBERTa V3 base XNLI multilingual NLI | `MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7` | ✔ 13 files |
 
-### The org prefix is mandatory, and Meta's page does not give it
+### Meta Content Library API environments only — new 2026-10-12
+
+| # | Title as listed by Meta | Repo id (as printed = href) | Probe |
+|---|-------------------------|-----------------------------|-------|
+| 14 | OpenAI Whisper large v3 (speech transcription) | `openai/whisper-large-v3` | **[open]** |
+| 15 | OpenAI CLIP ViT-L/14 (image and text similarity) | `openai/clip-vit-large-patch14` | **[open]** |
+| 16 | Meta DINOv2 large (image embeddings) | `facebook/dinov2-large` | **[open]** |
+| 17 | Meta SAM 2.1 Hiera large (image and video segmentation) | `facebook/sam2.1-hiera-large` | **[open]** |
+| 18 | Meta DETR ResNet-50 (object detection) | `facebook/detr-resnet-50` | **[open]** |
+| 19 | Meta wav2vec 2.0 base 960h (speech recognition and audio embeddings) | `facebook/wav2vec2-base-960h` | **[open]** |
+
+**Count at last fetch: 19 entries over 19 distinct repositories** — 13 available
+in every SRE environment, 6 only where the environment is a Meta Content Library
+API one.
+
+✔ = `hf_list_files(repo, "main")` through the SRE proxy returned that many files
+(2026-08-22, #13 on 2026-08-26). The thirteen ids are unchanged since then, so the
+probes still stand. **[open]** = listed by Meta, not yet probed from inside the
+SRE; one free `hf_list_files()` call per repo settles it.
+
+## Change 2026-10-12 — multimedia models, and the page fixed its own traps
+
+Announced on **both** changelogs dated **2026-10-12** — Researcher Platform
+("New multimedia machine learning models": *"Six new multimedia models are now
+available in Meta Content Library API environments for transcription, image
+analysis and audio analysis"*) and Content Library and API ("…available for
+download from the Hugging Face® Hub when you use Meta Content Library API in
+Secure Research Environment"). Picked up here on 2026-10-21.
+
+**1. Six models added, none of them text-only.** Speech (#14 Whisper, #19
+wav2vec 2.0), image–text (#15 CLIP), image embeddings (#16 DINOv2), segmentation
+(#17 SAM 2.1, image *and* video) and object detection (#18 DETR). The 2026-08 page
+said only **text-based** models qualified for approval; that sentence is gone.
+
+**2. The new six are scoped.** They sit under *"Meta Content Library API
+environments only"*; the original thirteen under *"All Secure Research Environment
+environments"*. **[inferred]** An SRE provisioned for a different Meta dataset
+does not get the multimedia models; a researcher using MCL in the SRE does. The
+page does not say whether third-party cleanrooms (SOMAR VDE) receive them —
+they do not use the `fbri` helper at all.
+
+**3. Every entry was retitled.** No repo id changed among the original thirteen,
+but the page now lists them in a different **order** (the multilingual MiniLM
+moved from 13th to 9th) and with short, functional titles. Two consequences:
+
+- **The 2026-08 "mis-titled #11" defect is fixed.** The entry that carried the
+  DeBERTaV3 *paper* title while linking to `microsoft/mdeberta-v3-base` is now
+  titled "Microsoft mDeBERTa V3 base (multilingual)". The English
+  `microsoft/deberta-v3-base` remains unapproved.
+- **The "owner name ≠ org prefix" trap is gone from the page.** "UKP Lab
+  Sentence-BERT" is now "Sentence-Transformers all-MiniLM-L6-v2".
+
+**4. The page prints the full repo id.** Each entry is `Title: org/repo`, under
+the instruction *"Use each repository ID as shown"*. Documentation issue 1 of
+`docs/SUPPORT_TICKET_ML_MODELS.md` — bare names that 400 — is resolved on Meta's
+side. The proxy behaviour behind it is unchanged as far as anyone knows, so
+bare legacy aliases copied from tutorials still fail; see below.
+
+**5. The approval rule changed.** Old: text-based models with open-source
+licenses. New: *"Only models available in the Hugging Face Hub under an open
+source license can be considered."* The page also now says a model approved on
+request *"will then be made available to all researchers, not exclusively to the
+researcher who requested it"*, and that the request should describe the use case
+*"as it relates to your approved research agenda"*.
+
+**What did not change:** the helper functions, their signatures, the default
+path `~/huggingface/<REPO_NAME>/<REVISION>`, the mBART example, the GPU note.
+
+**Practical facts about the new six** — size, required files, offline traps — are
+in `references/utilities.md` § "Multimedia models (MCL API environments)". The
+headline: **`openai/whisper-large-v3` is 24.7 GB as a whole repository**, more than
+the ~23 GB free in `/home/jovyan`, so `hf_download_repo()` on it will fill the
+disk.
+
+### The org prefix is mandatory
+
+> **2026-10-12:** Meta's page now prints the org-qualified id for every entry, so
+> copying from the page is safe. The trap below survives in tutorials, model
+> cards and older notes, which still use the bare legacy names.
 
 **[verified 2026-08-22]** Every bare legacy alias tested returned
 `400 Client Error`, while its org-qualified form listed fine:
@@ -74,14 +148,20 @@ Hugging Face redirects these legacy names to their canonical org-qualified
 repos; **Meta's proxy does not follow that redirect.** The bare name is a 400 —
 the same 400 that means "not approved".
 
-This is a trap, because the bare names are exactly what the page prints in its
-parentheticals (#9 is listed as
-"(distilbert-base-uncased-finetuned-sst-2-english)") and exactly what every
-tutorial uses. A researcher copying the page's own text gets a 400 with no clue
+This was a trap, because the bare names were exactly what the page printed in
+its parentheticals until 2026-10 (#9 was listed as
+"(distilbert-base-uncased-finetuned-sst-2-english)") and are still exactly what
+every tutorial uses. A researcher copying the page's own text gets a 400 with no clue
 why. Use the middle column of the table above.
 
-Note too that #8's owner is listed as "UKP Lab" while its repo lives under
-`sentence-transformers/`. **Owner names on the page are not org prefixes.**
+Until 2026-10, #8's owner was listed as "UKP Lab" while its repo lives under
+`sentence-transformers/`. **Owner names are not org prefixes.**
+
+### History: the 2026-08 page and this file's corrections to it
+
+The sections below are kept as a record. **Entry numbers in them are the
+2026-08-26 page's**, where #9 was DistilBERT, #11 the mis-titled mDeBERTa base,
+#12 the XNLI classifier and #13 the multilingual MiniLM.
 
 ### Correction 2026-08-26 — #11 answered, and #12 was wrong here
 
@@ -194,20 +274,26 @@ first snapshot as to maintaining it.
 
 ## Other constraints stated alongside the list
 
-- Only **text-based models with open-source licenses** qualify for approval.
+- Only models on the Hugging Face Hub **under an open-source license** can be
+  considered. *(Until 2026-10 this read "text-based models with open-source
+  licenses"; the text-only condition is gone.)*
 - **No internet access** for downloading unapproved models.
-- Models not on the list require a **support ticket with use-case
-  justification**.
+- Models not on the list require a **support ticket** with a link to the model
+  and a use case tied to your approved research agenda. A model approved this
+  way becomes available to **all** researchers.
+- **Six models are MCL-API-environment only** (#14–#19 above).
 - **GPU machines** give faster inference (see `utilities.md` § "CPU or GPU Server").
 
 ## What a drift check does
 
 1. Fetch the page.
-2. Compare the model list against the table above.
+2. Compare the model list — both groups, repo ids and group membership —
+   against the tables above.
 3. **Unchanged** → bump "Last confirmed unchanged" and stop.
 4. **Changed** → update this table and the count, update the grouped table in
    `utilities.md`, and note the arrival in `CHANGELOG.md` the way
    `references/surfaces.md` notes new surfaces.
 
 A changed **count** is the cheapest signal; a renamed entry with the same count
-is the one a careless check misses.
+is the one a careless check misses, and an entry **moving between groups** is
+the one a check that ignores the group headings misses.

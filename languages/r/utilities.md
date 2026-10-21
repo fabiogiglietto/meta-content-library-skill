@@ -143,6 +143,49 @@ want  <- files[grepl("^(config|tokenizer|vocab|special_tokens)|\\.safetensors$",
 for (f in want) hf$hf_download_file(f, REPO, "main")
 ```
 
+### Fetching a multimedia model — [documented 2026-10-12, untested]
+
+Facts: `references/utilities.md` § "Multimedia models (MCL API environments)"
+
+MCL API environments only. Name the files — the generic filter above misses
+`preprocessor_config.json` and would take Whisper's 6 GB of fp32 shards. Never
+`hf_download_repo()` Whisper: the whole repo (24.7 GB) is larger than the disk.
+
+```r
+library(reticulate)
+hf <- import("fbri.package_managers.huggingface")
+
+MM_FILES <- list(
+  "openai/whisper-large-v3"       = c("config.json", "generation_config.json", "preprocessor_config.json",
+                                      "tokenizer.json", "tokenizer_config.json", "vocab.json", "merges.txt",
+                                      "added_tokens.json", "special_tokens_map.json", "normalizer.json"),
+  "openai/clip-vit-large-patch14" = c("config.json", "preprocessor_config.json", "tokenizer.json",
+                                      "tokenizer_config.json", "vocab.json", "merges.txt",
+                                      "special_tokens_map.json"),
+  "facebook/dinov2-large"         = c("config.json", "preprocessor_config.json"),
+  "facebook/sam2.1-hiera-large"   = c("config.json", "preprocessor_config.json", "processor_config.json",
+                                      "video_preprocessor_config.json"),
+  "facebook/detr-resnet-50"       = c("config.json", "preprocessor_config.json"),
+  "facebook/wav2vec2-base-960h"   = c("config.json", "preprocessor_config.json", "feature_extractor_config.json",
+                                      "tokenizer_config.json", "vocab.json", "special_tokens_map.json")
+)
+# DETR from its no_timm branch: main needs timm and a pretrained-backbone fetch
+mm_revision <- function(repo) if (repo == "facebook/detr-resnet-50") "no_timm" else "main"
+
+REPO <- "openai/clip-vit-large-patch14"
+REV  <- mm_revision(REPO)
+hf$hf_list_files(REPO, REV)   # free: confirms this environment may download it
+for (f in c(MM_FILES[[REPO]], "model.safetensors")) hf$hf_download_file(f, REPO, REV)
+
+MDIR <- file.path(path.expand("~"), "huggingface", REPO, REV)
+tf_  <- import("transformers")
+proc <- tf_$AutoProcessor$from_pretrained(MDIR)
+mod  <- tf_$AutoModel$from_pretrained(MDIR)
+```
+
+For Whisper load in half precision on a GPU server:
+`tf_$AutoModelForSpeechSeq2Seq$from_pretrained(MDIR, torch_dtype = torch$float16)`.
+
 ### Pinning a revision — [verified 2026-08-22]
 
 Facts: `references/utilities.md` § "Pinning a revision for reproducible work"

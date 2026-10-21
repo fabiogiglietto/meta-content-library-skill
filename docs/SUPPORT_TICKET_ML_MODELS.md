@@ -15,6 +15,12 @@ wrong id in this skill's own #12. The three documentation issues and the
 `sentence-transformers` request remain open, now awaiting Meta's response to the
 follow-up. See § "Reply" at the end.
 
+**Update 2026-10-21:** Meta's page, revised with the 2026-10-12 multimedia
+release, now prints every entry as `Title: org/repo` under "Use each repository
+ID as shown", and retitles the mDeBERTa entry accurately. **Documentation issue 1
+and the #11 mis-title are fixed on Meta's side.** Issues 2–3 and the
+`sentence-transformers` request are not addressed by that page.
+
 ---
 
 **Subject:** Approved ML model list — which DeBERTaV3 repository is approved? (plus three documentation issues)
