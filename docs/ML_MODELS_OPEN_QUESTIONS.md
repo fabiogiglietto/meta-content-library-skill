@@ -46,6 +46,10 @@ time.
 | 18 | Do downloads consume any **quota** (MCL or otherwise)? | **[verified 2026-08-22]** the traffic goes to `prod-fortapis-graph-api.fb-researchtool.com`, a different host from the MCL API, and touches no MCL endpoint. No budget interaction | Confirmed by the endpoint value | **B done** |
 | 19 | **Offline gotcha**: does `from_pretrained(local_path)` still try to reach the hub? | **[verified 2026-08-22] NO.** Tokenizer and model each loaded from the local path in **0.1 s**, no hang, no error, with no offline environment variables set | `TRANSFORMERS_OFFLINE` / `HF_HUB_OFFLINE` are not needed | **C done** |
 | 20 | How long does a **large** download take? | **[measured 2026-08-22]** 931 MB in **57 s** ≈ **16 MB/s**. Extrapolating, `nllb-200-3.3B` (~17 GB of repo) is roughly **18 minutes** | Extrapolated, not observed — still worth confirming in Phase E | **partly done** |
+| 21 | Do the six **multimedia models** (added 2026-10-12) list from an MCL API SRE session — and fail with 400 elsewhere? | **[open]** `[documented]` by Meta for MCL API environments only | Settles whether the group heading is enforced at the proxy. One free `hf_list_files()` per repo | G |
+| 22 | Does the **`no_timm`** revision of `facebook/detr-resnet-50` download and load offline? | **[open]** `[inferred]` from the repo's config and branches | `main` needs `timm` and a pretrained-backbone hub fetch the SRE cannot make | G |
+| 23 | Is the SRE's **`transformers`** new enough for SAM 2.1 (≥ 4.56), and are **audio decoders** (`ffmpeg`, `librosa`, `soundfile`, `torchaudio`) present? | **[open]** — overlaps Q13, whose versions were never read | Decides whether SAM 2.1, Whisper and wav2vec 2.0 work as shipped or need installs first | G |
+| 24 | Can an SRE cell **fetch media bytes** from the presigned `multimedia{url}` links? | **[open]** — `references/field_reference.md` | Without it the multimedia models have nothing to run on | G |
 
 ---
 
@@ -480,6 +484,13 @@ The payoff phase, and the one that belongs in the skill: pull MCL posts with an
 async job, embed or classify them with a local model, and export. This is where
 we find out whether the ML section should live next to the query patterns rather
 than in `utilities.md`.
+
+### Phase G — the multimedia models (added by Meta 2026-10-12)
+**Settles 21–24.** Needs an MCL API SRE session. `hf_list_files()` on all six
+repos (zero download), then the smallest end to end: DETR from `no_timm`
+(0.2 GB) on one image fetched from a post's `multimedia{url}`. Read
+`transformers.__version__` and probe the audio decoders while there. Whisper
+last — 3.1 GB even with the file list in `references/utilities.md`.
 
 ---
 

@@ -654,9 +654,12 @@ time-limited download link generated per request**, not a stable content address
   invalid. Use `shared_post_id` for reshare identity; there is no image-identity field.
 
 Retrieving the bytes additionally depends on outbound network from an SRE cell — untested, and
-gated on Meta's Import & Export Policy — and analysing them needs a **vision model, which the
-approved-model list does not contain** (`ml_models_approved.md`). So today: retrievable in
-principle, not analysable.
+gated on Meta's Import & Export Policy. Analysing them needs a vision or speech model, and
+**since 2026-10-12 the approved list has six** — CLIP, DINOv2, SAM 2.1, DETR, Whisper and
+wav2vec 2.0, for Meta Content Library API environments only (`ml_models_approved.md`). So
+today: retrievable in principle, analysable in principle; the step between — getting the
+bytes from the presigned URL into the notebook — is the untested one
+(`utilities.md` § "Multimedia models (MCL API environments)").
 
 ### THE RULE: get field names from the SPEC, not the data dictionary
 
