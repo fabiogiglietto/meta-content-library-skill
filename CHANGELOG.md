@@ -4,6 +4,23 @@ All notable changes to the `mcl-api` skill (named `mcl-api-r` through v1.19.0). 
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v2.2.1 (2026-10-21) — v5.0 deprecation; tripwire reads headings only
+
+- **MCL API v5.0 is deprecated on 2026-11-09** (Content Library and API
+  changelog, 2026-10-09). The skill already targets and pins v6.0, so no code
+  changes. `SKILL.md` § "Citing the Data" now says a pinned version has a shelf
+  life — the version before last goes about a month after notice, as v4.0
+  (2025-12-10) and v3.0 (2025-07-31) did — and that re-pinning a `"5.0"`
+  notebook to `"6.0"` changes the corpus, not just the URL.
+- **Tripwire fix.** `.github/scripts/check_meta_docs.py` read every
+  "Month D, YYYY" on a changelog page, so dates quoted inside entries counted as
+  entries: the v5.0 notice showed up as two, one of them (2026-11-09) in the
+  future. It now reads only the `<h2>` entry headings. Regenerating the baseline
+  dropped three body-text dates the old parse had recorded as entries
+  (2025-12-10, 2024-08-15 and, on the Researcher Platform page, 2025-01-07) and
+  added 2026-10-09. Both pages check clean.
+- `SKILL.md` § "Baseline" — the 2026-10-09 entry is reconciled.
+
 ## v2.2.0 (2026-10-21) — multimedia ML models
 
 Meta added **six multimedia models** to the SRE's approved Hugging Face list,
