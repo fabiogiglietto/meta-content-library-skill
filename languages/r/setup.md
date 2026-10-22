@@ -10,7 +10,7 @@ Facts: `SKILL.md` § "Setup"
 
 The MCL client is a Python package, `metacontentlibraryapi`, already installed
 in the SRE. R reaches it through reticulate, which binds `/opt/conda/bin/python3`
-(3.11) — the same interpreter as the notebook's Python kernel.
+(3.13 as of 2026-10-22; 3.11 before) — the same interpreter as the notebook's Python kernel.
 
 ```r
 library(reticulate)

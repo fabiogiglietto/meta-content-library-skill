@@ -91,7 +91,13 @@ filename = ".gitattributes"
 hf_download_file(filename, repo, revision="main", output_dir=None)
 ```
 
-Neither function returns the path; build it yourself:
+**Each call stops at an addendum prompt** — type `agree` (or `reject`) in the
+box under the cell. One prompt per call, every call
+[verified 2026-10-22]; facts in `references/utilities.md` § "Every download asks
+you to accept an addendum".
+
+Both functions now return the path [verified 2026-10-22; `None` on
+2026-08-22]; building it by hand gives the same directory:
 
 ```python
 import os
@@ -143,50 +149,66 @@ for f in want:
     hf_download_file(f, REPO, "main")
 ```
 
-### Fetching a multimedia model — [documented 2026-10-12, untested]
+### Fetching a multimedia model — [verified 2026-10-22]
 
 Facts: `references/utilities.md` § "Multimedia models (MCL API environments)"
 
-MCL API environments only. Name the files — the generic filter above misses
-`preprocessor_config.json` and would take Whisper's 6 GB of fp32 shards. Never
-`hf_download_repo()` Whisper: the whole repo (24.7 GB) is larger than the disk.
+MCL API environments only, Python 3 kernel, GPU server. Whole repos for the four
+that fit — one addendum prompt each — and named files for CLIP and Whisper, one
+prompt per file. Never `hf_download_repo()` Whisper: the repo (24.7 GB) is larger
+than the disk.
 
 ```python
 import os
-from fbri.package_managers.huggingface import hf_download_file, hf_list_files
+from fbri.package_managers.huggingface import hf_download_file, hf_download_repo
+
+# DETR from its no_timm branch: main needs timm and a pretrained-backbone fetch
+for repo, rev in [("facebook/dinov2-large", "main"), ("facebook/sam2.1-hiera-large", "main"),
+                  ("facebook/detr-resnet-50", "no_timm"), ("facebook/wav2vec2-base-960h", "main")]:
+    hf_download_repo(repo, rev)
 
 MM_FILES = {
-    "openai/whisper-large-v3": ["config.json", "generation_config.json", "preprocessor_config.json",
-                                "tokenizer.json", "tokenizer_config.json", "vocab.json", "merges.txt",
-                                "added_tokens.json", "special_tokens_map.json", "normalizer.json"],
     "openai/clip-vit-large-patch14": ["config.json", "preprocessor_config.json", "tokenizer.json",
                                       "tokenizer_config.json", "vocab.json", "merges.txt",
-                                      "special_tokens_map.json"],
-    "facebook/dinov2-large": ["config.json", "preprocessor_config.json"],
-    "facebook/sam2.1-hiera-large": ["config.json", "preprocessor_config.json", "processor_config.json",
-                                    "video_preprocessor_config.json"],
-    "facebook/detr-resnet-50": ["config.json", "preprocessor_config.json"],
-    "facebook/wav2vec2-base-960h": ["config.json", "preprocessor_config.json", "feature_extractor_config.json",
-                                    "tokenizer_config.json", "vocab.json", "special_tokens_map.json"],
+                                      "special_tokens_map.json", "model.safetensors"],
+    "openai/whisper-large-v3": ["config.json", "generation_config.json", "preprocessor_config.json",
+                                "tokenizer.json", "tokenizer_config.json", "vocab.json", "merges.txt",
+                                "added_tokens.json", "special_tokens_map.json", "normalizer.json",
+                                "model.safetensors"],
 }
-# DETR from its no_timm branch: main needs timm and a pretrained-backbone fetch
-def mm_revision(repo):
-    return "no_timm" if repo == "facebook/detr-resnet-50" else "main"
+for repo, files in MM_FILES.items():
+    for f in files:
+        hf_download_file(f, repo, "main")
 
-REPO = "openai/clip-vit-large-patch14"
-REV = mm_revision(REPO)
-hf_list_files(REPO, REV)   # free: confirms this environment may download it
-for f in MM_FILES[REPO] + ["model.safetensors"]:
-    hf_download_file(f, REPO, REV)
-
-MDIR = os.path.join(os.path.expanduser("~"), "huggingface", REPO, REV)
-from transformers import AutoModel, AutoProcessor
-proc = AutoProcessor.from_pretrained(MDIR)
-mod = AutoModel.from_pretrained(MDIR)
+def mm_dir(repo):
+    rev = "no_timm" if repo == "facebook/detr-resnet-50" else "main"
+    return os.path.join(os.path.expanduser("~"), "huggingface", repo, rev)
 ```
 
-For Whisper load in half precision on a GPU server:
-`AutoModelForSpeechSeq2Seq.from_pretrained(MDIR, torch_dtype=torch.float16)`.
+Loading — the classes that worked on 2026-10-22:
+
+```python
+import subprocess, numpy as np, torch
+import transformers as T
+
+clip = T.AutoModel.from_pretrained(mm_dir("openai/clip-vit-large-patch14")).eval().to("cuda")
+dino = T.AutoModel.from_pretrained(mm_dir("facebook/dinov2-large")).eval().to("cuda")
+detr = T.AutoModelForObjectDetection.from_pretrained(mm_dir("facebook/detr-resnet-50")).eval().to("cuda")
+sam  = T.Sam2Model.from_pretrained(mm_dir("facebook/sam2.1-hiera-large")).eval().to("cuda")  # not AutoModel
+w2v  = T.AutoModelForCTC.from_pretrained(mm_dir("facebook/wav2vec2-base-960h")).eval().to("cuda")
+wsp  = T.AutoModelForSpeechSeq2Seq.from_pretrained(mm_dir("openai/whisper-large-v3"),
+                                                   dtype=torch.float16).eval().to("cuda")
+# processors: T.AutoProcessor (CLIP, SAM, wav2vec2, Whisper), T.AutoImageProcessor (DINOv2, DETR)
+
+# Audio: torchaudio.load() needs TorchCodec, which is absent — decode with ffmpeg
+def load_audio(path, sr=16000):
+    raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", path, "-f", "f32le",
+                          "-ac", "1", "-ar", str(sr), "-"], capture_output=True, check=True).stdout
+    return np.frombuffer(raw, np.float32)
+
+# Whisper: name the language and task rather than relying on forced_decoder_ids
+# ids = wsp.generate(features.half(), language="it", task="transcribe")
+```
 
 ### Pinning a revision — [documented; mirrors languages/r/utilities.md, verified 2026-08-22 from R]
 

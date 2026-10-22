@@ -27,33 +27,83 @@ time.
 | # | Question | Now | Why it matters | Phase |
 |---|----------|-----|----------------|-------|
 | 1 | Does `fbri.package_managers.huggingface` import from **R-side reticulate**? | **[verified 2026-08-22] YES** — `fbri`, `fbri.package_managers` and `fbri.package_managers.huggingface` all report OK | The whole R section rested on it. Now the supported path, not a guess | **A done** |
-| 2 | Is reticulate's Python the **same interpreter** as the notebook's Python kernel? | **[verified 2026-08-22]** reticulate binds `/opt/conda/bin/python3`, Python **3.11** — the shared conda env. **[verified 2026-09-10]** the Python 3 kernel's `sys.executable` is `/opt/conda/bin/python`, 3.11.9 — the same conda interpreter | Explains *why* Q1 resolves; no `use_python()` needed | **Done** |
-| 3 | Real **signatures and defaults** of the two helpers | **[verified 2026-08-22] as documented.** `hf_download_repo(repo: str, revision: str = 'main', output_dir: Optional[str] = None) -> None`; `hf_download_file(filename: str, repo: str, revision: str = 'main', output_dir: Optional[str] = None) -> None` | Filename-before-repo confirmed from source | **A done** |
+| 2 | Is reticulate's Python the **same interpreter** as the notebook's Python kernel? | **[verified 2026-08-22]** reticulate binds `/opt/conda/bin/python3`, Python **3.11** — the shared conda env. **[verified 2026-09-10]** the Python 3 kernel's `sys.executable` is `/opt/conda/bin/python`, 3.11.9 — the same conda interpreter **[verified 2026-10-22]** now Python **3.13** in both kernels — the image was updated | Explains *why* Q1 resolves; no `use_python()` needed | **Done** |
+| 3 | Real **signatures and defaults** of the two helpers | **[verified 2026-08-22] as documented.** `hf_download_repo(repo: str, revision: str = 'main', output_dir: Optional[str] = None) -> None`; `hf_download_file(filename: str, repo: str, revision: str = 'main', output_dir: Optional[str] = None) -> None` **[verified 2026-10-22]** both now **return a `str`** path — see Q6 | Filename-before-repo confirmed from source | **A done** |
 | 4 | Does the download path **keep the org prefix**? | **[verified 2026-08-22] YES**, read from source: `output_dir = os.path.join(os.path.expanduser("~"), "huggingface", repo, revision)` — `repo` is the full id, org prefix included | Our documented path was right | **A done** |
 | 5 | What does `output_dir` replace — the whole path, or the parent? | **[verified 2026-08-22] the WHOLE path.** When set, the `huggingface/<repo>/<revision>` nesting is skipped entirely and files land at `os.path.join(output_dir, filename)` | **Collision hazard:** two models sharing one `output_dir` overwrite each other's like-named files (`config.json`…) | **A done** |
-| 6 | What do the helpers **return**? | **[verified 2026-08-22] `None`, both — the docstrings are WRONG.** Full source now read: neither function has a `return` statement, while both docstrings promise "str: The path" | Do not assign the return value — build the path yourself | **A done** |
+| 6 | What do the helpers **return**? | **[verified 2026-08-22] `None`, both — the docstrings are WRONG.** Full source now read: neither function has a `return` statement, while both docstrings promise "str: The path" **[verified 2026-10-22] changed: both now return the path** (`hf_download_file` the file, `hf_download_repo` the directory) | Do not assign the return value — build the path yourself | **A done** |
 | 7 | How does an **unapproved** model fail, and is that error distinguishable from a typo'd repo id? | **[verified 2026-08-22] NO — they are IDENTICAL.** Both `gpt2` (real, unapproved) and a nonexistent repo return `HTTPError: 400 Client Error: Bad Request`. No 403, no 404, no message naming approval | A 400 means *either* wrong id *or* unapproved. The reader must disambiguate by hand against the list | **B done** |
 | 8 | The **canonical repo ids** of approved models | **[link targets read from the page 2026-08-26 — authoritative] 13 entries, 13 repos.** Meta's page carries each canonical id in the entry's **href** while printing a bare name as text. **All 13 probe-verified** (12 on 2026-08-22, #12 on 2026-08-26 — 13 files). **#12 was recorded wrong** (`microsoft/mdeberta-v3-base`, guessed from the name) and is really `MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7`. **The org prefix is mandatory** — every bare legacy alias (`t5-small`, `bert-base-uncased`, `xlm-roberta-large`, …) returns 400 because the proxy does not follow Hugging Face's rename redirects | Meta's page prints the bare names, so copying its own text produces a 400 | **B done** |
 | 9 | Is the approved list available **programmatically**? | **[verified 2026-08-22] no list function** — but the module exports an **undocumented third function, `hf_list_files(repo, revision)`**, plus the constant `HF_ENDPOINT` | `hf_list_files` probes a repo without downloading it; `HF_ENDPOINT` is where gating must live | **A done** |
 | 10 | Are any models **pre-downloaded** in the image? | **[verified 2026-08-22] NO** — `~/huggingface` does not exist on a fresh server. Home is `/home/jovyan`, as documented | First step really is download | **A done** |
 | 11 | Does `revision` accept a **commit SHA / branch** other than `main`, and is it validated? | **[verified 2026-08-22] YES, fully.** Full 40-char SHA *and* 7-char short SHA both accepted; a pinned revision gets its **own directory** beside `main/`. An absent revision returns **404**, not 400 | Pinning is genuinely reproducible, and its failure mode is distinguishable | **D done** |
-| 12 | Is a **GPU** actually available, and how is a GPU machine selected? | **[verified 2026-08-22] GPU is real**: `torch 2.4.0+cu118`, `torch$cuda$is_available()` **TRUE** on the tested server. Selection procedure **[documented]** in `utilities.md` § "CPU or GPU Server". **Still open:** GPU model, VRAM, session time limit | Confirmed end to end | **A done** |
-| 13 | Which ML libraries are preinstalled, at what **versions**? | **[verified 2026-08-22]** `transformers` OK, `torch` OK, **`sentence_transformers` NOT AVAILABLE**. Versions still unread (section 4 not yet seen) | The missing one bites: Meta lists two Sentence-Transformers models that the usual `SentenceTransformer()` call cannot load | **A partly done** |
-| 14 | **Disk quota** — will `nllb-200-3.3B` (~17 GB) even fit? | **[verified 2026-08-22]** `/home/jovyan` on `/dev/nvme2n1`: **32G total, 8.6G used, 23G available (28%)**; RAM 64 GB | Fits with ~6 GB spare — two large models will not coexist | **A done** |
-| 15 | Do downloads **persist across sessions**? | [open] | If home is ephemeral, every session re-downloads and the workflow changes shape | E |
+| 12 | Is a **GPU** actually available, and how is a GPU machine selected? | **[verified 2026-08-22] GPU is real**: `torch 2.4.0+cu118`, `torch$cuda$is_available()` **TRUE** on the tested server. Selection procedure **[documented]** in `utilities.md` § "CPU or GPU Server". **Still open:** GPU model, VRAM, session time limit **[verified 2026-10-22]** a GPU server was an **NVIDIA Tesla T4**; `torch` 2.11.0+cu128 | Confirmed end to end | **A done** |
+| 13 | Which ML libraries are preinstalled, at what **versions**? | **[verified 2026-08-22]** `transformers` OK, `torch` OK, **`sentence_transformers` NOT AVAILABLE**. Versions still unread (section 4 not yet seen) **[verified 2026-10-22]** `transformers` 4.57.1, `torch` 2.11.0+cu128, `torchvision` 0.26.0, `torchaudio` 2.11.0, `timm` 1.0.30, `PIL` 12.3.0, `numpy` 2.5.3, `huggingface_hub` 0.36.2; **missing:** `librosa`, `soundfile`, `accelerate`, TorchCodec | The missing one bites: Meta lists two Sentence-Transformers models that the usual `SentenceTransformer()` call cannot load | **A partly done** |
+| 14 | **Disk quota** — will `nllb-200-3.3B` (~17 GB) even fit? | **[verified 2026-08-22]** `/home/jovyan` on `/dev/nvme2n1`: **32G total, 8.6G used, 23G available (28%)**; RAM 64 GB **[verified 2026-10-22]** 32G total, **19G used, 13G available** before any multimedia download; 3.4G after all six | Fits with ~6 GB spare — two large models will not coexist | **A done** |
+| 15 | Do downloads **persist across sessions**? | [open] 2026-10-22: `~/huggingface` held two MiniLM models from an earlier session; when they were downloaded, and so whether they outlived a 1st-of-month wipe, is not known | If home is ephemeral, every session re-downloads and the workflow changes shape | E |
 | 16 | Any **egress restriction on model outputs**? | **[verified 2026-08-22] yes, a severe one.** An exported notebook was inspected: every cell's output replaced by `[NOTICE] N output(s) filtered out`, source intact. Notebook export **strips all cell outputs** except images; the S3 feature writes to an **SRE-owned** bucket and excludes Meta Content Library anyway | Embeddings and classifications **cannot leave as data** — only as rendered images. Now in `utilities.md` § "Getting Results Out" | **done, by reading** |
 | 17 | Is inference realistically drivable **from R**, or is a Python cell the honest recommendation? | **[verified 2026-08-22] R works fine.** Tokenizer + model loaded and a mean-pooled embedding produced entirely from R via reticulate: `torch.Size([1, 384])` in 0.5 s | Our "leave it in Python" advice was too pessimistic and has been corrected | **C done** |
 | 18 | Do downloads consume any **quota** (MCL or otherwise)? | **[verified 2026-08-22]** the traffic goes to `prod-fortapis-graph-api.fb-researchtool.com`, a different host from the MCL API, and touches no MCL endpoint. No budget interaction | Confirmed by the endpoint value | **B done** |
 | 19 | **Offline gotcha**: does `from_pretrained(local_path)` still try to reach the hub? | **[verified 2026-08-22] NO.** Tokenizer and model each loaded from the local path in **0.1 s**, no hang, no error, with no offline environment variables set | `TRANSFORMERS_OFFLINE` / `HF_HUB_OFFLINE` are not needed | **C done** |
 | 20 | How long does a **large** download take? | **[measured 2026-08-22]** 931 MB in **57 s** ≈ **16 MB/s**. Extrapolating, `nllb-200-3.3B` (~17 GB of repo) is roughly **18 minutes** | Extrapolated, not observed — still worth confirming in Phase E | **partly done** |
-| 21 | Do the six **multimedia models** (added 2026-10-12) list from an MCL API SRE session — and fail with 400 elsewhere? | **[open]** `[documented]` by Meta for MCL API environments only | Settles whether the group heading is enforced at the proxy. One free `hf_list_files()` per repo | G |
-| 22 | Does the **`no_timm`** revision of `facebook/detr-resnet-50` download and load offline? | **[open]** `[inferred]` from the repo's config and branches | `main` needs `timm` and a pretrained-backbone hub fetch the SRE cannot make | G |
-| 23 | Is the SRE's **`transformers`** new enough for SAM 2.1 (≥ 4.56), and are **audio decoders** (`ffmpeg`, `librosa`, `soundfile`, `torchaudio`) present? | **[open]** — overlaps Q13, whose versions were never read | Decides whether SAM 2.1, Whisper and wav2vec 2.0 work as shipped or need installs first | G |
+| 21 | Do the six **multimedia models** (added 2026-10-12) list from an MCL API SRE session — and fail with 400 elsewhere? | **[verified 2026-10-22] they list, download and run** in an MCL API environment (file counts: Whisper 21, CLIP 13, DINOv2 6, SAM 2.1 9, DETR 6 on `main` / 5 on `no_timm`, wav2vec2 11). The 400 elsewhere is **[untested]** | Settles whether the group heading is enforced at the proxy | **G half done** |
+| 22 | Does the **`no_timm`** revision of `facebook/detr-resnet-50` download and load offline? | **[verified 2026-10-22] YES** — `AutoModelForObjectDetection`, `use_timm_backbone = False`, runs on GPU. Whether a branch is the addendum's "exact approved version" is Q25 | `main` needs a pretrained-backbone hub fetch the SRE cannot make | **G done** |
+| 23 | Is the SRE's **`transformers`** new enough for SAM 2.1 (≥ 4.56), and are **audio decoders** (`ffmpeg`, `librosa`, `soundfile`, `torchaudio`) present? | **[verified 2026-10-22]** 4.57.1 — yes, but `AutoModel` gives `Sam2VideoModel`; load `Sam2Model` by name. `ffmpeg` at `/usr/bin/ffmpeg` works; `torchaudio.load()` fails without TorchCodec; `librosa`, `soundfile` absent | Decides whether SAM 2.1, Whisper and wav2vec 2.0 work as shipped | **G done** |
 | 24 | Can an SRE cell **fetch media bytes** from the presigned `multimedia{url}` links? | **[open]** — `references/field_reference.md` | Without it the multimedia models have nothing to run on | G |
+| 25 | What does the **Researcher Machine Learning Model Addendum** (Oct 12th 2026) permit? | **[verified 2026-10-22]** every download prompts for it, every model, every call; R cannot answer the prompt (`AddendumInteractionRequired`). **[open]** whether §7(a) "unmodified … exact approved version" allows non-`main` revisions (DETR `no_timm`, pinned SHAs) or fine-tuning; why §1(a) defines the list as "large language models" | Decides whether the `no_timm` and pinning advice, and fine-tuning `mdeberta-v3-base`, are compliant | support ticket |
 
 ---
 
 ## Results log
+
+### Phase G, run 2026-10-22 — the six multimedia models
+
+MCL API environment, driven by stage-and-paste from the `mcl-agent` client.
+First an R probe on a CPU server (versions, `hf_list_files()` on all six, and
+the first downloads — which failed), then a Python 3 kernel on a GPU server.
+Synthetic inputs only (a generated image and a 440 Hz tone); no Meta Data, no
+query budget.
+
+**1. Downloads now require accepting an addendum, every call.** From R:
+`AddendumInteractionRequired: Addendum acknowledgement requires interactive
+input.` From Python the cell renders the "Researcher Machine Learning Model
+Addendum" and waits on `Please read the addendum and enter 'agree' or 'reject':`.
+The researcher answered all 23 prompts.
+
+```
+23 steps; 23 ok
+facebook/dinov2-large@main [whole repo]       2.3G
+facebook/sam2.1-hiera-large@main [whole repo] 1.7G
+facebook/detr-resnet-50@no_timm [whole repo]  160M
+facebook/wav2vec2-base-960h@main [whole repo] 1.1G
+openai/clip-vit-large-patch14  8 files        1.6G
+openai/whisper-large-v3       11 files        2.9G
+/dev/nvme2n1  32G  28G  3.4G  90%  /home/jovyan
+cuda True Tesla T4
+```
+
+**2. Inference, transformers 4.57.1 on the T4:**
+
+```
+audio   | ffmpeg_pipe_samples=32000 torchaudio.load=ERROR ImportError: TorchCodec is required for load_with_torchcodec
+clip    | 6.3s | CLIPModel probs=[[0.996, 0.004]]
+dino    | 0.9s | Dinov2Model pooler=(1, 1024)
+detr    | 1.0s | DetrForObjectDetection use_timm=False detections=0
+sam     | 2.0s | AutoModel=Sam2VideoModel | Sam2VideoProcessor Sam2Model masks=(1, 3, 480, 640) iou=[[[0.16, 0.14, 0.99]]]
+w2v     | 0.6s | Wav2Vec2Processor logits=(1, 149, 32) text=''
+whisper | 2.4s | WhisperForConditionalGeneration dtype=torch.float16 text='.'
+```
+
+No detections and empty transcripts are the right answers for a red rectangle
+and a pure tone. Warnings seen: `sam2_video` → `sam2` "not supported for all
+configurations"; wav2vec2 `masked_spec_embed` newly initialized; Whisper
+`torch_dtype` deprecated and `forced_decoder_ids` deprecated; "slow image
+processor" for CLIP and DINOv2.
+
+Folded into `references/utilities.md` § "Every download asks you to accept an
+addendum" and § "Multimedia models (MCL API environments)". Q24 — fetching
+real post media — stays open: it needs a LIVE query and puts Meta Data on
+screen, so it was out of scope for a plumbing test.
 
 ### Phase A, run 2026-08-22 — partial
 
