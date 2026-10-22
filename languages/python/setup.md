@@ -72,8 +72,9 @@ every example in this skill parses responses with it instead of a bare
 `json.loads()` — and `mcl_wait_for_job()` from `languages/python/jobs.md`
 § "Waiting for a job".
 
-The notebook's Python 3 kernel is `/opt/conda/bin/python`, Python 3.11.9
-(conda-forge, IPython 8.26.0), with pandas 2.3.3 — the same conda interpreter
+The notebook's Python 3 kernel is `/opt/conda/bin/python` — Python 3.11.9
+(conda-forge, IPython 8.26.0) with pandas 2.3.3 on 2026-09-10, Python 3.13 by
+2026-10-22 `[verified]` — the same conda interpreter
 reticulate binds from R `[verified 2026-09-10]`, which closes
 `docs/ML_MODELS_OPEN_QUESTIONS.md` Q2.
 

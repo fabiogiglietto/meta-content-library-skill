@@ -156,8 +156,9 @@ through the `fbri` helper, then load it from its local path.
 > transcribed from
 > [Machine Learning Models](https://developers.facebook.com/docs/researcher-platform/features/ml-models)
 > (fetched 2026-08-21). **The import works from R: [verified 2026-08-22]** in a
-> live SRE session — see "Calling the helper from either kernel". The download *call* itself is
-> still untested.
+> live SRE session — see "Calling the helper from either kernel". **Downloads are
+> [verified 2026-10-22] from a Python 3 kernel, and they now stop at an addendum
+> prompt that R cannot answer** — § "Every download asks you to accept an addendum".
 
 ### Downloading, as documented
 
@@ -168,6 +169,63 @@ output_dir=None)` fetches one file — **note the argument order: filename
 first, then repo**.
 
 Code: `languages/r/utilities.md` § "Downloading a model" · `languages/python/utilities.md` § "Downloading a model"
+
+### Every download asks you to accept an addendum — [verified 2026-10-22]
+
+**Since Meta's "Researcher Machine Learning Model Addendum" (dated October 12th
+2026), each download call is gated.** The call fetches the addendum from the
+proxy, renders it in the cell output, and blocks on `input()` until the
+researcher types `agree` or `reject`; the answer is recorded with Meta before any
+bytes move. Observed from `fbri.package_managers.huggingface` in a live session:
+
+- **Every call mints its own attempt, so every call prompts.** One
+  `hf_download_repo()` is one prompt; fetching nineteen files with
+  `hf_download_file()` is nineteen prompts. A prompt answered earlier does not
+  carry over, not even within the same cell.
+- **It applies to every model**, the thirteen text models included —
+  `google-t5/t5-small`'s `config.json` was gated the same way.
+- **`hf_list_files()` is not gated.** Listing still costs nothing and asks nothing.
+- **From R it cannot be answered.** Under reticulate `input()` has no stdin, and
+  the call fails with `AddendumInteractionRequired: Addendum acknowledgement
+  requires interactive input.` **Run downloads in a Python 3 notebook**, then load
+  the files from either kernel — they are on disk either way.
+- `reject` raises `AddendumDeclined`; a failed check raises `AddendumCheckFailed`.
+
+**Plan downloads around the prompts.** Where the whole repo fits on disk, one
+`hf_download_repo()` costs one prompt instead of one per file — the trade the
+multimedia table below makes model by model. A loop of file downloads waits at
+each prompt; an unattended cell does not finish.
+
+**The agreement is the researcher's, and is not to be scripted around.** The
+module has internal functions that could reuse one acknowledgement across
+calls; using them would be circumventing an SRE control, which the addendum
+itself prohibits (§7(b)). Type `agree` yourself, at each prompt.
+
+**What the addendum adds to the Terms**, in summary — read the text the prompt
+shows you, which is what you are agreeing to:
+
+| § | In short |
+|---|----------|
+| 2–3 | Approved models only, for your Approved Purpose; no Meta Data leaves the SRE |
+| **4** | **No identifying, verifying or determining the identity of a natural person** with any model — biometric processing, facial recognition, voice identification, behavioural profiling, re-identification — **even as an incidental outcome** |
+| 5 | Models run sandboxed: no persistent storage, no outbound network |
+| 6 | Meta may audit and log model activity, and suspend access pending investigation |
+| 7 | You warrant you use an **unmodified instance of the exact approved version**, and do not circumvent SRE controls |
+| 11 | A §4 breach is **excluded from the liability cap** |
+| 12 | Meta may change the addendum and the approved list at any time; continued use is acceptance |
+
+Two points are **[open]** and worth a support ticket before relying on them:
+
+- **§7(a) "unmodified … exact approved version".** Does a non-`main` revision
+  count — DETR's `no_timm` branch below, or a pinned SHA (§ "Pinning a
+  revision")? And does it rule out fine-tuning, which is the point of
+  `microsoft/mdeberta-v3-base`?
+- **§1(a) defines the Approved Model List as "large language models"**, while the
+  list now carries speech and vision models. The prompt is shown for those too.
+
+§4 matters most for the multimedia models: speaker, face and image matching are
+exactly what Whisper, wav2vec 2.0, CLIP and DINOv2 embeddings make easy. Design
+the analysis so no step resolves who a person is.
 
 Downloads land in `~/huggingface/<REPO>/<REVISION>` — where `<REPO>` keeps its
 **org prefix**, so the default revision of the model above is at
@@ -191,10 +249,13 @@ Three consequences worth knowing before you rely on either function:
   directly in the directory you named. **Give every model its own `output_dir`**,
   or two models will overwrite each other's `config.json`, `tokenizer.json` and
   friends with no warning.
-- **Neither function returns the path**, whatever their docstrings say. Both are
-  annotated `-> None`, neither has a `return` statement, and both docstrings
-  promise `str: The path to the downloaded …`. Build the path yourself, as the R
-  example below does. Assigning the result gets you `NULL`.
+- **Both functions now return the path** — a `str` **[verified 2026-10-22]**:
+  the file for `hf_download_file()`, e.g.
+  `/home/jovyan/huggingface/openai/whisper-large-v3/main/vocab.json`, and the
+  output directory for `hf_download_repo()`. On 2026-08-22 both were
+  annotated `-> None` with no `return` statement
+  **[verified 2026-08-22]**, so older notebooks build the path by hand; that
+  still works and gives the same directory.
 - **There is a third, undocumented function: `hf_list_files(repo, revision)`.**
   Meta's page does not mention it, and `hf_download_repo` is just a loop over it.
   Use it to check a repo id — and your access to it — **before** committing to a
@@ -219,14 +280,17 @@ Code: `languages/r/utilities.md` § "Cleaning up a failed download" · `language
 *and* `onnx/model_O1.onnx`, `onnx/model_O2.onnx`, OpenVINO, TensorFlow and Rust
 variants indiscriminately. There is no format filter.
 
-With ~23 GB of home directory available that matters. For anything large, list
+With **~13 GB free** in `/home/jovyan` that matters **[verified 2026-10-22]**:
+the volume is still 32 GB, but 19 GB was in use before any model was fetched
+(23 GB was free on 2026-08-22). For anything large, list
 first and fetch only what you need — the config, tokenizer, vocab and
 special-tokens files plus the `.safetensors` weights.
 
 Code: `languages/r/utilities.md` § "Fetching only the files you need" · `languages/python/utilities.md` § "Fetching only the files you need"
 
-Throughput measured at roughly **16 MB/s**, so a 17 GB repository is on the order
-of 18 minutes.
+Throughput measured at roughly **16 MB/s** (2026-08-22), so a 17 GB repository is
+on the order of 18 minutes. On 2026-10-22 Whisper's 3.1 GB weight file took
+134 s *including* the time to answer its addendum prompt — at least ~23 MB/s.
 
 There is also a **division-by-zero branch** in the progress printer: it reads
 `content-length` from the response, defaults it to `0` when absent, and divides
@@ -330,15 +394,15 @@ your environment.
 
 **[verified 2026-08-22]** — `fbri`, `fbri.package_managers` and
 `fbri.package_managers.huggingface` all import from R-side reticulate in a live
-SRE session. reticulate binds to `/opt/conda/bin/python3` (Python **3.11**), the
-same conda environment the notebook kernels use, which is why the import
-resolves. Importing it from R is therefore the supported path, not a guess. The
-**download call** has not been run yet — that is Phase B in
-`docs/ML_MODELS_OPEN_QUESTIONS.md`.
+SRE session. reticulate binds to `/opt/conda/bin/python3`, the same conda
+environment the notebook kernels use, which is why the import resolves — Python
+3.11 then, **3.13 as of 2026-10-22**.
 
-A Python cell remains valid if anything goes wrong on the R side — run the
-download there and use the model path from R; the files are on disk either
-way.
+**Download from a Python 3 notebook, not from R [verified 2026-10-22].** The
+addendum prompt (§ "Every download asks you to accept an addendum") needs
+interactive input that reticulate cannot supply, so every R download fails with
+`AddendumInteractionRequired`. `hf_list_files()` still works from R. Download in
+Python, then load the model from R or Python — the files are on disk either way.
 
 Code: `languages/r/utilities.md` § "Downloading a model" · `languages/python/utilities.md` § "Downloading a model"
 
@@ -396,8 +460,8 @@ prints them:
 | Object detection | `facebook/detr-resnet-50` | MCL API only |
 
 The thirteen text models are **probe-verified** from inside the SRE
-(2026-08-22/26); the six multimedia models are **[documented]** only — run
-`hf_list_files()` on one before planning around it.
+(2026-08-22/26); the six multimedia models are **[verified 2026-10-22]** —
+listed, downloaded and run on a GPU server in an MCL API environment.
 
 **Two mDeBERTa entries, two different tools.** `microsoft/mdeberta-v3-base` is a
 plain multilingual encoder to fine-tune; the `MoritzLaurer/…-xnli-…` entry is an
@@ -412,76 +476,90 @@ The list grows — check the
 [page](https://developers.facebook.com/docs/researcher-platform/features/ml-models)
 rather than trusting this table.
 
-### Multimedia models (MCL API environments) — [documented 2026-10-12]
+### Multimedia models (MCL API environments) — [verified 2026-10-22]
 
 Six models for audio, images and video, announced on both Meta changelogs on
-2026-10-12. Nothing below has been run in the SRE; sizes and file lists are read
-from Hugging Face's public API on 2026-10-21, everything about the SRE side is
-**[inferred]** from the verified behaviour of the text models.
+2026-10-12. **All six list, download and run** in an MCL API environment
+**[verified 2026-10-22]**: Python 3 kernel on a GPU server (Tesla T4),
+`transformers` 4.57.1, `torch` 2.11.0+cu128, synthetic inputs only. Whole-repo
+sizes are Hugging Face's figures (2026-10-21); "on disk" is `du` after download.
 
-**Do not `hf_download_repo()` these.** It pulls every weight format in the repo
-(§ "Downloading, as documented"), and for these repos that is 2–8× what you
-need — and for Whisper, more than the disk:
+**Pick the download route by size — and by prompts.** Each call is one addendum
+prompt (§ "Every download asks you to accept an addendum"), so a whole repo is
+cheaper to sit through than a file list wherever it fits. Two do not:
 
-| Repo | Whole repo | Files you need (PyTorch) | Needed size |
-|------|-----------:|--------------------------|------------:|
-| `openai/whisper-large-v3` | **24.7 GB** | `model.safetensors` + `config.json`, `generation_config.json`, `preprocessor_config.json`, `tokenizer.json`, `tokenizer_config.json`, `vocab.json`, `merges.txt`, `added_tokens.json`, `special_tokens_map.json`, `normalizer.json` | 3.1 GB |
-| `openai/clip-vit-large-patch14` | 6.9 GB | `model.safetensors` + `config.json`, `preprocessor_config.json`, `tokenizer.json`, `tokenizer_config.json`, `vocab.json`, `merges.txt`, `special_tokens_map.json` | 1.7 GB |
-| `facebook/dinov2-large` | 2.4 GB | `model.safetensors` + `config.json`, `preprocessor_config.json` | 1.2 GB |
-| `facebook/sam2.1-hiera-large` | 1.8 GB | `model.safetensors` + `config.json`, `preprocessor_config.json`, `processor_config.json`, `video_preprocessor_config.json` | 0.9 GB |
-| `facebook/detr-resnet-50` | 0.3 GB | `model.safetensors` + `config.json`, `preprocessor_config.json` — **from the `no_timm` revision**, see below | 0.2 GB |
-| `facebook/wav2vec2-base-960h` | 1.1 GB | `model.safetensors` + `config.json`, `preprocessor_config.json`, `feature_extractor_config.json`, `tokenizer_config.json`, `vocab.json`, `special_tokens_map.json` | 0.4 GB |
+| Repo | Whole repo | Route | On disk |
+|------|-----------:|-------|--------:|
+| `openai/whisper-large-v3` | **24.7 GB** | **files** — `model.safetensors` + `config.json`, `generation_config.json`, `preprocessor_config.json`, `tokenizer.json`, `tokenizer_config.json`, `vocab.json`, `merges.txt`, `added_tokens.json`, `special_tokens_map.json`, `normalizer.json` (11 prompts) | 2.9 GB |
+| `openai/clip-vit-large-patch14` | 6.9 GB | **files** — `model.safetensors` + `config.json`, `preprocessor_config.json`, `tokenizer.json`, `tokenizer_config.json`, `vocab.json`, `merges.txt`, `special_tokens_map.json` (8 prompts) | 1.6 GB |
+| `facebook/dinov2-large` | 2.4 GB | whole repo (1 prompt) | 2.3 GB |
+| `facebook/sam2.1-hiera-large` | 1.8 GB | whole repo (1 prompt) | 1.7 GB |
+| `facebook/detr-resnet-50` | 0.3 GB | whole repo **at revision `no_timm`**, see below (1 prompt) | 0.2 GB |
+| `facebook/wav2vec2-base-960h` | 1.1 GB | whole repo (1 prompt) | 1.1 GB |
 
-With ~23 GB free in `/home/jovyan` **[verified 2026-08-22]**, a whole-repo Whisper
-download fails part-way and leaves the truncated files described in § "Downloading, as
-documented". Whisper's repo also carries **two fp32 shards**
-(`model.fp32-0000{1,2}-of-00002.safetensors`, 6.2 GB) beside the fp16
-`model.safetensors`; the generic `\.safetensors$` filter in § "Fetching only the
-files you need" would take both. Use the explicit lists above.
-
-The generic filter has a second gap for every model here: it skips
-`preprocessor_config.json` (and Whisper's `generation_config.json`), which
-`AutoProcessor` / `AutoImageProcessor` need. A text model never needed them.
+All six together took **~9.6 GB and 23 prompts**, leaving 3.4 GB free of the
+~13 GB there was. A whole-repo Whisper download cannot fit and would leave the
+truncated files described in § "Downloading, as documented". Whisper's repo also
+carries **two fp32 shards** (`model.fp32-0000{1,2}-of-00002.safetensors`, 6.2 GB)
+beside the fp16 `model.safetensors`; the generic `\.safetensors$` filter in
+§ "Fetching only the files you need" would take both, and it skips the
+`preprocessor_config.json` every model here needs. Use the explicit lists.
 
 Code: `languages/r/utilities.md` § "Fetching a multimedia model" · `languages/python/utilities.md` § "Fetching a multimedia model"
 
-**Model-specific traps, all [inferred] from the repos' configs:**
+**What each needs to load and run — [verified 2026-10-22] unless tagged:**
 
-- **DETR wants a second download it cannot make.** `facebook/detr-resnet-50` on
-  `main` builds its ResNet-50 backbone through **`timm`** and, by default, asks
-  timm for *pretrained* backbone weights — a hub fetch the SRE cannot make, and
-  `timm` may not be installed. The repo has a **`no_timm` branch** that uses
-  `transformers`' own ResNet; download with `revision = "no_timm"` (the files land
-  in `~/huggingface/facebook/detr-resnet-50/no_timm`). A non-`main` revision of an
-  approved repo is accepted by the proxy **[verified for SHAs 2026-08-22]**; this
-  branch is untested.
-- **SAM 2.1 needs a recent `transformers`.** Its config declares
-  `Sam2VideoModel`, written by `transformers` 4.56. The SRE's `transformers`
-  version has not been read (`docs/ML_MODELS_OPEN_QUESTIONS.md` Q13); on an older
-  one, loading fails with an unknown `model_type: sam2_video`. The repo also ships
-  `sam2.1_hiera_large.pt` + a YAML for Meta's standalone `sam2` package — skip
-  them unless you install that package.
-- **Audio needs a decoder.** Whisper and wav2vec 2.0 take a 16 kHz waveform, not a
-  file. Turning an MP4 or OGG into one needs `ffmpeg`, `librosa`, `soundfile` or
-  `torchaudio`, none of which has been checked in the SRE — § "Installing
-  packages" (conda-forge carries `ffmpeg`).
-- **Whisper on a CPU server is impractically slow** at 1.55 B parameters. Use a
-  GPU server (§ "CPU or GPU Server") and load in `float16`.
+- **DETR: use the `no_timm` branch.** `facebook/detr-resnet-50` on `main` builds
+  its backbone through `timm` and asks for *pretrained* backbone weights from the
+  hub, which the SRE cannot reach. Download with `revision = "no_timm"` (files in
+  `~/huggingface/facebook/detr-resnet-50/no_timm`): `AutoModelForObjectDetection`
+  loads it offline with `use_timm_backbone = False` and runs. `timm` 1.0.30 *is*
+  installed, but `main` is **[untested]**. Whether a non-`main` branch is the
+  "exact approved version" the addendum's §7(a) asks for is **[open]**.
+- **SAM 2.1: load `Sam2Model` by name.** `transformers` 4.57.1 is new enough
+  (≥ 4.56), but `AutoModel` resolves this repo to **`Sam2VideoModel`** and
+  `AutoProcessor` to `Sam2VideoProcessor`, because its config is written as
+  `sam2_video`. For still images, `Sam2Model.from_pretrained()` with the
+  `AutoProcessor` works — one point prompt gave three masks at the image's size,
+  best IoU 0.99 — after a warning that `sam2_video` → `sam2` "is not supported for
+  all configurations". The repo's `sam2.1_hiera_large.pt` + YAML are for Meta's
+  standalone `sam2` package; the whole-repo download takes them anyway.
+- **Audio: decode with `ffmpeg`, not `torchaudio`.** `ffmpeg` is at
+  `/usr/bin/ffmpeg` and pipes any file to the 16 kHz mono float32 both speech
+  models take. **`torchaudio.load()` fails** — torchaudio 2.11 hands decoding to
+  TorchCodec, which is not installed (`ImportError: TorchCodec is required for
+  load_with_torchcodec`). `librosa` and `soundfile` are not installed either.
+- **Whisper: GPU, half precision.** On the T4 it loads in `float16` and
+  generates in seconds. `transformers` 4.57 deprecates `torch_dtype=` (use
+  `dtype=`) and the config's `forced_decoder_ids` — pass `language=` and
+  `task="transcribe"` to `generate()`, or it detects the language per clip and
+  may translate. On a CPU server, at 1.55 B parameters, it is impractically slow
+  **[inferred]**.
+- **wav2vec 2.0** loads with `AutoProcessor` + `AutoModelForCTC`. The warning that
+  `masked_spec_embed` is "newly initialized" concerns a training-only parameter
+  and does not affect transcription.
+- **CLIP and DINOv2** load with `AutoProcessor`/`AutoImageProcessor` +
+  `AutoModel` and need nothing else; the "slow image processor" warning is
+  harmless. CLIP put 0.996 on the right one of two captions for a synthetic image.
+- **`accelerate` is not installed**, so `device_map = "auto"` is unavailable;
+  move the model with `.to("cuda")`.
 
 **Where the media comes from is still open.** These models are only useful if
 the image, audio and video bytes reach your notebook. Posts expose presigned S3
 download URLs on request (`references/field_reference.md` § "`multimedia{url}` DOES work"), but
 fetching them from an SRE cell has not been tested, and the "multimedia queries"
-quota in SKILL.md is documented for third-party cleanrooms, not the SRE. Meta
-shipping vision and speech models into MCL API environments suggests the path
-exists; until someone runs it, treat it as **[open]** —
-`docs/ML_MODELS_OPEN_QUESTIONS.md` Q21–Q24.
+quota in SKILL.md is documented for third-party cleanrooms, not the SRE. Treat it
+as **[open]** — `docs/ML_MODELS_OPEN_QUESTIONS.md` Q24. Whatever arrives, the
+addendum's §4 bars using these models to identify people.
 
 ### Restrictions
 
 - **Approved list only.** No internet access means an unlisted model cannot be
   fetched at all, by any route.
 - **Six of the 19 are MCL-API-environment only** — the multimedia models above.
+- **The Researcher Machine Learning Model Addendum** applies to every model,
+  and is accepted at every download — § "Every download asks you to accept an
+  addendum".
 - **Open-source license required.** Only models on the Hugging Face Hub under an
   open-source license can be considered. *(Until 2026-10 the page also required
   text-based models; that condition is gone.)*
@@ -521,8 +599,11 @@ left navigation bar — it is absent on CPU servers — giving GPU dashboards
 powered by NVDashboard. From code, `torch$cuda$is_available()` (see the ML
 section above) is the programmatic check.
 
+**Observed [verified 2026-10-22]:** one GPU server was an **NVIDIA Tesla T4**
+(16 GB, fp16-capable).
+
 **What is not documented**, and is worth knowing before planning a large job:
-the GPU model and specs, memory, disk, any time limit on a GPU session, and
+the GPU model and specs as a guarantee, any time limit on a GPU session, and
 whether GPU access is uniform across institutions. `docs/ML_MODELS_OPEN_QUESTIONS.md`
 question 12 tracks these.
 
