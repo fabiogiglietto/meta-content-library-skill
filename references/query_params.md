@@ -171,6 +171,11 @@ restrict a Page search to known Pages:
 **[verified 2026-09-16]**. So an id batch above 100 cannot have all of its results returned
 in one call. Batch entity lookups at 100 regardless of the 250 in the table above.
 
+**And send `limit` explicitly — the default page size is 10.** `facebook/pages/preview`
+with 25 `page_ids` and no `limit` returned **10 rows** plus a `paging.cursors.after`
+cursor; the same 25 ids with `limit = 100L` returned all 25 **[verified 2026-10-14]**.
+A batched lookup that omits `limit` silently gets back only the first 10 of each batch.
+
 `admin_countries` likewise survives on `facebook/pages` and `facebook/profiles`
 (it filters on the admin's country); it is only on `facebook/posts` that the
 name is `surface_countries`. `website` is a further filter on both of those two

@@ -398,7 +398,18 @@ mcl_fix_ids <- function(x, name = "") {
   }
   x
 }
-mcl_fromJSON <- function(txt) mcl_fix_ids(fromJSON(txt, flatten = TRUE, bigint_as_char = TRUE))
+mcl_quote_ids <- function(txt) {  # quote unquoted IDs before jsonlite sees them
+  txt <- gsub('("[A-Za-z_]*id"\\s*:\\s*)(-?[0-9]{15,})', '\\1"\\2"', txt, perl = TRUE)
+  m <- gregexpr('"[A-Za-z_]*ids"\\s*:\\s*\\[[^]]*\\]', txt, perl = TRUE)
+  regmatches(txt, m) <- lapply(regmatches(txt, m), function(s)
+    gsub('(?<![0-9"])(-?[0-9]{15,})(?![0-9"])', '"\\1"', s, perl = TRUE))
+  txt
+}
+mcl_fromJSON <- function(txt) {
+  if (length(txt) == 1 && !grepl("^\\s*[\\[{]", txt) && file.exists(txt))
+    txt <- paste(readLines(txt, warn = FALSE, encoding = "UTF-8"), collapse = "\n")
+  mcl_fix_ids(fromJSON(mcl_quote_ids(txt), flatten = TRUE, bigint_as_char = TRUE))
+}
 
 # 1. Estimate before spending budget
 est <- mcl_fromJSON(client$get(

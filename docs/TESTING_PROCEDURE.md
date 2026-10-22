@@ -1446,7 +1446,7 @@ cat("Success with correct parameter (post_ids)\n")
 
 **Location:** `languages/r/ids.md` § "mcl_fromJSON" (facts: SKILL.md § "ID Handling (IDs Are Strings)")
 
-**Purpose:** Verify `mcl_fromJSON()` on a fixture covering every failure mode: an ID above 2^53, an ID below it, a JSON `null` ID, a nested (flattened) ID, a list-column of IDs, a boolean `is_invalid_id` flag, empty result sets, and two "chunks" that must bind together.
+**Purpose:** Verify `mcl_fromJSON()` on a fixture covering every failure mode: an ID above 2^53, an ID below it, a JSON `null` ID, a nested (flattened) ID, a list-column of IDs, a boolean `is_invalid_id` flag, empty result sets, two "chunks" that must bind together, and one column mixing IDs above and below 2^53.
 
 **Run this first**, before any test that spends budget: it needs no API call, and it fails loudly if the environment's `jsonlite` is too old to honour `bigint_as_char`.
 
@@ -1482,6 +1482,19 @@ stopifnot(length(mcl_fromJSON('{"data":[]}')$data) == 0,
 
 combined <- bind_rows(a, b)               # would fail with plain fromJSON()
 stopifnot(is.character(combined$id))
+
+# One column mixing IDs above and below 2^53 (and an array that does the same):
+# bigint_as_char alone returns "1e+15" / "2e+15" for the smaller ones
+mixed <- '{"data":[
+  {"id":1000000000000000, "surface":{"id":2000000000000001},
+   "reply_ids":[963780196442228, 17841400000000123]},
+  {"id":12345678901234567, "surface":{"id":2000000000000002}, "reply_ids":[]}]}'
+m <- mcl_fromJSON(mixed)$data
+stopifnot(
+  identical(m$id, c("1000000000000000", "12345678901234567")),
+  identical(m$surface.id, c("2000000000000001", "2000000000000002")),
+  identical(m$reply_ids[[1]], c("963780196442228", "17841400000000123"))
+)
 print(combined[, c("id", "post_id", "parent_id", "author.id")])
 
 # Contrast: what plain fromJSON() does
@@ -1498,6 +1511,7 @@ fromJSON(chunk_big, flatten = TRUE)$data$id   # 1.78414e+16, last digits already
 - [ ] No `stopifnot` failure
 - [ ] `bind_rows()` across chunks succeeds
 - [ ] Big ID preserved exactly as `17841400000000123`
+- [ ] Mixed column keeps `1000000000000000` and `2000000000000001` (not `1e+15` / `2e+15`)
 - [ ] `parent_id` is `NA`, not the string `"NA"`
 - [ ] `is_invalid_id` is `TRUE`/`FALSE`, not `"1"`/`"0"`
 - [ ] Empty and null `data` payloads parse without error
