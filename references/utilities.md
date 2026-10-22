@@ -265,9 +265,15 @@ out in this order:
 1. **Check the id against `references/ml_models_approved.md`.** If the model is
    not on Meta's list, a 400 is the expected answer and the route forward is a
    support ticket with a use-case justification.
-2. **If it is on the list, suspect the org prefix** — Meta names owners, not repo
-   ids. Resolve it with `hf_list_files()`, which costs nothing —
+2. **If it is on the list, suspect the org prefix** — copy the id exactly as
+   Meta's page prints it (it has printed the full `org/repo` since 2026-10), not
+   from a tutorial. Check it with `hf_list_files()`, which costs nothing —
    `sentence-transformers/all-MiniLM-L6-v2` at `main` lists 30 files.
+
+3. **If it is a multimedia model (§ "Multimedia models" below), check your
+   environment.** Those six are approved for Meta Content Library API
+   environments only. **[inferred]** Elsewhere in the SRE they should fail like
+   any unapproved model — a 400.
 
 A revision mistake never reaches this ladder — it announces itself as a 404.
 
@@ -302,19 +308,23 @@ Bare legacy model names return `400`, the same error as an unapproved model.
 Hugging Face redirects them to their canonical org-qualified repos; **Meta's
 proxy does not follow that redirect.**
 
-| Meta's page prints | You must use |
+**Since 2026-10-12 Meta's page prints the full id for every entry** ("Use each
+repository ID as shown") — copy from there and you are safe. The table below is
+for ids taken from tutorials, model cards and older notes, which still use the
+bare forms (as Meta's own page did until then):
+
+| Tutorials print | You must use |
 |--------------------|--------------|
 | `t5-base` / `t5-small` | `google-t5/t5-base` / `google-t5/t5-small` |
 | `bert-base-uncased` | `google-bert/bert-base-uncased` |
 | `distilbert-base-uncased-finetuned-sst-2-english` | `distilbert/distilbert-base-uncased-finetuned-sst-2-english` |
 | `xlm-roberta-large` | `FacebookAI/xlm-roberta-large` |
-| `all-MiniLM-L6-v2` (owner given as "UKP Lab") | `sentence-transformers/all-MiniLM-L6-v2` |
+| `all-MiniLM-L6-v2` | `sentence-transformers/all-MiniLM-L6-v2` |
 
-The full table — thirteen entries, thirteen ids, taken from the page's own link
-targets — is `references/ml_models_approved.md`. **The page carries the canonical
-id in each entry's href**, even though it prints the bare name as text; the link is
-the reliable source, and `hf_list_files()` then confirms in one free call that the
-id is downloadable.
+The full table — nineteen entries, nineteen ids, the page's printed id and its
+href agreeing in every case — is `references/ml_models_approved.md`.
+`hf_list_files()` then confirms in one free call that the id is downloadable from
+your environment.
 
 ### Calling the helper from either kernel
 
@@ -367,51 +377,117 @@ not affected.
 
 ### Approved models
 
-Only models on Meta's approved list can be downloaded. As fetched 2026-08-22 the
-list covers three families — 13 entries, one repository each (entry #11's on-page
-name grew a subtitle since the 2026-08-21 fetch — see
-`references/ml_models_approved.md`):
+Only models on Meta's approved list can be downloaded. **As fetched 2026-10-21
+the list has 19 entries, one repository each, in two groups** — 13 available in
+every SRE environment, and 6 multimedia models (added 2026-10-12) available only
+in **Meta Content Library API environments**. Repo ids are exactly as Meta's page
+prints them:
 
-**Repo ids below are the ones Meta's page actually links to** — read off its hrefs
-on 2026-08-26, which is the authoritative mapping, and **all thirteen are
-probe-verified** (twelve on 2026-08-22, #12 on 2026-08-26). See § "Always use the
-org-qualified repo id" above for why the visible names differ:
+| Use | Repo id | Where |
+|-----|---------|-------|
+| Translation | `facebook/nllb-200-3.3B`, `facebook/nllb-200-distilled-600M`, `facebook/mbart-large-50`, `facebook/mbart-large-50-many-to-many-mmt`, `google-t5/t5-base`, `google-t5/t5-small` | all SRE |
+| Text embeddings | `sentence-transformers/all-MiniLM-L6-v2`, `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | all SRE |
+| Text classification / NLU | `google-bert/bert-base-uncased`, `distilbert/distilbert-base-uncased-finetuned-sst-2-english`, `FacebookAI/xlm-roberta-large`, `microsoft/mdeberta-v3-base` | all SRE |
+| Zero-shot text classification | `MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7` | all SRE |
+| Speech transcription | `openai/whisper-large-v3` (multilingual), `facebook/wav2vec2-base-960h` (English; also audio embeddings) | MCL API only |
+| Image–text similarity, zero-shot image labelling | `openai/clip-vit-large-patch14` | MCL API only |
+| Image embeddings | `facebook/dinov2-large` | MCL API only |
+| Image and video segmentation | `facebook/sam2.1-hiera-large` | MCL API only |
+| Object detection | `facebook/detr-resnet-50` | MCL API only |
 
-| Use | Repo id |
-|-----|---------|
-| Translation | `facebook/nllb-200-3.3B`, `facebook/nllb-200-distilled-600M`, `facebook/mbart-large-50`, `facebook/mbart-large-50-many-to-many-mmt`, `google-t5/t5-base`, `google-t5/t5-small` |
-| Embeddings | `sentence-transformers/all-MiniLM-L6-v2`, `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` |
-| Classification / NLU | `google-bert/bert-base-uncased`, `distilbert/distilbert-base-uncased-finetuned-sst-2-english`, `FacebookAI/xlm-roberta-large`, `microsoft/mdeberta-v3-base` |
-| Zero-shot classification | `MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7` (13 files) |
+The thirteen text models are **probe-verified** from inside the SRE
+(2026-08-22/26); the six multimedia models are **[documented]** only — run
+`hf_list_files()` on one before planning around it.
 
-**Entry #11 is mis-titled on Meta's page.** It carries the *DeBERTaV3* paper title
-but links to `microsoft/mdeberta-v3-base` — **[link target read from the page
-2026-08-26]**, and Meta Support confirmed the same repo. The English-only
-`microsoft/deberta-v3-base` / `-large` are not approved and return 400
-**[verified by probing 2026-08-22]**. Reading the entry's name and trying the
-English repo is the trap; use `microsoft/mdeberta-v3-base`.
+**Two mDeBERTa entries, two different tools.** `microsoft/mdeberta-v3-base` is a
+plain multilingual encoder to fine-tune; the `MoritzLaurer/…-xnli-…` entry is an
+XNLI-finetuned **zero-shot classifier** with the NLI head already trained. Until
+2026-10 Meta's page titled the first with the English DeBERTaV3 *paper*, which
+sent people to `microsoft/deberta-v3-base` — **not approved**, 400
+**[verified by probing 2026-08-22]**. The page's titles are now accurate. History:
+`references/ml_models_approved.md`.
 
-⚠ **Entry #12 is *not* `microsoft/mdeberta-v3-base`** — an earlier version of this
-skill said it was. Meta links it to
-`MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7` **[verified by listing
-2026-08-26, 13 files]** — an XNLI-finetuned **zero-shot classifier**, not a base
-model. If you want a plain mDeBERTa encoder to fine-tune, that is
-`microsoft/mdeberta-v3-base` (entry #11); if you want zero-shot topic labelling
-off the shelf, entry #12 is the one with the NLI head already trained. See
-`references/ml_models_approved.md` § "Correction 2026-08-26".
-
-`references/ml_models_approved.md` holds the verbatim list as Meta prints it,
-alongside these ids. The list grows — check the
+`references/ml_models_approved.md` holds the verbatim list as Meta prints it.
+The list grows — check the
 [page](https://developers.facebook.com/docs/researcher-platform/features/ml-models)
-rather than trusting this table, and resolve any new entry's id with
-`hf_list_files()` rather than guessing its org prefix.
+rather than trusting this table.
+
+### Multimedia models (MCL API environments) — [documented 2026-10-12]
+
+Six models for audio, images and video, announced on both Meta changelogs on
+2026-10-12. Nothing below has been run in the SRE; sizes and file lists are read
+from Hugging Face's public API on 2026-10-21, everything about the SRE side is
+**[inferred]** from the verified behaviour of the text models.
+
+**Do not `hf_download_repo()` these.** It pulls every weight format in the repo
+(§ "Downloading, as documented"), and for these repos that is 2–8× what you
+need — and for Whisper, more than the disk:
+
+| Repo | Whole repo | Files you need (PyTorch) | Needed size |
+|------|-----------:|--------------------------|------------:|
+| `openai/whisper-large-v3` | **24.7 GB** | `model.safetensors` + `config.json`, `generation_config.json`, `preprocessor_config.json`, `tokenizer.json`, `tokenizer_config.json`, `vocab.json`, `merges.txt`, `added_tokens.json`, `special_tokens_map.json`, `normalizer.json` | 3.1 GB |
+| `openai/clip-vit-large-patch14` | 6.9 GB | `model.safetensors` + `config.json`, `preprocessor_config.json`, `tokenizer.json`, `tokenizer_config.json`, `vocab.json`, `merges.txt`, `special_tokens_map.json` | 1.7 GB |
+| `facebook/dinov2-large` | 2.4 GB | `model.safetensors` + `config.json`, `preprocessor_config.json` | 1.2 GB |
+| `facebook/sam2.1-hiera-large` | 1.8 GB | `model.safetensors` + `config.json`, `preprocessor_config.json`, `processor_config.json`, `video_preprocessor_config.json` | 0.9 GB |
+| `facebook/detr-resnet-50` | 0.3 GB | `model.safetensors` + `config.json`, `preprocessor_config.json` — **from the `no_timm` revision**, see below | 0.2 GB |
+| `facebook/wav2vec2-base-960h` | 1.1 GB | `model.safetensors` + `config.json`, `preprocessor_config.json`, `feature_extractor_config.json`, `tokenizer_config.json`, `vocab.json`, `special_tokens_map.json` | 0.4 GB |
+
+With ~23 GB free in `/home/jovyan` **[verified 2026-08-22]**, a whole-repo Whisper
+download fails part-way and leaves the truncated files described in § "Downloading, as
+documented". Whisper's repo also carries **two fp32 shards**
+(`model.fp32-0000{1,2}-of-00002.safetensors`, 6.2 GB) beside the fp16
+`model.safetensors`; the generic `\.safetensors$` filter in § "Fetching only the
+files you need" would take both. Use the explicit lists above.
+
+The generic filter has a second gap for every model here: it skips
+`preprocessor_config.json` (and Whisper's `generation_config.json`), which
+`AutoProcessor` / `AutoImageProcessor` need. A text model never needed them.
+
+Code: `languages/r/utilities.md` § "Fetching a multimedia model" · `languages/python/utilities.md` § "Fetching a multimedia model"
+
+**Model-specific traps, all [inferred] from the repos' configs:**
+
+- **DETR wants a second download it cannot make.** `facebook/detr-resnet-50` on
+  `main` builds its ResNet-50 backbone through **`timm`** and, by default, asks
+  timm for *pretrained* backbone weights — a hub fetch the SRE cannot make, and
+  `timm` may not be installed. The repo has a **`no_timm` branch** that uses
+  `transformers`' own ResNet; download with `revision = "no_timm"` (the files land
+  in `~/huggingface/facebook/detr-resnet-50/no_timm`). A non-`main` revision of an
+  approved repo is accepted by the proxy **[verified for SHAs 2026-08-22]**; this
+  branch is untested.
+- **SAM 2.1 needs a recent `transformers`.** Its config declares
+  `Sam2VideoModel`, written by `transformers` 4.56. The SRE's `transformers`
+  version has not been read (`docs/ML_MODELS_OPEN_QUESTIONS.md` Q13); on an older
+  one, loading fails with an unknown `model_type: sam2_video`. The repo also ships
+  `sam2.1_hiera_large.pt` + a YAML for Meta's standalone `sam2` package — skip
+  them unless you install that package.
+- **Audio needs a decoder.** Whisper and wav2vec 2.0 take a 16 kHz waveform, not a
+  file. Turning an MP4 or OGG into one needs `ffmpeg`, `librosa`, `soundfile` or
+  `torchaudio`, none of which has been checked in the SRE — § "Installing
+  packages" (conda-forge carries `ffmpeg`).
+- **Whisper on a CPU server is impractically slow** at 1.55 B parameters. Use a
+  GPU server (§ "CPU or GPU Server") and load in `float16`.
+
+**Where the media comes from is still open.** These models are only useful if
+the image, audio and video bytes reach your notebook. Posts expose presigned S3
+download URLs on request (`references/field_reference.md` § "`multimedia{url}` DOES work"), but
+fetching them from an SRE cell has not been tested, and the "multimedia queries"
+quota in SKILL.md is documented for third-party cleanrooms, not the SRE. Meta
+shipping vision and speech models into MCL API environments suggests the path
+exists; until someone runs it, treat it as **[open]** —
+`docs/ML_MODELS_OPEN_QUESTIONS.md` Q21–Q24.
 
 ### Restrictions
 
 - **Approved list only.** No internet access means an unlisted model cannot be
   fetched at all, by any route.
-- **Text models with an open-source license only** qualify for approval.
-- **Unlisted models require a support ticket** justifying the use case.
+- **Six of the 19 are MCL-API-environment only** — the multimedia models above.
+- **Open-source license required.** Only models on the Hugging Face Hub under an
+  open-source license can be considered. *(Until 2026-10 the page also required
+  text-based models; that condition is gone.)*
+- **Unlisted models require a support ticket** with a link to the model and a use
+  case tied to your approved research agenda. A model approved this way is made
+  available to all researchers.
 - **Use a GPU server** for inference — models are optimized for GPU and the
   page says runtimes are faster. Choosing one is a server-start decision, not a
   code one: see "CPU or GPU Server" below.

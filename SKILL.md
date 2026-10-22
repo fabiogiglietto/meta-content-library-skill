@@ -1,13 +1,13 @@
 ---
 name: mcl-api
 description: "Meta Content Library (MCL) API v6.0 from R or Python. Use when querying Facebook, Instagram or WhatsApp content in Meta's SRE or the SOMAR VDE — async jobs, producer lists, SNAPSHOT mode, MCL IDs, quotas, error subcodes — whether the code is R via reticulate (the verified layer) or Python with the metacontentlibraryapi client and pandas (documented, not yet field-tested). Defaults to R when the language is not stated."
-version: 2.2.0
-updated: 2026-10-14
+version: 2.3.0
+updated: 2026-10-22
 ---
 
 # Meta Content Library API v6.0 — R and Python
 
-> **Skill Version:** 2.2.0 | **Updated:** 2026-10-14 | [Changelog](CHANGELOG.md)
+> **Skill Version:** 2.3.0 | **Updated:** 2026-10-22 | [Changelog](CHANGELOG.md)
 
 > Independent project, not affiliated with or endorsed by Meta Platforms, Inc. "Meta", "Meta Content Library", "Facebook", "Instagram" and "WhatsApp"
 > are trademarks of Meta Platforms, Inc., used only to identify the API this skill documents.
@@ -27,8 +27,9 @@ updated: 2026-10-14
   leave as numbers. See `references/utilities.md` § "Getting Results Out"
 - **No internet access** *(inside the SRE — not for you; see below)*: R packages
   come from a custom CRAN mirror, Python packages from a pip channel, and
-  pre-trained ML models from an approved Hugging Face list — see
-  `references/utilities.md`
+  pre-trained ML models from an approved Hugging Face list — text models
+  everywhere, plus speech, image and video models in MCL API environments
+  (since 2026-10-12) — see `references/utilities.md`
 - **Server type**: CPU or **GPU**, chosen when the notebook server starts and
   switchable mid-session without losing work — see `references/utilities.md` §
   "CPU or GPU Server"
@@ -531,6 +532,16 @@ follower threshold alone moved 25,000 → 1,000 → 100 across v4.0, v5.0 and v6
 version bump is querying a different corpus than the paper described; pin the
 version explicitly with `set_default_version()` if that matters.
 
+**A pinned version has a shelf life.** Meta deprecates the version before last
+about a month after notice — **v5.0 is deprecated on 2026-11-09** (notice
+2026-10-09), as v4.0 was on 2025-12-10 and v3.0 on 2025-07-31. A notebook pinned
+to `"5.0"` stops being re-runnable then: re-pin to `"6.0"`, and expect a different
+corpus, not just a different URL — v6.0 lowered the follower threshold from 1,000
+to 100 and widened "verified" to include paid Meta Verified subscriptions
+(changelog, 2025-11-10). Keep the citation
+on the version the published results came from. What a call to a deprecated
+version returns is not documented **[open]**.
+
 Current list, including older versions:
 <https://developers.facebook.com/docs/content-library-and-api/citations>.
 
@@ -596,15 +607,16 @@ Call it once per run, on the first successful response, beside the positive cont
 
 ### Baseline — what the last check found
 
-> **Documentation checked: 2026-08-25.** Two changelogs are watched, and at that
-> date the newest **dated** entry on each was:
+> **Documentation checked: 2026-10-21.** Two changelogs are watched, and at that
+> date the newest **reconciled** entry on each was:
 >
-> | Tree | Newest entry |
+> | Tree | Newest reconciled entry |
 > |---|---|
-> | [Content Library and API](https://developers.facebook.com/docs/content-library-and-api/changelog) | **2026-04-30** — WhatsApp channels data, which this skill covers |
-> | [Secure Research Environment](https://developers.facebook.com/docs/researcher-platform/changelog) | **2025-08-18** — the Researcher Platform → Secure Research Environment rename |
+> | [Content Library and API](https://developers.facebook.com/docs/content-library-and-api/changelog) | **2026-10-12** — new multimedia ML models in the SRE, which this skill covers. The entry before it, **2026-10-09** (v5.0 deprecated on 2026-11-09), is covered in [Citing the Data](#citing-the-data) |
+> | [Secure Research Environment](https://developers.facebook.com/docs/researcher-platform/changelog) | **2026-10-12** — the same release, announced on this tree too |
 >
-> Everything below v6.0 in Meta's version list was already reconciled.
+> Everything below v6.0 in Meta's version list was already reconciled as of
+> 2026-08-25.
 
 State the baseline as a *finding*, not just a date: the next checker compares one
 entry against another rather than doing arithmetic on when someone last looked.
