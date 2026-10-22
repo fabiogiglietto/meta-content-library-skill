@@ -1,13 +1,13 @@
 ---
 name: mcl-api
 description: "Meta Content Library (MCL) API v6.0 from R or Python. Use when querying Facebook, Instagram or WhatsApp content in Meta's SRE or the SOMAR VDE — async jobs, producer lists, SNAPSHOT mode, MCL IDs, quotas, error subcodes — whether the code is R via reticulate (the verified layer) or Python with the metacontentlibraryapi client and pandas (documented, not yet field-tested). Defaults to R when the language is not stated."
-version: 2.3.0
+version: 2.5.0
 updated: 2026-10-22
 ---
 
 # Meta Content Library API v6.0 — R and Python
 
-> **Skill Version:** 2.3.0 | **Updated:** 2026-10-22 | [Changelog](CHANGELOG.md)
+> **Skill Version:** 2.5.0 | **Updated:** 2026-10-22 | [Changelog](CHANGELOG.md)
 
 > Independent project, not affiliated with or endorsed by Meta Platforms, Inc. "Meta", "Meta Content Library", "Facebook", "Instagram" and "WhatsApp"
 > are trademarks of Meta Platforms, Inc., used only to identify the API this skill documents.
@@ -19,8 +19,8 @@ updated: 2026-10-22
   granted for
 - **Language**: R via reticulate, or Python. The MCL client is the Python
   package `metacontentlibraryapi`; R reaches it through reticulate. Both kernels
-  share one interpreter, `/opt/conda/bin/python`, 3.11.9 [verified 2026-09-10 from
-  the Python 3 kernel; pandas 2.3.3]. See
+  share one interpreter, `/opt/conda/bin/python` — 3.11.9 on 2026-09-10 (pandas
+  2.3.3), **3.13 as of 2026-10-22** [verified, from both kernels]. See
   [Choosing the language](#choosing-the-language)
 - **Export**: notebook only, and **its outputs are stripped** — code, markdown and
   **images** survive; cell outputs, stdout, stderr and HTML do not. Numbers do not

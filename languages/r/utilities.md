@@ -93,14 +93,18 @@ Facts: `references/utilities.md` § "Download Machine Learning Models"
 Facts: `references/utilities.md` § "Calling the helper from either kernel"
 
 `fbri.package_managers.huggingface` imports from R-side reticulate, which binds
-`/opt/conda/bin/python3` (3.11). The import is verified; the download call
-itself has not been run yet.
+`/opt/conda/bin/python3`. **Downloads no longer work from R [verified
+2026-10-22]:** each one stops at an addendum prompt that reticulate cannot
+answer, and fails with `AddendumInteractionRequired`. Download in a Python 3
+notebook (`languages/python/utilities.md` § "Downloading a model"), then load
+from R. Listing still works from R.
 
 ```r
 library(reticulate)
 
 hf <- import("fbri.package_managers.huggingface")
-hf$hf_download_repo(repo = "facebook/mbart-large-50-many-to-many-mmt")
+# hf$hf_download_repo(repo = "facebook/mbart-large-50-many-to-many-mmt")
+#   fails from R since 2026-10: AddendumInteractionRequired — run it in Python
 
 model_path <- file.path(path.expand("~"), "huggingface",
                         "facebook/mbart-large-50-many-to-many-mmt", "main")
@@ -137,54 +141,40 @@ unlink(model_dir, recursive = TRUE)   # start clean after any failed attempt
 
 Facts: `references/utilities.md` § "Download Machine Learning Models"
 
+Since 2026-10 this loop fails from R at the first addendum prompt; the Python
+mirror is the one to run. Kept for notebooks written before then.
+
 ```r
 files <- unlist(hf$hf_list_files(REPO, "main"))
 want  <- files[grepl("^(config|tokenizer|vocab|special_tokens)|\\.safetensors$", files)]
 for (f in want) hf$hf_download_file(f, REPO, "main")
 ```
 
-### Fetching a multimedia model — [documented 2026-10-12, untested]
+### Fetching a multimedia model — [verified 2026-10-22]
 
 Facts: `references/utilities.md` § "Multimedia models (MCL API environments)"
 
-MCL API environments only. Name the files — the generic filter above misses
-`preprocessor_config.json` and would take Whisper's 6 GB of fp32 shards. Never
-`hf_download_repo()` Whisper: the whole repo (24.7 GB) is larger than the disk.
+MCL API environments only. **Download in Python** — the addendum prompt cannot
+be answered from R (`languages/python/utilities.md` § "Fetching a multimedia
+model"). Load and run from R as usual; the paths are the same:
 
 ```r
 library(reticulate)
-hf <- import("fbri.package_managers.huggingface")
+tf_   <- import("transformers")
+torch <- import("torch")
 
-MM_FILES <- list(
-  "openai/whisper-large-v3"       = c("config.json", "generation_config.json", "preprocessor_config.json",
-                                      "tokenizer.json", "tokenizer_config.json", "vocab.json", "merges.txt",
-                                      "added_tokens.json", "special_tokens_map.json", "normalizer.json"),
-  "openai/clip-vit-large-patch14" = c("config.json", "preprocessor_config.json", "tokenizer.json",
-                                      "tokenizer_config.json", "vocab.json", "merges.txt",
-                                      "special_tokens_map.json"),
-  "facebook/dinov2-large"         = c("config.json", "preprocessor_config.json"),
-  "facebook/sam2.1-hiera-large"   = c("config.json", "preprocessor_config.json", "processor_config.json",
-                                      "video_preprocessor_config.json"),
-  "facebook/detr-resnet-50"       = c("config.json", "preprocessor_config.json"),
-  "facebook/wav2vec2-base-960h"   = c("config.json", "preprocessor_config.json", "feature_extractor_config.json",
-                                      "tokenizer_config.json", "vocab.json", "special_tokens_map.json")
-)
-# DETR from its no_timm branch: main needs timm and a pretrained-backbone fetch
-mm_revision <- function(repo) if (repo == "facebook/detr-resnet-50") "no_timm" else "main"
+# DETR comes from its no_timm branch; the other five from main
+mm_dir <- function(repo, rev = if (repo == "facebook/detr-resnet-50") "no_timm" else "main")
+  file.path(path.expand("~"), "huggingface", repo, rev)
 
-REPO <- "openai/clip-vit-large-patch14"
-REV  <- mm_revision(REPO)
-hf$hf_list_files(REPO, REV)   # free: confirms this environment may download it
-for (f in c(MM_FILES[[REPO]], "model.safetensors")) hf$hf_download_file(f, REPO, REV)
-
-MDIR <- file.path(path.expand("~"), "huggingface", REPO, REV)
-tf_  <- import("transformers")
+MDIR <- mm_dir("openai/clip-vit-large-patch14")
 proc <- tf_$AutoProcessor$from_pretrained(MDIR)
-mod  <- tf_$AutoModel$from_pretrained(MDIR)
+mod  <- tf_$AutoModel$from_pretrained(MDIR)$eval()$to("cuda")
 ```
 
-For Whisper load in half precision on a GPU server:
-`tf_$AutoModelForSpeechSeq2Seq$from_pretrained(MDIR, torch_dtype = torch$float16)`.
+SAM 2.1: `tf_$Sam2Model$from_pretrained(...)`, not `AutoModel` (which gives
+`Sam2VideoModel`). Whisper: `tf_$AutoModelForSpeechSeq2Seq$from_pretrained(MDIR,
+dtype = torch$float16)` on a GPU server.
 
 ### Pinning a revision — [verified 2026-08-22]
 

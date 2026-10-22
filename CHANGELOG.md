@@ -4,12 +4,12 @@ All notable changes to the `mcl-api` skill (named `mcl-api-r` through v1.19.0). 
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
-## v2.3.0 (2026-10-22) — `mcl_fromJSON()` mangled mixed ID columns; default page size is 10
+## v2.5.0 (2026-10-22) — `mcl_fromJSON()` mangled mixed ID columns; default page size is 10
 
 From a review of `mcl-political-reach-study` against this skill, driven in the
 SRE on 2026-10-14 (R, API `latest` = v6.0; free calls plus one 2-row LIVE job).
-Prepared as v2.2.0 on 2026-10-14; renumbered at merge because v2.2.0 and
-v2.2.1 shipped on `main` first.
+Prepared as v2.2.0 on 2026-10-14; renumbered at merge — to v2.3.0, then
+v2.5.0 — because v2.2.0, v2.2.1 and v2.4.0 shipped on `main` first.
 
 - **Correction — the R ID helper corrupted the case it exists for**
   (`languages/r/ids.md` § "mcl_fromJSON"). It parsed with `bigint_as_char = TRUE`
@@ -38,6 +38,43 @@ v2.2.1 shipped on `main` first.
   0; the same eight together: 30; a LIVE job on a "10" surface returned 2 rows.
 - **Not filed as a fact:** 70 back-to-back sync estimates ran ~35/min with 0
   failures — too slow to test the 60/min limit; inconclusive.
+
+## v2.4.0 (2026-10-22) — the multimedia models, run in the SRE
+
+The six multimedia models of v2.2.0 were listed, downloaded and run on
+2026-10-22 in an MCL API environment (Python 3 kernel, GPU server, synthetic
+inputs only). All six work. Three things changed underneath the skill.
+Numbered v2.4.0 because PR #48 then held v2.3.0; that PR shipped later as v2.5.0,
+so there is no v2.3.0.
+
+- **Every download now asks you to accept Meta's "Researcher Machine Learning
+  Model Addendum"** (October 12th 2026), once per call and for every model, by
+  blocking on `input()`. **Downloads therefore fail from R** with
+  `AddendumInteractionRequired`, and must run in a Python 3 notebook. New
+  `references/utilities.md` § "Every download asks you to accept an addendum":
+  what is gated, how to plan downloads around the prompts, and a summary of
+  the addendum — notably §4, no identifying natural persons with any model.
+  §7(a) ("unmodified … exact approved version") versus non-`main` revisions and
+  fine-tuning is logged as open (Q25).
+- **`hf_download_file()` and `hf_download_repo()` now return the path**; they
+  returned `None` on 2026-08-22.
+- **The image moved**: Python 3.13 (was 3.11.9), `transformers` 4.57.1, `torch`
+  2.11.0+cu128; `librosa`, `soundfile`, `accelerate` and TorchCodec absent;
+  `/home/jovyan` has **~13 GB free** (was 23). Updated in `SKILL.md`,
+  `languages/*/setup.md` and the testing procedure.
+- **`references/utilities.md` § "Multimedia models"** is now `[verified]`:
+  whole-repo downloads for DINOv2, SAM 2.1, DETR `no_timm` and wav2vec2 (one
+  prompt each), named files for CLIP and Whisper; measured sizes on disk;
+  DETR `no_timm` loads offline; SAM 2.1 must be loaded as `Sam2Model` because
+  `AutoModel` gives `Sam2VideoModel`; decode audio with `ffmpeg` since
+  `torchaudio.load()` needs TorchCodec; Whisper runs in fp16 on a Tesla T4,
+  with `dtype=` and explicit `language`/`task`.
+- **`languages/r/utilities.md`** — download code marked as Python-only; the
+  multimedia section now only loads. **`languages/python/utilities.md`** — the
+  tested download and loading recipe.
+- **`docs/ML_MODELS_OPEN_QUESTIONS.md`** — Phase G results; Q22 and Q23 closed,
+  Q21 half (the 400 outside MCL API environments is untested), Q2, Q3, Q6, Q12,
+  Q13 and Q14 updated, Q25 added. Q24, fetching real post media, stays open.
 
 ## v2.2.1 (2026-10-21) — v5.0 deprecation; tripwire reads headings only
 

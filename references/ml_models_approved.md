@@ -124,7 +124,7 @@ path `~/huggingface/<REPO_NAME>/<REVISION>`, the mBART example, the GPU note.
 **Practical facts about the new six** — size, required files, offline traps — are
 in `references/utilities.md` § "Multimedia models (MCL API environments)". The
 headline: **`openai/whisper-large-v3` is 24.7 GB as a whole repository**, more than
-the ~23 GB free in `/home/jovyan`, so `hf_download_repo()` on it will fill the
+the ~13 GB free in `/home/jovyan` (2026-10-22), so `hf_download_repo()` on it will fill the
 disk.
 
 ### The org prefix is mandatory

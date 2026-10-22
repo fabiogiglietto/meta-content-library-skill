@@ -28,7 +28,7 @@ there has a Python twin at the same address:
 ### Testing Environment Requirements
 
 - Meta Research Platform access (Amazon WorkSpaces Secure Browser)
-- JupyterLab with a **Python 3 kernel** (`/opt/conda/bin/python3`, 3.11)
+- JupyterLab with a **Python 3 kernel** (`/opt/conda/bin/python3`, 3.13 as of 2026-10-22)
 - `metacontentlibraryapi` importable from that kernel; pandas available
 - MCL API v6.0 access
 - Active query budget (check before testing — Test 1.1 is first for a reason)
