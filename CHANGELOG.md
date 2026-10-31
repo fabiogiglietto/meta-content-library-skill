@@ -4,6 +4,19 @@ All notable changes to the `mcl-api` skill (named `mcl-api-r` through v1.19.0). 
 the version history — `SKILL.md` and `README.md` link here rather than
 maintaining their own copies.
 
+## v2.5.1 (2026-10-31) — the Content Library UI has a 1,000-per-week multimedia budget
+
+From a teaching-corpus run (Instagram, UI CSV of 3,992 posts with multimedia,
+media fetched through the logged-in browser).
+
+- **Correction** (SKILL.md § "Rate Limits & Budget"): the 1,000-per-week
+  multimedia pool was listed as cleanroom-only. That holds for the API, but the
+  Content Library UI has a pool of the same size of its own, charged per media
+  file fetched from a CSV's `multimedia[].url` links, answered with "User Query
+  Budget Exhausted" when empty, and not shown on the UI's Account details page.
+  Owner: `references/utilities.md` § "The Content Library UI has its own
+  multimedia budget" **[verified 2026-10-31]**; the SKILL.md table points there.
+
 ## v2.5.0 (2026-10-22) — `mcl_fromJSON()` mangled mixed ID columns; default page size is 10
 
 From a review of `mcl-political-reach-study` against this skill, driven in the

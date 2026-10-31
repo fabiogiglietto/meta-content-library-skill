@@ -1,13 +1,13 @@
 ---
 name: mcl-api
 description: "Meta Content Library (MCL) API v6.0 from R or Python. Use when querying Facebook, Instagram or WhatsApp content in Meta's SRE or the SOMAR VDE — async jobs, producer lists, SNAPSHOT mode, MCL IDs, quotas, error subcodes — whether the code is R via reticulate (the verified layer) or Python with the metacontentlibraryapi client and pandas (documented, not yet field-tested). Defaults to R when the language is not stated."
-version: 2.5.0
-updated: 2026-10-22
+version: 2.5.1
+updated: 2026-10-31
 ---
 
 # Meta Content Library API v6.0 — R and Python
 
-> **Skill Version:** 2.5.0 | **Updated:** 2026-10-22 | [Changelog](CHANGELOG.md)
+> **Skill Version:** 2.5.1 | **Updated:** 2026-10-31 | [Changelog](CHANGELOG.md)
 
 > Independent project, not affiliated with or endorsed by Meta Platforms, Inc. "Meta", "Meta Content Library", "Facebook", "Instagram" and "WhatsApp"
 > are trademarks of Meta Platforms, Inc., used only to identify the API this skill documents.
@@ -383,7 +383,8 @@ Code: `languages/r/jobs.md` § "Async query template" · `languages/python/jobs.
 | Max async results | ~100,000 per query |
 | Snapshots | 100 concurrent per user (subcode 3790172; LIVE jobs are exempt) |
 | Comment estimate | Reports "1 million or more" above 1,000,000 |
-| Multimedia queries | 1,000 per rolling week — **third-party cleanroom environments only**, not the SRE |
+| Multimedia queries (API) | 1,000 per rolling week — **third-party cleanroom environments only**, not the SRE |
+| Multimedia downloads (Content Library **UI**) | 1,000 media fetches per 7-day rolling window — a separate UI pool, **not shown** on the UI's Account details page; see `references/utilities.md` § "The Content Library UI has its own multimedia budget" |
 
 The 7-day window is rolling *"to the second"*, not to the day: each query's usage
 expires exactly seven days after it was submitted.
