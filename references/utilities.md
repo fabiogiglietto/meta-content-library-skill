@@ -41,7 +41,8 @@ Three things the four-field description above does not cover:
   locale — useful for pinning a reading to a moment without trusting the client.
 - There is a **third pool, `multimedia`**, carrying only *two* fields and a
   1,000 ceiling. It is not governed like the other two and is **cleanroom-only,
-  not available in the SRE** (SKILL.md § "Rate Limits & Budget").
+  not available in the SRE** (SKILL.md § "Rate Limits & Budget"). The
+  Content Library **UI** has a pool of the same size of its own — next section.
 - `current_usage` equalled `total_usage` in this read, with
   `preallocated_rows_for_running_queries` at 0 and nothing in flight — which is
   what makes the pair worth reading together: a gap between them means budget is
@@ -51,6 +52,34 @@ Three things the four-field description above does not cover:
 concurrently, 85% of trailing-7-day query usage belonged to the other one.
 Compute headroom from the endpoint at submission time; never reason from what
 your own study has spent.
+
+### The Content Library UI has its own multimedia budget — **[verified 2026-10-31]**
+
+Downloading the media of a UI CSV ("CSV with multimedia") is capped at **1,000
+per 7-day rolling window**, separately from every pool above. Meta states it on
+the Content Library page, § "Additional information": *"You also have a separate
+multimedia query budget in your downloads of 1,000 search results per 7-day
+rolling window."* (<https://developers.facebook.com/docs/content-library-and-api/content-library>).
+
+What the documentation does not say, and a run on 2026-10-31 showed:
+
+- **It is charged per media file fetched**, not per CSV or per post. The CSV's
+  `multimedia[].url` values (`lookaside.facebook.com/mcl/multimedia/lookaside/?download_info=…`)
+  download only in the logged-in browser (HTTP 401 without the session). After
+  ~1,000 fetches in 72 minutes (900 files saved, the rest retries and cancelled
+  navigations), every further fetch returned an HTML page reading **"User Query
+  Budget Exhausted"** instead of the file. A CSV of 3,992 posts / 4,998 media
+  items therefore needs five rolling weeks at the default.
+- **It is invisible until it bites.** The UI's Account details page lists only
+  the weekly query budget, the weekly comment budget and the daily CSV-download
+  count (10/day); no multimedia counter appears there or in the CSV request flow.
+- **It interacts with link expiry.** The media links expire 30 days after the CSV
+  request, so at 1,000 per week at most ~4,000 media can be fetched from one CSV
+  before its links die. Budget for it before requesting: fetch a prioritised
+  subset (e.g. the first item of each post), or ask Meta Research Tools Support
+  for an increase first.
+- An automated fetch loop opens a new tab or page per failed item once the pool
+  is empty: stop on the first "User Query Budget Exhausted" page.
 
 ### Quota Thresholds
 
